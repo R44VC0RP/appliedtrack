@@ -25,6 +25,7 @@ import { LinkedInLogoIcon } from '@radix-ui/react-icons'
 import { Separator } from "@/components/ui/separator"
 import { format } from 'date-fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Header } from '@/components/header'
 
 // Job status options
 const jobStatuses = ['Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
@@ -321,37 +322,25 @@ export function JobTrack() {
     setIsModalOpen(true);
   };
 
+  const handleNotificationClick = () => {
+    // Handle notification click
+    console.log('Notification clicked')
+  }
+
+  const handleProfileClick = () => {
+    // Handle profile click
+    console.log('Profile clicked')
+  }
+
   return (
+    <>
+    <Header
+        user={{ name: 'John Doe' }}
+        onNotificationClick={handleNotificationClick}
+        onProfileClick={handleProfileClick}
+      />
     <div className="container mx-auto p-4">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center space-x-4">
-          <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
-          <h1 className="text-3xl font-bold">JobTrack</h1>
-        </div>
-        <div className="flex items-center space-x-4">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                
-                  <Bell className="h-5 w-5" />
-              </TooltipTrigger>
-              <TooltipContent>
-                Notifications
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                  <UserCircle className="h-6 w-6" />
-              </TooltipTrigger>
-              <TooltipContent>
-                User Profile
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
+      
       
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
         <div className="relative w-full sm:w-64">
@@ -535,6 +524,7 @@ export function JobTrack() {
         setIsModalOpen={setIsModalOpen}
       />
     </div>
+    </>
   )
 }
 

@@ -1,10 +1,10 @@
-import Image from "next/image";
-import { JobTrack } from "@/components/job-tracker-timeline-v3";
+
+import Homepage from "@/components/homepage";
 
 export default function Home() {
   return (
     <div>
-      <JobTrack />
+      <Homepage />
     </div>
   )
 }
