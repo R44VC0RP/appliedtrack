@@ -1,8 +1,16 @@
 import React from 'react'
 import Image from 'next/image'
+import { Button } from '@/components/ui/button'
 import { Bell, UserCircle, Grid } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import logo from '@/app/logos/logo.png'
+import {
+  ClerkProvider,
+  SignInButton,
+  SignedIn,
+  SignedOut,
+  UserButton
+} from '@clerk/nextjs'
 import Link from 'next/link'
 interface HeaderProps {
   user?: {
@@ -24,7 +32,6 @@ export function Header({ user, onNotificationClick, onProfileClick }: HeaderProp
           <h1 className="text-3xl font-bold">JobTrack</h1>
         </div>
         <div className="flex items-center space-x-4">
-        
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -52,16 +59,19 @@ export function Header({ user, onNotificationClick, onProfileClick }: HeaderProp
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button onClick={onProfileClick} className="focus:outline-none">
-                  {user && user.avatar ? (
-                    <Image src={user.avatar} alt={user.name} width={24} height={24} className="rounded-full" />
-                  ) : (
-                    <UserCircle className="h-6 w-6" />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <SignedOut>
+                    <SignInButton>
+                      <Button>Get Started</Button>
+                    </SignInButton>
+                  </SignedOut>
+                  <SignedIn>
+                    <UserButton />
+                  </SignedIn>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
-                {user ? user.name : 'User Profile'}
+                {user ? user.name : 'Get Started'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -70,4 +80,3 @@ export function Header({ user, onNotificationClick, onProfileClick }: HeaderProp
     </header>
   )
 }
-

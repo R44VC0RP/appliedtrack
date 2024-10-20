@@ -26,6 +26,10 @@ import { Separator } from "@/components/ui/separator"
 import { format } from 'date-fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Header } from '@/components/header'
+import {
+  SignedIn,
+  SignedOut
+} from '@clerk/nextjs'
 
 // Job status options
 const jobStatuses = ['Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
@@ -339,191 +343,196 @@ export function JobTrack() {
         onNotificationClick={handleNotificationClick}
         onProfileClick={handleProfileClick}
       />
-    <div className="container mx-auto p-4">
-      
-      
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-        <div className="relative w-full sm:w-64">
-          <Input
-            type="text"
-            placeholder="Search jobs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-        </div>
-        <div className="flex items-center space-x-4">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="p-2 border rounded-md"
-          >
-            <option value="All">All Statuses</option>
-            {jobStatuses.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-          <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-md">
-            <Button
-              variant={layoutMode === 'list' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setLayoutMode('list')}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setLayoutMode('masonry')}
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {layoutMode === 'list' ? (
-          <motion.div
-            className="space-y-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {filteredJobs.map((job) => (
-              <motion.div
-                key={job.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
+      <SignedOut>
+        <SignedOutCallback />
+      </SignedOut>
+      <SignedIn>
+        <div className="container mx-auto p-4">
+          
+          
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div className="relative w-full sm:w-64">
+              <Input
+                type="text"
+                placeholder="Search jobs..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            </div>
+            <div className="flex items-center space-x-4">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="p-2 border rounded-md"
               >
-                <JobCard 
-                  job={job} 
-                  openJobDetails={openJobDetails} 
-                  handleKeyDown={handleKeyDown} 
-                  layoutMode={layoutMode} 
-                  updateJobStatus={updateJobStatus}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="grid gap-6"
-            style={{
-              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            }}
-          >
-            {filteredJobs.map((job) => (
-              <motion.div
-                key={job.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-              >
-                <JobCard 
-                  job={job} 
-                  openJobDetails={openJobDetails} 
-                  handleKeyDown={handleKeyDown} 
-                  layoutMode={layoutMode} 
-                  updateJobStatus={updateJobStatus}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>{selectedJob && selectedJob.id ? 'Edit Job Details' : 'Add New Job'}</DialogTitle>
-          </DialogHeader>
-          {selectedJob && (
-            <ScrollArea className="flex-grow">
-              <div className="p-4 space-y-4">
-                <div>
-                  <Label htmlFor="company">Company Name *</Label>
-                  <Input 
-                    id="company" 
-                    value={selectedJob.company || ''} 
-                    onChange={(e) => setSelectedJob({...selectedJob, company: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="website">Company Website *</Label>
-                  <Input 
-                    id="website" 
-                    value={selectedJob.website || ''} 
-                    onChange={(e) => setSelectedJob({...selectedJob, website: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="jobDescription">Job Description *</Label>
-                  <Textarea 
-                    id="jobDescription" 
-                    value={selectedJob.jobDescription || ''} 
-                    onChange={(e) => setSelectedJob({...selectedJob, jobDescription: e.target.value})}
-                    className="min-h-[200px]"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="resumeLink">Resume Used *</Label>
-                  <Input 
-                    id="resumeLink" 
-                    value={selectedJob.resumeLink || ''} 
-                    onChange={(e) => setSelectedJob({...selectedJob, resumeLink: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dateApplied">Date Applied *</Label>
-                  <Input 
-                    id="dateApplied" 
-                    type="date" 
-                    value={selectedJob.lastUpdated || ''} 
-                    onChange={(e) => setSelectedJob({...selectedJob, lastUpdated: e.target.value})}
-                    required
-                  />
-                </div>
+                <option value="All">All Statuses</option>
+                {jobStatuses.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+              <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-md">
+                <Button
+                  variant={layoutMode === 'list' ? 'default' : 'ghost'}
+                  size="icon"
+                  onClick={() => setLayoutMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
+                  size="icon"
+                  onClick={() => setLayoutMode('masonry')}
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
               </div>
-            </ScrollArea>
-          )}
-          <div className="p-4">
-            <Button onClick={() => updateJobDetails(selectedJob as Job)} className="w-full">
-              {selectedJob && selectedJob.id ? 'Save Changes' : 'Add Job'}
-            </Button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      <Button 
-        className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl"
-        onClick={openNewJobModal}
-      >
-        +
-      </Button>
+          <AnimatePresence>
+            {layoutMode === 'list' ? (
+              <motion.div
+                className="space-y-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {filteredJobs.map((job) => (
+                  <motion.div
+                    key={job.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <JobCard 
+                      job={job} 
+                      openJobDetails={openJobDetails} 
+                      handleKeyDown={handleKeyDown} 
+                      layoutMode={layoutMode} 
+                      updateJobStatus={updateJobStatus}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid gap-6"
+                style={{
+                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                }}
+              >
+                {filteredJobs.map((job) => (
+                  <motion.div
+                    key={job.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <JobCard 
+                      job={job} 
+                      openJobDetails={openJobDetails} 
+                      handleKeyDown={handleKeyDown} 
+                      layoutMode={layoutMode} 
+                      updateJobStatus={updateJobStatus}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <ViewDetailsModal
-        isOpen={isViewDetailsModalOpen}
-        onClose={closeJobDetails}
-        job={selectedJob}
-        updateJobDetails={updateJobDetails}
-        setSelectedJob={setSelectedJob}
-        setIsModalOpen={setIsModalOpen}
-      />
-    </div>
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>{selectedJob && selectedJob.id ? 'Edit Job Details' : 'Add New Job'}</DialogTitle>
+              </DialogHeader>
+              {selectedJob && (
+                <ScrollArea className="flex-grow">
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <Label htmlFor="company">Company Name *</Label>
+                      <Input 
+                        id="company" 
+                        value={selectedJob.company || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, company: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="website">Company Website *</Label>
+                      <Input 
+                        id="website" 
+                        value={selectedJob.website || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, website: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="jobDescription">Job Description *</Label>
+                      <Textarea 
+                        id="jobDescription" 
+                        value={selectedJob.jobDescription || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, jobDescription: e.target.value})}
+                        className="min-h-[200px]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="resumeLink">Resume Used *</Label>
+                      <Input 
+                        id="resumeLink" 
+                        value={selectedJob.resumeLink || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, resumeLink: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dateApplied">Date Applied *</Label>
+                      <Input 
+                        id="dateApplied" 
+                        type="date" 
+                        value={selectedJob.lastUpdated || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, lastUpdated: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+                </ScrollArea>
+              )}
+              <div className="p-4">
+                <Button onClick={() => updateJobDetails(selectedJob as Job)} className="w-full">
+                  {selectedJob && selectedJob.id ? 'Save Changes' : 'Add Job'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Button 
+            className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl"
+            onClick={openNewJobModal}
+          >
+            +
+          </Button>
+
+          <ViewDetailsModal
+            isOpen={isViewDetailsModalOpen}
+            onClose={closeJobDetails}
+            job={selectedJob}
+            updateJobDetails={updateJobDetails}
+            setSelectedJob={setSelectedJob}
+            setIsModalOpen={setIsModalOpen}
+          />
+        </div>
+      </SignedIn>
     </>
   )
 }
@@ -782,3 +791,11 @@ function ViewDetailsModal({ isOpen, onClose, job, updateJobDetails, setSelectedJ
     </Dialog>
   )
 }
+
+// Add this component at the end of the file or in a separate file
+const SignedOutCallback = () => {
+  useEffect(() => {
+    window.location.href = "/";
+  }, []);
+  return null;
+};

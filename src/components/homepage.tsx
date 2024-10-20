@@ -10,12 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart } from 'lucide-react'
 import { Header } from '@/components/header'
+import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
 
 import jobTrackrLogo from '@/app/logos/logo.png'
 
 export default function Homepage() {
   const [email, setEmail] = useState('')
-
+  const { user } = useUser()
   const features = [
     { icon: Briefcase, title: 'Job Tracking', description: 'Easily manage and track all your job applications in one place.' },
     { icon: Calendar, title: 'Interview Scheduler', description: 'Never miss an interview with our built-in scheduling system.' },
@@ -38,9 +39,17 @@ export default function Homepage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
-                  Supercharge Your Job Search
-                </h1>
+                <SignedOut>
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
+                    Supercharge Your Job Search
+                  </h1>
+                </SignedOut>
+                <SignedIn>
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
+                    Welcome back, {user?.firstName || 'User'}!
+                  </h1>
+                </SignedIn>
+                
                 <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
                   Track applications, schedule interviews, and land your dream job with JobTrackr.
                 </p>

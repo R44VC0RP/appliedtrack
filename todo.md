@@ -1,5 +1,6 @@
 # Todo:
 
+- [ ] Update the SEO, OpenGraph and Favicon
 - [ ] Finalize the homepage layout to start accepting email addresses for the waitlist
 - [ ] Add authentication (clerk)
 - [ ] Figure out a secure way to connect to the database
