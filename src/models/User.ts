@@ -1,0 +1,25 @@
+import mongoose, { Document, Schema, Model } from 'mongoose';
+
+export interface User extends Document {
+  userId: string;
+  tier: 'free' | 'premium' | 'enterprise';
+  about: string;
+  dateCreated: Date;
+  dateUpdated: Date;
+}
+
+const UserSchema: Schema = new Schema({
+  userId: { type: String, required: true, unique: true },
+  tier: { 
+    type: String, 
+    required: true, 
+    enum: ['free', 'premium', 'enterprise'],
+    default: 'free'
+  },
+  about: { type: String, default: '' },
+  dateCreated: { type: Date, default: Date.now },
+  dateUpdated: { type: Date, default: Date.now }
+});
+
+// Check if the model already exists before compiling
+export const UserModel: Model<User> = mongoose.models.User || mongoose.model<User>('User', UserSchema);

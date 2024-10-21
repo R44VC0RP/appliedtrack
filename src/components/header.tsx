@@ -22,7 +22,7 @@ interface HeaderProps {
 
 export function Header({ user, onNotificationClick }: HeaderProps) {
   return (
-    <header className="container mx-auto p-4">
+    <header className="container mx-auto p-4 mt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Link href="/">

@@ -2,17 +2,17 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+// import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+// import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart } from 'lucide-react'
 import { Header } from '@/components/header'
 import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
 
-import jobTrackrLogo from '@/app/logos/logo.png'
+// import jobTrackrLogo from '@/app/logos/logo.png'
 
 export default function Homepage() {
   const [email, setEmail] = useState('')

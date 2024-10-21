@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 // import logo from '@/app/logos/logo.png'
 import hunterLogo from '@/app/logos/hunter.png'
+import { UploadButton } from "@/utils/uploadthing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,9 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-// import { Switch } from "@/components/ui/switch"
+import { Switch } from "@/components/ui/switch"
 // import Masonry from 'react-masonry-css'
 // import { FaThLarge, FaList } from 'react-icons/fa'
 import { useMediaQuery } from 'react-responsive'
@@ -30,27 +31,36 @@ import {
   SignedIn,
   SignedOut
 } from '@clerk/nextjs'
+import { useAuth } from '@clerk/nextjs';
+import { OurFileRouter } from "@/app/api/uploadthing/core";
 
 // Job status options
 const jobStatuses = ['Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
 
 // Define types for job data
 interface Job {
-  id: number;
+  id?: string;
+  userId: string;
   company: string;
   position: string;
-  status: string;
+  status: 'Applied' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn';
   website: string;
   resumeLink: string;
-  coverLetterLink: string;
   jobDescription: string;
-  notes: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  interviewDate: string;
-  lastUpdated: string;
-  flag: string;
+  dateApplied: string;
+  // Add other fields as needed, but keep them optional
+  coverLetterLink?: string;
+  notes?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  interviewDate?: string;
+  salary?: number;
+  location?: string;
+  remoteType?: 'On-site' | 'Remote' | 'Hybrid';
+  jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+  dateUpdated?: string;
+  flag?: 'no_response' | 'update' | string;
 }
 
 // Define types for Hunter.io search results
@@ -61,93 +71,95 @@ interface HunterIoResult {
 }
 
 // Sample job data (expanded)
-const initialJobs: Job[] = [
-  {
-    id: 1,
-    company: 'TechNova Solutions',
-    position: 'Senior Frontend Developer',
-    status: 'Applied',
-    website: 'https://technovasolutions.com',
-    resumeLink: '/resumes/frontend_dev_resume.pdf',
-    coverLetterLink: '/cover_letters/technova_cover_letter.pdf',
-    jobDescription: 'TechNova is seeking an experienced frontend developer to lead our UI/UX team in creating innovative web applications...',
-    notes: 'Applied through their careers portal. Emphasized experience with React and TypeScript.',
-    contactName: 'Sarah Johnson',
-    contactEmail: 'sjohnson@technovasolutions.com',
-    contactPhone: '(555) 123-4567',
-    interviewDate: '2023-07-15',
-    lastUpdated: '2023-07-01',
-    flag: 'no_response'
-  },
-  {
-    id: 2,
-    company: 'DataSphere Analytics',
-    position: 'Data Engineer',
-    status: 'Phone Screen',
-    website: 'https://datasphereanaly.com',
-    resumeLink: '/resumes/data_engineer_resume.pdf',
-    coverLetterLink: '/cover_letters/datasphere_cover_letter.pdf',
-    jobDescription: 'Join our data engineering team to build scalable data pipelines and optimize our big data infrastructure...',
-    notes: 'Phone screen scheduled with the hiring manager. Prepare to discuss experience with Apache Spark and AWS.',
-    contactName: 'Michael Chen',
-    contactEmail: 'mchen@datasphereanaly.com',
-    contactPhone: '(555) 987-6543',
-    interviewDate: '2023-07-10',
-    lastUpdated: '2023-07-05',
-    flag: 'update'
-  },
-  {
-    id: 3,
-    company: 'GreenTech Innovations',
-    position: 'Full Stack Developer',
-    status: 'Interview',
-    website: 'https://greentechinno.com',
-    resumeLink: '/resumes/fullstack_dev_resume.pdf',
-    coverLetterLink: '/cover_letters/greentech_cover_letter.pdf',
-    jobDescription: 'GreenTech is looking for a versatile full stack developer to help build our next-generation sustainable energy management platform...',
-    notes: 'Second round interview scheduled. Will involve a technical assessment and meeting with the team.',
-    contactName: 'Emily Rodriguez',
-    contactEmail: 'erodriguez@greentechinno.com',
-    contactPhone: '(555) 246-8135',
-    interviewDate: '2023-07-20',
-    lastUpdated: '2023-07-12',
-    flag: 'update'
-  },
-  {
-    id: 4,
-    company: 'CloudSecure Systems',
-    position: 'DevOps Engineer',
-    status: 'Applied',
-    website: 'https://cloudsecuresys.com',
-    resumeLink: '/resumes/devops_engineer_resume.pdf',
-    coverLetterLink: '/cover_letters/cloudsecure_cover_letter.pdf',
-    jobDescription: 'We are seeking a skilled DevOps engineer to enhance our cloud infrastructure and implement robust security measures...',
-    notes: 'Submitted application online. Highlighted experience with Kubernetes and CI/CD pipelines.',
-    contactName: 'Alex Thompson',
-    contactEmail: 'athompson@cloudsecuresys.com',
-    contactPhone: '(555) 369-2580',
-    interviewDate: '',
-    lastUpdated: '2023-07-08',
-    flag: 'no_response'
-  },
-  {
-    id: 5,
-    company: 'QuantumAI Research',
-    position: 'Machine Learning Engineer',
-    status: 'Offer',
-    website: 'https://quantu',
-    resumeLink: '/path/to/resume5.pdf',
-    coverLetterLink: '/path/to/coverletter5.pdf',
-    jobDescription: 'Join our cutting-edge AI team...',
-    notes: 'Received offer, negotiating salary',
-    contactName: 'Eva Brown',
-    contactEmail: 'eva@aiinnovations.com',
-    contactPhone: '(333) 444-5555',
-    interviewDate: '2023-06-05',
-    lastUpdated: '2023-06-18',
-    flag: 'update'
-  },
-]
+// const initialJobs: Job[] = [
+//   {
+//     id: 1,
+//     company: 'TechNova Solutions',
+//     position: 'Senior Frontend Developer',
+//     status: 'Applied',
+//     website: 'https://technovasolutions.com',
+//     resumeLink: '/resumes/frontend_dev_resume.pdf',
+//     coverLetterLink: '/cover_letters/technova_cover_letter.pdf',
+//     jobDescription: 'TechNova is seeking an experienced frontend developer to lead our UI/UX team in creating innovative web applications...',
+//     notes: 'Applied through their careers portal. Emphasized experience with React and TypeScript.',
+//     contactName: 'Sarah Johnson',
+//     contactEmail: 'sjohnson@technovasolutions.com',
+//     contactPhone: '(555) 123-4567',
+//     interviewDate: '2023-07-15',
+//     lastUpdated: '2023-07-01',
+//     flag: 'no_response'
+//   },
+//   {
+//     id: 2,
+//     company: 'DataSphere Analytics',
+//     position: 'Data Engineer',
+//     status: 'Phone Screen',
+//     website: 'https://datasphereanaly.com',
+//     resumeLink: '/resumes/data_engineer_resume.pdf',
+//     coverLetterLink: '/cover_letters/datasphere_cover_letter.pdf',
+//     jobDescription: 'Join our data engineering team to build scalable data pipelines and optimize our big data infrastructure...',
+//     notes: 'Phone screen scheduled with the hiring manager. Prepare to discuss experience with Apache Spark and AWS.',
+//     contactName: 'Michael Chen',
+//     contactEmail: 'mchen@datasphereanaly.com',
+//     contactPhone: '(555) 987-6543',
+//     interviewDate: '2023-07-10',
+//     lastUpdated: '2023-07-05',
+//     flag: 'update'
+//   },
+//   {
+//     id: 3,
+//     company: 'GreenTech Innovations',
+//     position: 'Full Stack Developer',
+//     status: 'Interview',
+//     website: 'https://greentechinno.com',
+//     resumeLink: '/resumes/fullstack_dev_resume.pdf',
+//     coverLetterLink: '/cover_letters/greentech_cover_letter.pdf',
+//     jobDescription: 'GreenTech is looking for a versatile full stack developer to help build our next-generation sustainable energy management platform...',
+//     notes: 'Second round interview scheduled. Will involve a technical assessment and meeting with the team.',
+//     contactName: 'Emily Rodriguez',
+//     contactEmail: 'erodriguez@greentechinno.com',
+//     contactPhone: '(555) 246-8135',
+//     interviewDate: '2023-07-20',
+//     lastUpdated: '2023-07-12',
+//     flag: 'update'
+//   },
+//   {
+//     id: 4,
+//     company: 'CloudSecure Systems',
+//     position: 'DevOps Engineer',
+//     status: 'Applied',
+//     website: 'https://cloudsecuresys.com',
+//     resumeLink: '/resumes/devops_engineer_resume.pdf',
+//     coverLetterLink: '/cover_letters/cloudsecure_cover_letter.pdf',
+//     jobDescription: 'We are seeking a skilled DevOps engineer to enhance our cloud infrastructure and implement robust security measures...',
+//     notes: 'Submitted application online. Highlighted experience with Kubernetes and CI/CD pipelines.',
+//     contactName: 'Alex Thompson',
+//     contactEmail: 'athompson@cloudsecuresys.com',
+//     contactPhone: '(555) 369-2580',
+//     interviewDate: '',
+//     lastUpdated: '2023-07-08',
+//     flag: 'no_response'
+//   },
+//   {
+//     id: 5,
+//     company: 'QuantumAI Research',
+//     position: 'Machine Learning Engineer',
+//     status: 'Offer',
+//     website: 'https://quantu',
+//     resumeLink: '/path/to/resume5.pdf',
+//     coverLetterLink: '/path/to/coverletter5.pdf',
+//     jobDescription: 'Join our cutting-edge AI team...',
+//     notes: 'Received offer, negotiating salary',
+//     contactName: 'Eva Brown',
+//     contactEmail: 'eva@aiinnovations.com',
+//     contactPhone: '(333) 444-5555',
+//     interviewDate: '2023-06-05',
+//     lastUpdated: '2023-06-18',
+//     flag: 'update'
+//   },
+// ]
+
+
 
 // Placeholder function for hunter.io API call
 // const searchHunterIo = async (company: string): Promise<HunterIoResult[]> => {
@@ -186,7 +198,7 @@ const getFlagIcon = (flag: string) => {
 }
 
 export function JobTrack() {
-  const [jobs, setJobs] = useState<Job[]>(initialJobs)
+  const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
@@ -199,6 +211,9 @@ export function JobTrack() {
   const isTablet = useMediaQuery({ maxWidth: 1024 })
   const isMobile = useMediaQuery({ maxWidth: 640 })
   const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState<boolean>(false)
+  const { isLoaded, userId } = useAuth();
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
 
   useEffect(() => {
     const updateColumns = () => {
@@ -216,6 +231,31 @@ export function JobTrack() {
     return () => window.removeEventListener('resize', updateColumns)
   }, [isMobile, isTablet])
 
+  useEffect(() => {
+    if (isLoaded && userId) {
+      fetch('/api/jobs')
+        .then(response => response.json())
+        .then(data => setJobs(data))
+        .catch(error => console.error('Error fetching jobs:', error));
+    }
+  }, [isLoaded, userId]);
+
+  useEffect(() => {
+    const fetchResumes = async () => {
+      try {
+        const response = await fetch('/api/resumes');
+        if (response.ok) {
+          const data = await response.json();
+          setResumes(data);
+        }
+      } catch (error) {
+        console.error('Error fetching resumes:', error);
+      }
+    };
+
+    fetchResumes();
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent, job: Job) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault()
@@ -223,7 +263,7 @@ export function JobTrack() {
       const newStatusIndex = e.key === 'ArrowLeft' 
         ? (currentStatusIndex - 1 + jobStatuses.length) % jobStatuses.length
         : (currentStatusIndex + 1) % jobStatuses.length
-      updateJobStatus(job.id, jobStatuses[newStatusIndex])
+      updateJobStatus(job.id || '', jobStatuses[newStatusIndex] as Job['status'])
     }
   }
 
@@ -234,7 +274,7 @@ export function JobTrack() {
         e.preventDefault()
         // Open modal to add new job
         setSelectedJob({
-          id: Date.now(),
+          userId: userId || '',
           company: '',
           position: '',
           status: 'Applied',
@@ -247,8 +287,7 @@ export function JobTrack() {
           contactEmail: '',
           contactPhone: '',
           interviewDate: '',
-          lastUpdated: new Date().toISOString().split('T')[0],
-          flag: ''
+          dateApplied: new Date().toISOString().split('T')[0],
         })
         setIsModalOpen(true)
       }
@@ -258,11 +297,22 @@ export function JobTrack() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
   }, [])
 
-  const updateJobStatus = (jobId: number, newStatus: string) => {
-    setJobs(jobs.map(job => 
-      job.id === jobId ? { ...job, status: newStatus, lastUpdated: new Date().toISOString().split('T')[0] } : job
-    ))
-  }
+  const updateJobStatus = (jobId: string, newStatus: Job['status']) => {
+    const updatedJobs = jobs.map(job => 
+      job.id === jobId ? { 
+        ...job, 
+        status: newStatus, 
+        dateUpdated: new Date().toISOString(),
+        flag: 'update' as const  // Use 'as const' to narrow the type
+      } : job
+    );
+    setJobs(updatedJobs);
+    
+    const updatedJob = updatedJobs.find(job => job.id === jobId);
+    if (updatedJob) {
+      updateJobDetails(updatedJob);
+    }
+  };
 
   const openJobDetails = (job: Job) => {
     setSelectedJob(job)
@@ -274,14 +324,55 @@ export function JobTrack() {
     setSelectedJob(null)
   }
 
-  const updateJobDetails = (updatedJob: Job) => {
-    if (updatedJob.id) {
-      setJobs(jobs.map(job => job.id === updatedJob.id ? { ...updatedJob, lastUpdated: new Date().toISOString().split('T')[0] } : job))
-    } else {
-      setJobs([...jobs, { ...updatedJob, id: Date.now(), lastUpdated: new Date().toISOString().split('T')[0] }])
+  const addNewJob = async (newJob: Job) => {
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newJob),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add new job');
+      }
+
+      const addedJob = await response.json();
+      setJobs([...jobs, addedJob]);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error adding new job:', error);
     }
-    closeJobDetails()
-  }
+  };
+
+  const updateJobDetails = async (updatedJob: Job) => {
+    try {
+      if (!updatedJob.id) {
+        // This is a new job, so we should add it instead of updating
+        await addNewJob(updatedJob);
+        return;
+      }
+
+      const response = await fetch(`/api/jobs/${updatedJob.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedJob),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update job');
+      }
+
+      const result = await response.json();
+      setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error updating job:', error);
+    }
+  };
 
   // const searchHunterIoContacts = async () => {
   //   if (selectedJob) {
@@ -298,30 +389,24 @@ export function JobTrack() {
   // }
 
   const filteredJobs = jobs.filter(job => {
-    const matchesSearch = job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          job.position.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'All' || job.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+    const matchesSearch = 
+      (job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (job.position?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+    const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const openNewJobModal = () => {
     const today = new Date().toISOString().split('T')[0];
     setSelectedJob({
-      id: Date.now(),
+      userId: userId || '',
       company: '',
       position: '',
       status: 'Applied',
       website: '',
       resumeLink: '',
-      coverLetterLink: '',
       jobDescription: '',
-      notes: '',
-      contactName: '',
-      contactEmail: '',
-      contactPhone: '',
-      interviewDate: '',
-      lastUpdated: today,
-      flag: ''
+      dateApplied: today,
     });
     setIsModalOpen(true);
   };
@@ -335,6 +420,59 @@ export function JobTrack() {
     // Handle profile click
     console.log('Profile clicked')
   }
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (selectedJob) {
+        setSelectedJob({...selectedJob, jobDescription: text});
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard contents: ', err);
+    }
+  };
+
+  const handleResumeUpload = useCallback((res: any) => {
+    const uploadedFile = res[0];
+    console.log("Uploaded file:", uploadedFile);
+    const saveResume = async (uploadedFile: any) => {
+      try {
+        const response = await fetch('/api/resumes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl: uploadedFile.url,
+            fileId: uploadedFile.key,
+            resumeId: "RESUME_" + uploadedFile.key,
+            fileName: uploadedFile.name,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save resume');
+        }
+
+        const data = await response.json();
+        console.log('Resume saved:', data);
+        
+        // Update the resumes state and the selected job's resumeLink
+        setResumes(prevResumes => [...prevResumes, {
+          resumeId: "RESUME_" + uploadedFile.key,
+          fileUrl: uploadedFile.url,
+          fileName: uploadedFile.name
+        }]);
+        if (selectedJob) {
+          setSelectedJob({...selectedJob, resumeLink: uploadedFile.url});
+        }
+      } catch (error) {
+        console.error('Error saving resume:', error);
+      }
+    };
+
+    saveResume(uploadedFile);
+  }, [selectedJob]);
 
   return (
     <>
@@ -388,6 +526,13 @@ export function JobTrack() {
                   <Grid className="h-4 w-4" />
                 </Button>
               </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsSettingsModalOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -401,7 +546,7 @@ export function JobTrack() {
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id}
+                    key={job.id || `job-${job.company}-${job.position}`} // Add a unique key here
                     layout
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -430,7 +575,7 @@ export function JobTrack() {
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id}
+                    key={job.id || `job-${job.company}-${job.position}`} // Add a unique key here
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -453,11 +598,11 @@ export function JobTrack() {
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
               <DialogHeader>
-                <DialogTitle>{selectedJob && selectedJob.id ? 'Edit Job Details' : 'Add New Job'}</DialogTitle>
+                <DialogTitle>{selectedJob?.id ? 'Edit Job' : 'Add New Job'}</DialogTitle>
               </DialogHeader>
               {selectedJob && (
-                <ScrollArea className="flex-grow">
-                  <div className="p-4 space-y-4">
+                <ScrollArea className="flex-grow pr-4" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+                  <div className="space-y-4">
                     <div>
                       <Label htmlFor="company">Company Name *</Label>
                       <Input 
@@ -468,11 +613,25 @@ export function JobTrack() {
                       />
                     </div>
                     <div>
+                      <Label htmlFor="position">Position *</Label>
+                      <Input 
+                        id="position" 
+                        value={selectedJob.position || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, position: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
                       <Label htmlFor="website">Company Website *</Label>
                       <Input 
                         id="website" 
                         value={selectedJob.website || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, website: e.target.value})}
+                        onChange={(e) => {
+                          let trimmedWebsite = e.target.value.trim()
+                            .replace(/^https?:\/\/(www\.)?/, '')
+                            .replace(/\/$/, '');
+                          setSelectedJob({...selectedJob, website: trimmedWebsite});
+                        }}
                         required
                       />
                     </div>
@@ -482,17 +641,37 @@ export function JobTrack() {
                         id="jobDescription" 
                         value={selectedJob.jobDescription || ''} 
                         onChange={(e) => setSelectedJob({...selectedJob, jobDescription: e.target.value})}
-                        className="min-h-[200px]"
+                        className="min-h-[100px]"
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="resumeLink">Resume Used *</Label>
-                      <Input 
-                        id="resumeLink" 
-                        value={selectedJob.resumeLink || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, resumeLink: e.target.value})}
-                        required
+                      <Label htmlFor="resumeLink">Resume *</Label>
+                      <Select 
+                        value={selectedJob.resumeLink} 
+                        onValueChange={(value) => setSelectedJob({...selectedJob, resumeLink: value})}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a resume" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {resumes.map((resume) => (
+                            <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                              {resume.fileName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Upload New Resume</Label>
+                      <UploadButton
+                        endpoint="pdfUploader"
+                        onClientUploadComplete={handleResumeUpload}
+                        onUploadError={(error: Error) => {
+                          console.error(error);
+                          alert("Upload failed");
+                        }}
                       />
                     </div>
                     <div>
@@ -500,8 +679,8 @@ export function JobTrack() {
                       <Input 
                         id="dateApplied" 
                         type="date" 
-                        value={selectedJob.lastUpdated || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, lastUpdated: e.target.value})}
+                        value={selectedJob.dateApplied || ''} 
+                        onChange={(e) => setSelectedJob({...selectedJob, dateApplied: e.target.value})}
                         required
                       />
                     </div>
@@ -510,7 +689,7 @@ export function JobTrack() {
               )}
               <div className="p-4">
                 <Button onClick={() => updateJobDetails(selectedJob as Job)} className="w-full">
-                  {selectedJob && selectedJob.id ? 'Save Changes' : 'Add Job'}
+                  {selectedJob?.id ? 'Update Job' : 'Add Job'}
                 </Button>
               </div>
             </DialogContent>
@@ -529,6 +708,12 @@ export function JobTrack() {
             job={selectedJob}
             setSelectedJob={setSelectedJob}
             setIsModalOpen={setIsModalOpen}
+            updateJobDetails={updateJobDetails}
+          />
+
+          <SettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => setIsSettingsModalOpen(false)}
           />
         </div>
       </SignedIn>
@@ -542,12 +727,12 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
   openJobDetails: (job: Job) => void, 
   handleKeyDown: (e: React.KeyboardEvent, job: Job) => void, 
   layoutMode: 'list' | 'masonry', 
-  updateJobStatus: (jobId: number, newStatus: string) => void 
+  updateJobStatus: (jobId: string, newStatus: Job['status']) => void 
 }) {
   const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
 
   const handleStatusChange = (newStatus: string) => {
-    updateJobStatus(job.id, newStatus);
+    updateJobStatus(job.id || '', newStatus as Job['status']);
     setIsStatusSelectOpen(false);
   };
 
@@ -585,13 +770,15 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4" id="job-details-section">
               <div>
                 <h3 className="text-xl font-semibold">{job.position}</h3>
-                <p className="text-sm text-gray-500">Last updated: {job.lastUpdated}</p>
+                <p className="text-sm text-gray-500">
+                  Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
+                </p>
               </div>
               <div className="flex items-center space-x-2 mt-2 md:mt-0">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      {getFlagIcon(job.flag)}
+                      {getFlagIcon(job.flag || '')}
                     </TooltipTrigger>
                     <TooltipContent>
                       {job.flag === 'no_response' ? 'No response yet' : 'Recent update'}
@@ -682,93 +869,119 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
 }
 
 // New ViewDetailsModal component
-function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen }: {
+function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails }: {
   isOpen: boolean,
   onClose: () => void,
   job: Job | null,
   setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>,
-  setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>
+  setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>,
+  updateJobDetails: (job: Job) => void
 }) {
-  if (!job) return null
+  const [editMode, setEditMode] = useState<boolean>(false);
+
+  if (!job) return null;
+
+  const handleEditToggle = (checked: boolean) => {
+    setEditMode(checked);
+  };
+
+  const renderField = (label: string, value: string | number | undefined, field: keyof Job) => {
+    return (
+      <div className="relative group">
+        <Label className="font-semibold">{label}</Label>
+        {editMode ? (
+          <Input
+            value={value || ''}
+            onChange={(e) => setSelectedJob({ ...job, [field]: e.target.value })}
+            className="mt-1"
+          />
+        ) : (
+          <p className="text-sm mt-1">{value || 'N/A'}</p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white backdrop-blur-md">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-2xl font-bold">{job.company}</DialogTitle>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="edit-mode">Edit Mode</Label>
+            <Switch
+              id="edit-mode"
+              checked={editMode}
+              onCheckedChange={handleEditToggle}
+            />
+          </div>
         </DialogHeader>
-        <ScrollArea className="flex-grow">
+        <ScrollArea className="flex-grow overflow-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <h3 className="text-xl font-semibold">{job.position}</h3>
+                {renderField("Position", job.position, "position")}
                 <Badge className={`${getStatusColor(job.status)} text-sm`}>{job.status}</Badge>
-                <p className="text-sm text-gray-500">Last updated: {format(new Date(job.lastUpdated), 'PPP')}</p>
-                <div className="flex items-center space-x-2">
-                  <ExternalLink className="w-4 h-4" />
-                  <a href={job.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    Company Website
-                  </a>
-                </div>
+                <p className="text-sm text-gray-500">
+                  Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
+                </p>
+                {renderField("Website", job.website, "website")}
               </div>
               <div className="space-y-4">
                 <h4 className="font-semibold">Contact Information</h4>
-                {job.contactName && (
-                  <p className="text-sm flex items-center">
-                    <User className="w-4 h-4 mr-2" />
-                    {job.contactName}
-                  </p>
-                )}
-                {job.contactEmail && (
-                  <p className="text-sm flex items-center">
-                    <Mail className="w-4 h-4 mr-2" />
-                    {job.contactEmail}
-                  </p>
-                )}
-                {job.contactPhone && (
-                  <p className="text-sm flex items-center">
-                    <Phone className="w-4 h-4 mr-2" />
-                    {job.contactPhone}
-                  </p>
-                )}
+                {renderField("Contact Name", job.contactName, "contactName")}
+                {renderField("Contact Email", job.contactEmail, "contactEmail")}
+                {renderField("Contact Phone", job.contactPhone, "contactPhone")}
               </div>
             </div>
             <Separator />
             <div>
               <h4 className="font-semibold mb-2">Job Description</h4>
-              <p className="text-sm whitespace-pre-wrap">{job.jobDescription}</p>
+              {editMode ? (
+                <Textarea
+                  value={job.jobDescription || ''}
+                  onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                  className="min-h-[100px] mt-1"
+                />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
+              )}
             </div>
             <Separator />
             <div>
               <h4 className="font-semibold mb-2">Notes</h4>
-              <p className="text-sm whitespace-pre-wrap">{job.notes}</p>
+              {editMode ? (
+                <Textarea
+                  value={job.notes || ''}
+                  onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
+                  className="min-h-[100px] mt-1"
+                />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap mt-1">{job.notes}</p>
+              )}
             </div>
             <Separator />
             <div className="space-y-2">
               <h4 className="font-semibold">Important Dates</h4>
-              {job.interviewDate && (
-                <p className="text-sm flex items-center">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Interview: {format(new Date(job.interviewDate), 'PPP')}
-                </p>
-              )}
-              <p className="text-sm flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                Applied: {format(new Date(job.lastUpdated), 'PPP')}
-              </p>
+              {renderField("Interview Date", job.interviewDate, "interviewDate")}
+              {renderField("Date Applied", job.dateApplied, "dateApplied")}
             </div>
             <Separator />
             <div className="space-y-2">
               <h4 className="font-semibold">Documents</h4>
               <div className="flex space-x-4">
-                <a href={job.resumeLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center">
-                  <FileText className="w-4 h-4 mr-1" />
-                  Resume
-                </a>
-                <a href={job.coverLetterLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center">
-                  <FileText className="w-4 h-4 mr-1" />
-                  Cover Letter
-                </a>
+                {renderField("Resume Link", job.resumeLink, "resumeLink")}
+                {renderField("Cover Letter Link", job.coverLetterLink, "coverLetterLink")}
+              </div>
+            </div>
+            <Separator />
+            <div className="space-y-4">
+              <h4 className="font-semibold">Additional Details</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {renderField("Salary", job.salary, "salary")}
+                {renderField("Location", job.location, "location")}
+                {renderField("Remote Type", job.remoteType, "remoteType")}
+                {renderField("Job Type", job.jobType, "jobType")}
               </div>
             </div>
           </div>
@@ -778,11 +991,10 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
             <Button variant="outline">Close</Button>
           </DialogClose>
           <Button onClick={() => {
-            onClose()
-            setSelectedJob(job)
-            setIsModalOpen(true)
+            onClose();
+            if (job) updateJobDetails(job);
           }}>
-            Edit
+            Save Changes
           </Button>
         </div>
       </DialogContent>
@@ -797,3 +1009,188 @@ const SignedOutCallback = () => {
   }, []);
   return null;
 };
+
+// Add this new component at the end of the file
+function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [userDetails, setUserDetails] = useState({
+    about: '',
+  });
+  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
+  const [newResumeName, setNewResumeName] = useState('');
+
+  const handleUserDetailsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
+  };
+
+  const handleResumeUpload = useCallback((res: any) => {
+    const uploadedFile = res[0];
+    console.log("Uploaded file:", uploadedFile);
+    const saveResume = async (uploadedFile: any) => {
+      try {
+        const response = await fetch('/api/resumes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl: uploadedFile.url,
+            fileId: uploadedFile.key,
+            resumeId: "RESUME_" + uploadedFile.key,
+            fileName: uploadedFile.name,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save resume');
+        }
+
+        const data = await response.json();
+        console.log('Resume saved:', data);
+        
+        // Update the resumes state immediately after successful upload
+        setResumes(prevResumes => [...prevResumes, {
+          resumeId: "RESUME_" + uploadedFile.key,
+          fileUrl: uploadedFile.url,
+          fileName: uploadedFile.name
+        }]);
+      } catch (error) {
+        console.error('Error saving resume:', error);
+      }
+    };
+
+    saveResume(uploadedFile);
+  }, []);
+
+  const fetchResumes = useCallback(async () => {
+    try {
+      const response = await fetch('/api/resumes');
+      if (response.ok) {
+        const data = await response.json();
+        setResumes(data);
+      }
+    } catch (error) {
+      console.error('Error fetching resumes:', error);
+    }
+  }, []);
+
+  const fetchUserDetails = useCallback(async () => {
+    try {
+      const response = await fetch('/api/user');
+      if (response.ok) {
+        const data = await response.json();
+        setUserDetails({ about: data.about });
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchResumes();
+    fetchUserDetails();
+    
+  }, [fetchResumes, fetchUserDetails]);
+
+  const handleSaveChanges = async () => {
+    try {
+      const response = await fetch('/api/user', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userDetails),
+      });
+
+      if (response.ok) {
+        onClose();
+      } else {
+        console.error('Failed to update user details');
+      }
+    } catch (error) {
+      console.error('Error updating user details:', error);
+    }
+  };
+
+  const handleRemoveResume = async (resumeId: string) => {
+    try {
+      const response = await fetch(`/api/resumes?resumeId=${resumeId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchResumes();
+      } else {
+        console.error('Failed to remove resume');
+      }
+    } catch (error) {
+      console.error('Error removing resume:', error);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>User Settings</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="flex-grow">
+          <div className="p-4 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Personal Details</h3>
+              <p className="text-sm text-gray-500 mb-2">This is used to help generate more accurate cover letters and other documents.</p>
+              <div className="space-y-2">
+                <Textarea
+                  className="min-h-[100px]"
+                  name="about"
+                  placeholder="About Me"
+                  value={userDetails.about}
+                  onChange={handleUserDetailsChange}
+                />
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Resumes</h3>
+              <div className="space-y-2">
+                {resumes.map((resume) => (
+                  <div key={resume.resumeId} className="flex items-center space-x-2">
+                    <a
+                      href={resume.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {resume.fileName}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveResume(resume.resumeId)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <h2 className="text-lg font-semibold mb-2">Upload Resume</h2>
+                <div className="flex items-center justify-center border border-gray-300 p-4 rounded-md">
+                  <UploadButton
+                    endpoint="pdfUploader"
+                    onClientUploadComplete={handleResumeUpload}
+                    onUploadError={(error: Error) => {
+                      console.error(error);
+                      alert("Upload failed");
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+        <div className="p-4 flex justify-end">
+          <Button onClick={handleSaveChanges}>Save Changes</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
