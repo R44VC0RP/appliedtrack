@@ -1,11 +1,10 @@
 import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Bell, UserCircle, Grid } from 'lucide-react'
+import { Bell, Grid } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import logo from '@/app/logos/logo.png'
 import {
-  ClerkProvider,
   SignInButton,
   SignedIn,
   SignedOut,
@@ -21,7 +20,7 @@ interface HeaderProps {
   onProfileClick?: () => void;
 }
 
-export function Header({ user, onNotificationClick, onProfileClick }: HeaderProps) {
+export function Header({ user, onNotificationClick }: HeaderProps) {
   return (
     <header className="container mx-auto p-4">
       <div className="flex items-center justify-between">

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import logo from '@/app/logos/logo.png'
+import { useState, useEffect } from 'react'
+// import logo from '@/app/logos/logo.png'
 import hunterLogo from '@/app/logos/hunter.png'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,15 +9,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Briefcase, Calendar, Phone, ChevronLeft, ChevronRight, Search, User, Linkedin, Bell, UserCircle } from 'lucide-react'
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Switch } from "@/components/ui/switch"
-import Masonry from 'react-masonry-css'
-import { FaThLarge, FaList } from 'react-icons/fa'
+// import { Switch } from "@/components/ui/switch"
+// import Masonry from 'react-masonry-css'
+// import { FaThLarge, FaList } from 'react-icons/fa'
 import { useMediaQuery } from 'react-responsive'
 import Image from 'next/image'
 import { List, Grid } from 'lucide-react'
@@ -150,15 +150,15 @@ const initialJobs: Job[] = [
 ]
 
 // Placeholder function for hunter.io API call
-const searchHunterIo = async (company: string, position: string): Promise<HunterIoResult[]> => {
-  // This would be replaced with an actual API call to hunter.io
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-  return [
-    { name: 'John Smith', email: 'john.smith@' + company.toLowerCase() + '.com', position: 'HR Manager' },
-    { name: 'Jane Doe', email: 'jane.doe@' + company.toLowerCase() + '.com', position: 'Talent Acquisition Specialist' },
-    { name: 'Mike Johnson', email: 'mike.johnson@' + company.toLowerCase() + '.com', position: 'Department Head' },
-  ];
-};
+// const searchHunterIo = async (company: string): Promise<HunterIoResult[]> => {
+//   // This would be replaced with an actual API call to hunter.io
+//   await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+//   return [
+//     { name: 'John Smith', email: 'john.smith@' + company.toLowerCase() + '.com', position: 'HR Manager' },
+//     { name: 'Jane Doe', email: 'jane.doe@' + company.toLowerCase() + '.com', position: 'Talent Acquisition Specialist' },
+//     { name: 'Mike Johnson', email: 'mike.johnson@' + company.toLowerCase() + '.com', position: 'Department Head' },
+//   ];
+// };
 
 // Move getStatusColor function outside of the main component
 const getStatusColor = (status: string): string => {
@@ -191,11 +191,11 @@ export function JobTrack() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
-  const [hunterIoResults, setHunterIoResults] = useState<HunterIoResult[]>([])
-  const [isSearchingHunterIo, setIsSearchingHunterIo] = useState<boolean>(false)
+  // const [hunterIoResults, setHunterIoResults] = useState<HunterIoResult[]>([])
+  // const [isSearchingHunterIo, setIsSearchingHunterIo] = useState<boolean>(false)
   const [layoutMode, setLayoutMode] = useState<'list' | 'masonry'>('list')
   const [columns, setColumns] = useState(3)
-  const containerRef = useRef<HTMLDivElement>(null)
+  // const containerRef = useRef<HTMLDivElement>(null)
   const isTablet = useMediaQuery({ maxWidth: 1024 })
   const isMobile = useMediaQuery({ maxWidth: 640 })
   const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState<boolean>(false)
@@ -276,26 +276,26 @@ export function JobTrack() {
 
   const updateJobDetails = (updatedJob: Job) => {
     if (updatedJob.id) {
-      setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJob : job))
+      setJobs(jobs.map(job => job.id === updatedJob.id ? { ...updatedJob, lastUpdated: new Date().toISOString().split('T')[0] } : job))
     } else {
-      setJobs([...jobs, { ...updatedJob, id: Date.now() }])
+      setJobs([...jobs, { ...updatedJob, id: Date.now(), lastUpdated: new Date().toISOString().split('T')[0] }])
     }
     closeJobDetails()
   }
 
-  const searchHunterIoContacts = async () => {
-    if (selectedJob) {
-      setIsSearchingHunterIo(true)
-      try {
-        const results = await searchHunterIo(selectedJob.company, selectedJob.position)
-        setHunterIoResults(results)
-      } catch (error) {
-        console.error('Error searching Hunter.io:', error)
-        setHunterIoResults([])
-      }
-      setIsSearchingHunterIo(false)
-    }
-  }
+  // const searchHunterIoContacts = async () => {
+  //   if (selectedJob) {
+  //     setIsSearchingHunterIo(true)
+  //     try {
+  //       const results = await searchHunterIo(selectedJob.company, selectedJob.position)
+  //       setHunterIoResults(results)
+  //     } catch (error) {
+  //       console.error('Error searching Hunter.io:', error)
+  //       setHunterIoResults([])
+  //     }
+  //     setIsSearchingHunterIo(false)
+  //   }
+  // }
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -527,7 +527,6 @@ export function JobTrack() {
             isOpen={isViewDetailsModalOpen}
             onClose={closeJobDetails}
             job={selectedJob}
-            updateJobDetails={updateJobDetails}
             setSelectedJob={setSelectedJob}
             setIsModalOpen={setIsModalOpen}
           />
@@ -683,11 +682,10 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
 }
 
 // New ViewDetailsModal component
-function ViewDetailsModal({ isOpen, onClose, job, updateJobDetails, setSelectedJob, setIsModalOpen }: {
+function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen }: {
   isOpen: boolean,
   onClose: () => void,
   job: Job | null,
-  updateJobDetails: (updatedJob: Job) => void,
   setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>,
   setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>
 }) {

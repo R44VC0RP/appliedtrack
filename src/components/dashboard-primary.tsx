@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { ArrowUpRight, ArrowDownRight, Briefcase, Calendar, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Briefcase, Calendar, Clock, CheckCircle } from 'lucide-react'
 
 // Sample data for charts
 const applicationData = [
