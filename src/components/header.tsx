@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Bell, Grid, Settings, FileText } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { Toaster } from "@/components/ui/toaster"
 
 import logo from '@/app/logos/logo.png'
 import {
@@ -14,7 +13,6 @@ import {
   UserButton
 } from '@clerk/nextjs'
 import Link from 'next/link'
-import { FaCircle } from 'react-icons/fa'
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -42,7 +40,7 @@ export function Header({ user, onNotificationClick }: HeaderProps) {
 
   const handleResumeUpload = useCallback((res: any) => {
     const uploadedFile = res[0];
-    console.log("Uploaded file:", uploadedFile);
+    console.log("Uploaded file:", uploadedFile ) ;
     const saveResume = async (uploadedFile: any) => {
       try {
         const response = await fetch('/api/resumes', {
@@ -64,7 +62,7 @@ export function Header({ user, onNotificationClick }: HeaderProps) {
           });
         }
 
-        if (!response.ok) {
+        else {
           throw new Error('Failed to save resume');
         }
 

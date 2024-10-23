@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-// import Image from 'next/image'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -147,10 +147,10 @@ export default function Homepage() {
                   About JobTrackr
                 </h2>
                 <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-4">
-                  JobTrackr was born out of a simple idea: to make the job search process easier and more efficient for everyone. Our team of dedicated professionals has experienced the challenges of job hunting firsthand, and we've built the tool we wish we had.
+                  JobTrackr was born out of a simple idea: to make the job search process easier and more efficient for everyone. Our team of dedicated professionals has experienced the challenges of job hunting firsthand, and we&apos;ve built the tool we wish we had.
                 </p>
                 <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-6">
-                  With JobTrackr, you're not just getting a job application tracker. You're gaining a partner in your career journey, equipped with powerful tools and insights to help you land your dream job.
+                  With JobTrackr, you&apos;re not just getting a job application tracker. You&apos;re gaining a partner in your career journey, equipped with powerful tools and insights to help you land your dream job.
                 </p>
                 <Button>
                   Learn More
@@ -158,22 +158,23 @@ export default function Homepage() {
                 </Button>
               </div>
               <div className="space-y-4">
-                <img
+                <Image
                   src="/placeholder.svg?height=400&width=600"
                   alt="JobTrackr dashboard"
                   className="rounded-lg shadow-lg"
                   width={600}
                   height={400}
+                  priority
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  <img
+                  <Image
                     src="/placeholder.svg?height=200&width=280"
                     alt="Team collaboration"
                     className="rounded-lg shadow-lg"
                     width={280}
                     height={200}
                   />
-                  <img
+                  <Image
                     src="/placeholder.svg?height=200&width=280"
                     alt="Mobile app"
                     className="rounded-lg shadow-lg"
