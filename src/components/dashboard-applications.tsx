@@ -33,9 +33,10 @@ import {
 } from '@clerk/nextjs'
 import { useAuth } from '@clerk/nextjs';
 import { OurFileRouter } from "@/app/api/uploadthing/core";
+import { useToast } from "@/hooks/use-toast"
 
 // Job status options
-const jobStatuses = ['Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
+const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
 
 // Define types for job data
 interface Job {
@@ -43,7 +44,7 @@ interface Job {
   userId: string;
   company: string;
   position: string;
-  status: 'Applied' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn';
+  status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted';
   website: string;
   resumeLink: string;
   jobDescription: string;
@@ -175,6 +176,7 @@ interface HunterIoResult {
 // Move getStatusColor function outside of the main component
 const getStatusColor = (status: string): string => {
   switch (status) {
+    case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
     case 'Applied': return 'bg-blue-100 text-blue-800'
     case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
     case 'Interview': return 'bg-purple-100 text-purple-800'
@@ -214,6 +216,7 @@ export function JobTrack() {
   const { isLoaded, userId } = useAuth();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
+  const { toast } = useToast()
 
   useEffect(() => {
     const updateColumns = () => {
@@ -277,7 +280,7 @@ export function JobTrack() {
           userId: userId || '',
           company: '',
           position: '',
-          status: 'Applied',
+          status: 'Yet to Apply',
           website: '',
           resumeLink: '',
           coverLetterLink: '',
@@ -341,8 +344,17 @@ export function JobTrack() {
       const addedJob = await response.json();
       setJobs([...jobs, addedJob]);
       setIsModalOpen(false);
+      toast({
+        title: "Job Added",
+        description: "The new job has been successfully added.",
+      })
     } catch (error) {
       console.error('Error adding new job:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add the new job. Please try again.",
+        variant: "destructive",
+      })
     }
   };
 
@@ -354,7 +366,7 @@ export function JobTrack() {
         return;
       }
 
-      const response = await fetch(`/api/jobs/${updatedJob.id}`, {
+      const response = await fetch(`/api/jobs`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -369,8 +381,17 @@ export function JobTrack() {
       const result = await response.json();
       setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
       setIsModalOpen(false);
+      toast({
+        title: "Job Updated",
+        description: "The job has been successfully updated.",
+      })
     } catch (error) {
       console.error('Error updating job:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update the job. Please try again.",
+        variant: "destructive",
+      })
     }
   };
 
@@ -396,13 +417,28 @@ export function JobTrack() {
     return matchesSearch && matchesStatus;
   });
 
-  const openNewJobModal = () => {
+  const fetchResumes = useCallback(async () => {
+    try {
+      const response = await fetch('/api/resumes');
+      if (response.ok) {
+        const data = await response.json();
+        setResumes(data);
+      }
+    } catch (error) {
+      console.error('Error fetching resumes:', error);
+    }
+  }, []);
+
+  const openNewJobModal = async () => {
+    // Fetch the latest resumes before opening the modal
+    await fetchResumes();
+
     const today = new Date().toISOString().split('T')[0];
     setSelectedJob({
       userId: userId || '',
       company: '',
       position: '',
-      status: 'Applied',
+      status: 'Yet to Apply',
       website: '',
       resumeLink: '',
       jobDescription: '',
@@ -526,13 +562,7 @@ export function JobTrack() {
                   <Grid className="h-4 w-4" />
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setIsSettingsModalOpen(true)}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
+              
             </div>
           </div>
 
@@ -601,8 +631,8 @@ export function JobTrack() {
                 <DialogTitle>{selectedJob?.id ? 'Edit Job' : 'Add New Job'}</DialogTitle>
               </DialogHeader>
               {selectedJob && (
-                <ScrollArea className="flex-grow pr-4" style={{ maxHeight: 'calc(90vh - 200px)' }}>
-                  <div className="space-y-4">
+                <div className="flex-grow overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+                  <div className="space-y-4 p-4">
                     <div>
                       <Label htmlFor="company">Company Name *</Label>
                       <Input 
@@ -628,8 +658,9 @@ export function JobTrack() {
                         value={selectedJob.website || ''} 
                         onChange={(e) => {
                           let trimmedWebsite = e.target.value.trim()
-                            .replace(/^https?:\/\/(www\.)?/, '')
-                            .replace(/\/$/, '');
+                            .replace(/^(https?:\/\/)?(www\.)?/, '')  // Remove http://, https://, and www.
+                            .replace(/\/$/, '')  // Remove trailing slash
+                            .split('/')[0];  // Keep only the domain part
                           setSelectedJob({...selectedJob, website: trimmedWebsite});
                         }}
                         required
@@ -685,7 +716,7 @@ export function JobTrack() {
                       />
                     </div>
                   </div>
-                </ScrollArea>
+                </div>
               )}
               <div className="p-4">
                 <Button onClick={() => updateJobDetails(selectedJob as Job)} className="w-full">
@@ -878,12 +909,9 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
   updateJobDetails: (job: Job) => void
 }) {
   const [editMode, setEditMode] = useState<boolean>(false);
+  const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
 
   if (!job) return null;
-
-  const handleEditToggle = (checked: boolean) => {
-    setEditMode(checked);
-  };
 
   const renderField = (label: string, value: string | number | undefined, field: keyof Job) => {
     return (
@@ -907,14 +935,6 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white backdrop-blur-md">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-2xl font-bold">{job.company}</DialogTitle>
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="edit-mode">Edit Mode</Label>
-            <Switch
-              id="edit-mode"
-              checked={editMode}
-              onCheckedChange={handleEditToggle}
-            />
-          </div>
         </DialogHeader>
         <ScrollArea className="flex-grow overflow-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           <div className="p-6 space-y-6">
@@ -936,20 +956,42 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
             </div>
             <Separator />
             <div>
-              <h4 className="font-semibold mb-2">Job Description</h4>
-              {editMode ? (
-                <Textarea
-                  value={job.jobDescription || ''}
-                  onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
-                  className="min-h-[100px] mt-1"
-                />
-              ) : (
-                <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-semibold">Job Description</h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
+                >
+                  {isJobDescriptionCollapsed ? 'Expand' : 'Collapse'}
+                </Button>
+              </div>
+              {!isJobDescriptionCollapsed && (
+                editMode ? (
+                  <Textarea
+                    value={job.jobDescription || ''}
+                    onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                    className="min-h-[100px] mt-1"
+                  />
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
+                )
               )}
             </div>
             <Separator />
             <div>
-              <h4 className="font-semibold mb-2">Notes</h4>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-semibold">Notes</h4>
+                {!editMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditMode(true)}
+                  >
+                    Add Notes
+                  </Button>
+                )}
+              </div>
               {editMode ? (
                 <Textarea
                   value={job.notes || ''}
@@ -957,7 +999,7 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
                   className="min-h-[100px] mt-1"
                 />
               ) : (
-                <p className="text-sm whitespace-pre-wrap mt-1">{job.notes}</p>
+                <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
               )}
             </div>
             <Separator />
@@ -969,9 +1011,19 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
             <Separator />
             <div className="space-y-2">
               <h4 className="font-semibold">Documents</h4>
-              <div className="flex space-x-4">
-                {renderField("Resume Link", job.resumeLink, "resumeLink")}
-                {renderField("Cover Letter Link", job.coverLetterLink, "coverLetterLink")}
+              <div className="space-y-4">
+                {job.resumeLink && (
+                  <div>
+                    <Label className="font-semibold">Resume</Label>
+                    <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
+                  </div>
+                )}
+                {job.coverLetterLink && (
+                  <div>
+                    <Label className="font-semibold">Cover Letter</Label>
+                    <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
+                  </div>
+                )}
               </div>
             </div>
             <Separator />
@@ -986,16 +1038,26 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
             </div>
           </div>
         </ScrollArea>
-        <div className="p-4 flex justify-end space-x-2">
-          <DialogClose asChild>
-            <Button variant="outline">Close</Button>
-          </DialogClose>
-          <Button onClick={() => {
-            onClose();
-            if (job) updateJobDetails(job);
-          }}>
-            Save Changes
-          </Button>
+        <div className="p-4 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="edit-mode">Edit Mode</Label>
+            <Switch
+              id="edit-mode"
+              checked={editMode}
+              onCheckedChange={(checked) => setEditMode(checked)}
+            />
+          </div>
+          <div className="flex space-x-2">
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+            <Button onClick={() => {
+              onClose();
+              if (job) updateJobDetails(job);
+            }}>
+              Save Changes
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

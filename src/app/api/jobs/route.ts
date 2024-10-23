@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(jobs);
 }
 
-// Add this new POST route for resume uploads
 export async function POST(request: NextRequest) {
   const { userId } = getAuth(request);
   
@@ -71,6 +70,7 @@ export async function POST(request: NextRequest) {
     id: new mongoose.Types.ObjectId().toString(), // Generate a custom id
     dateCreated: new Date(),
     dateUpdated: new Date(),
+    status: jobData.status || "Yet to Apply", // Default to "Yet to Apply" if not provided
   });
   
   try {
@@ -99,8 +99,12 @@ export async function PUT(request: NextRequest) {
   try {
     const updatedJob = await JobModel.findOneAndUpdate(
       { id: jobData.id, userId },
-      { ...jobData, dateUpdated: new Date() },
-      { new: true }
+      { 
+        ...jobData, 
+        dateUpdated: new Date(),
+        status: jobData.status || "Yet to Apply" // Ensure the status is updated, default to "Yet to Apply"
+      },
+      { new: true, runValidators: true }
     );
 
     if (!updatedJob) {

@@ -1,8 +1,16 @@
 import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 import { Inter } from 'next/font/google'
+import type { Metadata } from 'next'
+import { Toaster } from "@/components/ui/toaster"
+
 
 const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: "Job Tracker",
+  description: "Track your job applications",
+};
 
 export default function RootLayout({
   children,
@@ -19,6 +27,7 @@ export default function RootLayout({
           suppressHydrationWarning
         >
           {children}
+          <Toaster />
         </body>
       </ClerkProvider>
     </html>
