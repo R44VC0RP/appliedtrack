@@ -1,9 +1,9 @@
-import { JobTrack } from "@/components/dashboard-applications";
+import { AppliedTrack } from "@/components/dashboard-applications";
 
 export default function Dashboard() {
   return (
     <div>
-      <JobTrack />
+      <AppliedTrack />
     </div>
   )
 }

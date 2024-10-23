@@ -10,7 +10,8 @@ import {
   SignInButton,
   SignedIn,
   SignedOut,
-  UserButton
+  UserButton,
+  useUser
 } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Textarea } from "@/components/ui/textarea"
@@ -27,8 +28,9 @@ interface HeaderProps {
   onProfileClick?: () => void;
 }
 
-export function Header({ user, onNotificationClick }: HeaderProps) {
+export function Header({ onNotificationClick }: HeaderProps) {
   const { toast } = useToast();
+  const { user } = useUser();
   const [userDetails, setUserDetails] = useState({
     about: '',
   });
@@ -234,7 +236,7 @@ export function Header({ user, onNotificationClick }: HeaderProps) {
           <Link href="/">
             <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
           </Link>
-          <h1 className="text-3xl font-bold">JobTrack</h1>
+          <h1 className="text-3xl font-bold">AppliedTrack</h1>
         </div>
         <div className="flex items-center space-x-4">
           <TooltipProvider>
@@ -320,7 +322,7 @@ export function Header({ user, onNotificationClick }: HeaderProps) {
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                {user ? user.name : 'Get Started'}
+                {user ? user.fullName : 'Get Started'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

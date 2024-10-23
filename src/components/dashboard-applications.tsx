@@ -34,6 +34,27 @@ import {
 import { useAuth } from '@clerk/nextjs';
 import { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useToast } from "@/hooks/use-toast"
+import { FaSync } from 'react-icons/fa';
+
+// Define types for Hunter.io email data
+interface HunterEmail {
+  value: string;
+  type: string;
+  confidence: number;
+  sources: Array<any>;
+  first_name?: string;
+  last_name?: string;
+  position?: string;
+  seniority?: string;
+  department?: string;
+  linkedin?: string;
+  twitter?: string;
+  phone_number?: string;
+  verification?: {
+    date: string;
+    status: string;
+  };
+}
 
 // Job status options
 const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
@@ -62,6 +83,13 @@ interface Job {
   jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
   dateUpdated?: string;
   flag?: 'no_response' | 'update' | string;
+  hunterData?: {
+    domain: string;
+    pattern?: string;
+    organization?: string;
+    emails?: HunterEmail[];
+    dateUpdated?: string;
+  };
 }
 
 // Define types for Hunter.io search results
@@ -199,7 +227,7 @@ const getFlagIcon = (flag: string) => {
   }
 }
 
-export function JobTrack() {
+export function AppliedTrack() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
@@ -589,6 +617,7 @@ export function JobTrack() {
                       handleKeyDown={handleKeyDown} 
                       layoutMode={layoutMode} 
                       updateJobStatus={updateJobStatus}
+                      updateJobDetails={updateJobDetails}
                     />
                   </motion.div>
                 ))}
@@ -618,6 +647,7 @@ export function JobTrack() {
                       handleKeyDown={handleKeyDown} 
                       layoutMode={layoutMode} 
                       updateJobStatus={updateJobStatus}
+                      updateJobDetails={updateJobDetails}
                     />
                   </motion.div>
                 ))}
@@ -753,18 +783,89 @@ export function JobTrack() {
 }
 
 // Update JobCard component
-function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStatus }: { 
+function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStatus, updateJobDetails, sendToast=true }: { 
   job: Job, 
   openJobDetails: (job: Job) => void, 
   handleKeyDown: (e: React.KeyboardEvent, job: Job) => void, 
   layoutMode: 'list' | 'masonry', 
-  updateJobStatus: (jobId: string, newStatus: Job['status']) => void 
+  updateJobStatus: (jobId: string, newStatus: Job['status']) => void,
+  updateJobDetails: (job: Job) => Promise<void>,
+  sendToast?: boolean
 }) {
   const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleStatusChange = (newStatus: string) => {
     updateJobStatus(job.id || '', newStatus as Job['status']);
     setIsStatusSelectOpen(false);
+  };
+
+  const searchHunterDomain = async () => {
+    setIsLoading(true);
+    try {
+      // Clean the domain from the website field
+      const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+      
+      const response = await fetch(`/api/hunter?domain=${domain}`);
+      if (!response.ok) throw new Error('Failed to fetch Hunter data');
+      
+      const hunterResult = await response.json();
+
+      console.log('Hunter Result:', hunterResult);
+      
+      // Update the job with Hunter data
+      const updatedJob = {
+        ...job,
+        hunterData: {
+          ...hunterResult.data,
+          dateUpdated: new Date().toISOString()
+        }
+      };
+      
+      // Call the existing updateJobDetails function
+      await updateJobDetails(updatedJob);
+      
+      
+        toast({
+          title: "Hunter Data Updated",
+        description: `Found ${hunterResult.data.data.emails?.length || 0} email patterns for ${domain}`,
+      });
+    } catch (error) {
+      console.error('Error fetching Hunter data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch Hunter data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderHunterPreview = () => {
+    if (!job.hunterData?.emails?.length) return null;
+
+    const previewEmails = job.hunterData.emails.slice(0, 2);
+    const remainingCount = Math.max(0, job.hunterData.emails.length - 2);
+
+    return (
+      <div className="space-y-2">
+        {previewEmails.map((email, index) => (
+          <div key={index} className="flex items-center justify-between text-sm">
+            <span>{email.first_name} {email.last_name}</span>
+            <Badge variant="outline" className="text-xs">
+              {email.position}
+            </Badge>
+          </div>
+        ))}
+        {remainingCount > 0 && (
+          <p className="text-sm text-gray-500 text-right">
+            +{remainingCount} more contacts
+          </p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -875,22 +976,53 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
           </div>
           {layoutMode === 'list' && (
             <div className="w-[30%] pl-4 border-l" id="hunter-section">
-              <Image src={hunterLogo} alt={job.company} className="w-[100px] h-auto" />
-              <h4 className="font-semibold mb-2">Contacts Found</h4>
-              {job.contactName && (
-                <p className="text-sm">
-                  <LinkedInLogoIcon className="inline w-4 h-4 mr-1" />
-                  {job.contactName}
-                </p>
-              )}
-              {job.contactEmail && (
-                <p className="text-sm">
-                  <Mail className="inline w-4 h-4 mr-1" />
-                  {job.contactEmail}
-                </p>
-              )}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <Image src={hunterLogo} alt={job.company} className="w-[100px] h-auto" />
+                </div>
+                <div className="flex items-center">
+                  {!job.hunterData && (
+                    <Button
+                      variant="outline"
+                      size="sm" 
+                      onClick={searchHunterDomain}
+                      disabled={isLoading}
+                      className="flex items-center gap-2"
+                    >
+                      {isLoading ? (
+                        <FaSync className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Search Domain'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
               
-              
+              {job.hunterData ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Email Pattern</h4>
+                    <Badge variant="secondary" className="text-xs">
+                      {job.hunterData.pattern}
+                    </Badge>
+                  </div>
+                  {renderHunterPreview()}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => openJobDetails(job)}
+                  >
+                    View All Contacts
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-4">
+                  <p className="text-sm">No Hunter data available</p>
+                  <p className="text-xs mt-1">Click search to find email patterns</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -910,6 +1042,7 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
 }) {
   const [editMode, setEditMode] = useState<boolean>(false);
   const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
 
   if (!job) return null;
 
@@ -930,113 +1063,209 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
     );
   };
 
+  const renderHunterTab = () => {
+    if (!job.hunterData?.emails?.length) {
+      return (
+        <div className="text-center py-8 text-gray-500">
+          No Hunter.io data available
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Email Pattern</h3>
+          <Badge variant="secondary">{job.hunterData.pattern}</Badge>
+        </div>
+        
+        <div className="space-y-4">
+          {job.hunterData.emails.map((email, index) => (
+            <Card key={index} className="p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-semibold">
+                    {email.first_name} {email.last_name}
+                  </h4>
+                  <p className="text-sm text-gray-600">{email.position}</p>
+                </div>
+                <Badge variant="outline">{email.confidence}% confidence</Badge>
+              </div>
+              
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Email</Label>
+                  <p className="text-sm font-mono">{email.value}</p>
+                </div>
+                {email.phone_number && (
+                  <div>
+                    <Label>Phone</Label>
+                    <p className="text-sm">{email.phone_number}</p>
+                  </div>
+                )}
+                {email.department && (
+                  <div>
+                    <Label>Department</Label>
+                    <p className="text-sm">{email.department}</p>
+                  </div>
+                )}
+                {email.seniority && (
+                  <div>
+                    <Label>Seniority</Label>
+                    <p className="text-sm capitalize">{email.seniority}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 flex gap-2">
+                {email.linkedin && (
+                  <a href={email.linkedin} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm">
+                      <LinkedInLogoIcon className="mr-2 h-4 w-4" />
+                      LinkedIn
+                    </Button>
+                  </a>
+                )}
+                {email.twitter && (
+                  <a href={`https://twitter.com/${email.twitter}`} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm">Twitter</Button>
+                  </a>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white backdrop-blur-md">
-        <DialogHeader className="flex flex-row items-center justify-between">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
           <DialogTitle className="text-2xl font-bold">{job.company}</DialogTitle>
+          <div className="flex space-x-4 mt-4">
+            <Button
+              variant={activeTab === 'details' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('details')}
+            >
+              Details
+            </Button>
+            <Button
+              variant={activeTab === 'hunter' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('hunter')}
+            >
+              Hunter.io Data
+            </Button>
+          </div>
         </DialogHeader>
-        <ScrollArea className="flex-grow overflow-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                {renderField("Position", job.position, "position")}
-                <Badge className={`${getStatusColor(job.status)} text-sm`}>{job.status}</Badge>
-                <p className="text-sm text-gray-500">
-                  Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
-                </p>
-                {renderField("Website", job.website, "website")}
+        <ScrollArea className="flex-grow">
+          {activeTab === 'details' ? (
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {renderField("Position", job.position, "position")}
+                  <Badge className={`${getStatusColor(job.status)} text-sm`}>{job.status}</Badge>
+                  <p className="text-sm text-gray-500">
+                    Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
+                  </p>
+                  {renderField("Website", job.website, "website")}
+                </div>
+                <div className="space-y-4">
+                  <h4 className="font-semibold">Contact Information</h4>
+                  {renderField("Contact Name", job.contactName, "contactName")}
+                  {renderField("Contact Email", job.contactEmail, "contactEmail")}
+                  {renderField("Contact Phone", job.contactPhone, "contactPhone")}
+                </div>
               </div>
-              <div className="space-y-4">
-                <h4 className="font-semibold">Contact Information</h4>
-                {renderField("Contact Name", job.contactName, "contactName")}
-                {renderField("Contact Email", job.contactEmail, "contactEmail")}
-                {renderField("Contact Phone", job.contactPhone, "contactPhone")}
+              <Separator />
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-semibold">Job Description</h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
+                  >
+                    {isJobDescriptionCollapsed ? 'Expand' : 'Collapse'}
+                  </Button>
+                </div>
+                {!isJobDescriptionCollapsed && (
+                  editMode ? (
+                    <Textarea
+                      value={job.jobDescription || ''}
+                      onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                      className="min-h-[100px] mt-1"
+                    />
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
+                  )
+                )}
               </div>
-            </div>
-            <Separator />
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-semibold">Job Description</h4>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
-                >
-                  {isJobDescriptionCollapsed ? 'Expand' : 'Collapse'}
-                </Button>
-              </div>
-              {!isJobDescriptionCollapsed && (
-                editMode ? (
+              <Separator />
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-semibold">Notes</h4>
+                  {!editMode && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditMode(true)}
+                    >
+                      Add Notes
+                    </Button>
+                  )}
+                </div>
+                {editMode ? (
                   <Textarea
-                    value={job.jobDescription || ''}
-                    onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                    value={job.notes || ''}
+                    onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
                     className="min-h-[100px] mt-1"
                   />
                 ) : (
-                  <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
-                )
-              )}
-            </div>
-            <Separator />
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-semibold">Notes</h4>
-                {!editMode && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditMode(true)}
-                  >
-                    Add Notes
-                  </Button>
+                  <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
                 )}
               </div>
-              {editMode ? (
-                <Textarea
-                  value={job.notes || ''}
-                  onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
-                  className="min-h-[100px] mt-1"
-                />
-              ) : (
-                <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
-              )}
-            </div>
-            <Separator />
-            <div className="space-y-2">
-              <h4 className="font-semibold">Important Dates</h4>
-              {renderField("Interview Date", job.interviewDate, "interviewDate")}
-              {renderField("Date Applied", job.dateApplied, "dateApplied")}
-            </div>
-            <Separator />
-            <div className="space-y-2">
-              <h4 className="font-semibold">Documents</h4>
+              <Separator />
+              <div className="space-y-2">
+                <h4 className="font-semibold">Important Dates</h4>
+                {renderField("Interview Date", job.interviewDate, "interviewDate")}
+                {renderField("Date Applied", job.dateApplied, "dateApplied")}
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <h4 className="font-semibold">Documents</h4>
+                <div className="space-y-4">
+                  {job.resumeLink && (
+                    <div>
+                      <Label className="font-semibold">Resume</Label>
+                      <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
+                    </div>
+                  )}
+                  {job.coverLetterLink && (
+                    <div>
+                      <Label className="font-semibold">Cover Letter</Label>
+                      <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Separator />
               <div className="space-y-4">
-                {job.resumeLink && (
-                  <div>
-                    <Label className="font-semibold">Resume</Label>
-                    <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
-                  </div>
-                )}
-                {job.coverLetterLink && (
-                  <div>
-                    <Label className="font-semibold">Cover Letter</Label>
-                    <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
-                  </div>
-                )}
+                <h4 className="font-semibold">Additional Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {renderField("Salary", job.salary, "salary")}
+                  {renderField("Location", job.location, "location")}
+                  {renderField("Remote Type", job.remoteType, "remoteType")}
+                  {renderField("Job Type", job.jobType, "jobType")}
+                </div>
               </div>
             </div>
-            <Separator />
-            <div className="space-y-4">
-              <h4 className="font-semibold">Additional Details</h4>
-              <div className="grid grid-cols-2 gap-4">
-                {renderField("Salary", job.salary, "salary")}
-                {renderField("Location", job.location, "location")}
-                {renderField("Remote Type", job.remoteType, "remoteType")}
-                {renderField("Job Type", job.jobType, "jobType")}
-              </div>
+          ) : (
+            <div className="p-6">
+              {renderHunterTab()}
             </div>
-          </div>
+          )}
         </ScrollArea>
         <div className="p-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">

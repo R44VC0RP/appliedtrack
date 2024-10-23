@@ -83,6 +83,28 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Add TypeScript interfaces for Hunter.io data
+interface HunterEmail {
+  value: string;
+  type: string;
+  confidence: number;
+  sources: any[];
+  first_name?: string;
+  last_name?: string;
+  position?: string;
+  seniority?: string;
+  department?: string;
+  linkedin?: string;
+  twitter?: string;
+  phone_number?: string;
+  verification?: {
+    date: string;
+    status: string;
+  };
+}
+
+
+// Update the PUT function to handle Hunter data
 export async function PUT(request: NextRequest) {
   const { userId } = getAuth(request);
   
@@ -96,13 +118,24 @@ export async function PUT(request: NextRequest) {
     return new NextResponse("Missing job id", { status: 400 });
   }
 
+  // Process Hunter data if present
+  if (jobData.hunterData) {
+    jobData.hunterData = {
+      domain: jobData.hunterData.data.domain,
+      pattern: jobData.hunterData.data.pattern,
+      organization: jobData.hunterData.data.organization,
+      emails: jobData.hunterData.data.emails,
+      dateUpdated: new Date().toISOString()
+    };
+  }
+
   try {
     const updatedJob = await JobModel.findOneAndUpdate(
       { id: jobData.id, userId },
       { 
         ...jobData, 
         dateUpdated: new Date(),
-        status: jobData.status || "Yet to Apply" // Ensure the status is updated, default to "Yet to Apply"
+        status: jobData.status || "Yet to Apply"
       },
       { new: true, runValidators: true }
     );

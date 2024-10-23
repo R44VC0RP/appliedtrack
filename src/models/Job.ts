@@ -8,6 +8,7 @@ const JobSchema = new mongoose.Schema({
   status: String,
   website: String,
   resumeLink: String,
+  hunterData: Object,
   coverLetterLink: String,
   jobDescription: String,
   notes: String,

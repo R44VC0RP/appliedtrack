@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 // import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock } from 'lucide-react'
 import { Header } from '@/components/header'
 import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
 
@@ -17,18 +17,74 @@ import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
 export default function Homepage() {
   const [email, setEmail] = useState('')
   const { user } = useUser()
+  const isDev = true // Toggle for development/launch mode
+
   const features = [
-    { icon: Briefcase, title: 'Job Tracking', description: 'Easily manage and track all your job applications in one place.' },
-    { icon: Calendar, title: 'Interview Scheduler', description: 'Never miss an interview with our built-in scheduling system.' },
-    { icon: Search, title: 'Company Research', description: 'Access comprehensive company information and insights.' },
-    { icon: Users, title: 'Networking Tools', description: 'Build and maintain your professional network effortlessly.' },
-    { icon: BarChart, title: 'Analytics Dashboard', description: 'Gain valuable insights into your job search progress.' },
+    { 
+      icon: Briefcase, 
+      title: 'Smart Application Tracking', 
+      description: 'Organize and monitor all your job applications with detailed status tracking and follow-up reminders.' 
+    },
+    { 
+      icon: Search, 
+      title: 'Email Discovery', 
+      description: 'Powered by Hunter.io, automatically find the right contact person for your follow-ups and networking.' 
+    },
+    { 
+      icon: BarChart, 
+      title: 'Resume Management', 
+      description: 'Upload multiple resumes and track which version you used for each application.' 
+    },
+    { 
+      icon: Users, 
+      title: 'Cover Letter Generator', 
+      description: 'Generate professional, personalized PDF cover letters tailored to each application.' 
+    },
+    {
+      icon: Clock,
+      title: 'Follow-up Reminders',
+      description: 'We will remind you to follow up on your applications if it has been a while since you last heard from them.'
+    },
+    { 
+      icon: Calendar, 
+      title: 'Coming Soon: ATS Review', 
+      description: 'Get insights on how your resume performs against applicant tracking systems.' 
+    },
   ]
 
   const pricingTiers = [
-    { name: 'Basic', price: 'Free', features: ['Job application tracking', 'Basic analytics', 'Limited company research'] },
-    { name: 'Pro', price: '$9.99/mo', features: ['Everything in Basic', 'Advanced analytics', 'Unlimited company research', 'Interview scheduling'] },
-    { name: 'Enterprise', price: 'Custom', features: ['Everything in Pro', 'API access', 'Dedicated support', 'Custom integrations'] },
+    { 
+      name: 'Basic', 
+      price: 'Free', 
+      features: [
+        'Up to 10 job applications',
+        'Basic resume storage',
+        'Simple cover letter templates',
+        '2 email lookups/month'
+      ] 
+    },
+    { 
+      name: 'Pro', 
+      price: '$9.99/mo', 
+      features: [
+        'Unlimited applications',
+        'Multiple resume versions',
+        'Advanced cover letter generator',
+        '50 email lookups/month',
+        'Priority support'
+      ] 
+    },
+    { 
+      name: 'Enterprise', 
+      price: 'Custom', 
+      features: [
+        'Everything in Pro',
+        'Team collaboration',
+        'API access',
+        'Custom integrations',
+        'Dedicated account manager'
+      ] 
+    },
   ]
 
   return (
@@ -39,16 +95,25 @@ export default function Homepage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <SignedOut>
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
-                    Supercharge Your Job Search
-                  </h1>
-                </SignedOut>
-                <SignedIn>
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
-                    Welcome back, {user?.firstName || 'User'}!
-                  </h1>
-                </SignedIn>
+                {isDev ? (
+                  <>
+                    <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
+                      Join the Waitlist for AppliedTrack
+                    </h1>
+                    <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
+                      Be the first to experience the future of job application management. Coming soon!
+                    </p>
+                  </>
+                ) : (
+                  <SignedOut>
+                    <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-white">
+                      Take Control of Your Job Search
+                    </h1>
+                    <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
+                      Smart email discovery, resume management, and application tracking all in one place.
+                    </p>
+                  </SignedOut>
+                )}
                 
                 <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
                   Track applications, schedule interviews, and land your dream job with JobTrackr.
@@ -64,11 +129,11 @@ export default function Homepage() {
                     onChange={(e) => setEmail(e.target.value)}
                   />
                   <Button type="submit" variant="secondary">
-                    Get Started
+                    {isDev ? 'Join Waitlist' : 'Get Started'}
                   </Button>
                 </form>
                 <p className="text-xs text-gray-300">
-                  Start your free trial. No credit card required.
+                  {isDev ? 'Be notified when we launch.' : 'Start your free trial. No credit card required.'}
                 </p>
               </div>
             </div>
@@ -144,13 +209,13 @@ export default function Homepage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
               <div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl mb-4">
-                  About JobTrackr
+                  About AppliedTrack
                 </h2>
                 <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-4">
-                  JobTrackr was born out of a simple idea: to make the job search process easier and more efficient for everyone. Our team of dedicated professionals has experienced the challenges of job hunting firsthand, and we&apos;ve built the tool we wish we had.
+                  AppliedTrack was born out of a simple idea: to make the job search process easier and more efficient for everyone. 
                 </p>
                 <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-6">
-                  With JobTrackr, you&apos;re not just getting a job application tracker. You&apos;re gaining a partner in your career journey, equipped with powerful tools and insights to help you land your dream job.
+                  With AppliedTrack, you&apos;re not just getting a job application tracker. You&apos;re gaining a partner in your career journey, equipped with powerful tools and insights to help you land your dream job.
                 </p>
                 <Button>
                   Learn More
@@ -188,7 +253,7 @@ export default function Homepage() {
         </section>
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center justify-center px-4 md:px-6 border-t">
-        <p className="text-xs text-gray-500">© 2024 JobTrackr. All rights reserved.</p>
+        <p className="text-xs text-gray-500">© 2024 AppliedTrack. All rights reserved.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link href="#" className="text-xs hover:underline underline-offset-4">
             Terms of Service
