@@ -76,86 +76,90 @@ export function AdminUsers() {
   );
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="h-full flex flex-col w-[80vw]">
+      <CardHeader className="flex-none">
         <CardTitle className="text-2xl font-bold flex items-center gap-2">
           <UserCog className="w-6 h-6" />
           User Management
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center space-x-2 mb-6">
-          <Search className="w-5 h-5 text-gray-500" />
-          <Input
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-        <div className="flex items-center space-x-2 mb-6">
-          You have {users.length} users.
+      <CardContent className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-none space-y-6">
+          <div className="flex items-center space-x-2">
+            <Search className="w-5 h-5 text-gray-500" />
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            You have {users.length} users.
+          </div>
         </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Last Sign In</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow key={user.userId}>
-                  <TableCell className="flex items-center space-x-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.imageUrl} />
-                      <AvatarFallback>
-                        {user.firstName?.[0]}{user.lastName?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">
-                        {user.firstName} {user.lastName}
-                      </div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      defaultValue={user.role}
-                      onValueChange={(value) => handleRoleChange(user.userId, value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>{user.tier}</TableCell>
-                  <TableCell>
-                    {new Date(user.lastSignIn || '').toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(user.dateCreated).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                  </TableCell>
+        <div className="flex-1 min-h-0 mt-6">
+          <div className="h-full border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead>Last Sign In</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody className="overflow-auto">
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.userId}>
+                    <TableCell className="flex items-center space-x-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.imageUrl} />
+                        <AvatarFallback>
+                          {user.firstName?.[0]}{user.lastName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {user.firstName} {user.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        defaultValue={user.role}
+                        onValueChange={(value) => handleRoleChange(user.userId, value)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>{user.tier}</TableCell>
+                    <TableCell>
+                      {new Date(user.lastSignIn || '').toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(user.dateCreated).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm">
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </CardContent>
     </Card>

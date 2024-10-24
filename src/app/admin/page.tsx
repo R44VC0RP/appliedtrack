@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { AdminOnly } from '@/components/auth/AdminOnly'
-import { Header } from '@/components/header'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser } from '@clerk/nextjs'
 import { AdminUsers } from './components/adminusers'
+import logo from '@/app/logos/logo.png'
 import {
     Sidebar,
     SidebarContent,
@@ -78,60 +79,65 @@ export default function AdminDashboard() {
     const { user } = useUser()
 
     return (
-        <div className="flex flex-col h-screen">
-            <AdminOnly>
-                <SidebarProvider>
-                    <div className="flex h-screen">
-                        <Sidebar className="hidden lg:block w-64 border-r">
-                            <SidebarHeader className="p-4">
-                                <h2 className="text-lg font-semibold">Admin Dashboard</h2>
-                            </SidebarHeader>
-                            <SidebarContent>
-                                <SidebarGroup>
-                                    <SidebarGroupContent>
-                                        <SidebarMenu>
-                                            {navItems.map((item) => (
-                                                <SidebarMenuItem key={item.title}>
-                                                    <SidebarMenuButton asChild>
-                                                        <button
-                                                            onClick={() => setActiveComponent(item.title)}
-                                                            className="flex items-center gap-3 px-3 py-2 hover:bg-accent rounded-md w-full text-left"
-                                                        >
-                                                            <item.icon className="h-5 w-5" />
-                                                            <span>{item.title}</span>
-                                                        </button>
-                                                    </SidebarMenuButton>
-                                                </SidebarMenuItem>
-                                            ))}
-                                        </SidebarMenu>
-                                    </SidebarGroupContent>
-                                </SidebarGroup>
-                            </SidebarContent>
-                            <SidebarFooter className="p-4 border-t">
-                                <div className="flex items-center gap-2">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={user?.imageUrl} />
-                                        <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-medium">{user?.firstName} {user?.lastName}</span>
-                                        <span className="text-xs text-muted-foreground">{user?.emailAddresses[0].emailAddress}</span>
-                                    </div>
-                                </div>
-                            </SidebarFooter>
-                        </Sidebar>
-                        <div className="flex-1 overflow-auto w-full">
-                            <div className="w-full h-full p-6">
-                                <div className="w-full max-w-7xl mx-auto">
-                                    {navItems.map(item => (
-                                        activeComponent === item.title && <item.component key={item.title} />
-                                    ))}
+        <AdminOnly>
+            <SidebarProvider>
+                <div className="grid grid-cols-[auto,1fr] h-screen">
+                    <Sidebar>
+                        <SidebarHeader className="p-4 border-b inline-flex items-center gap-2" onClick={() => window.location.href = '/'}>
+                            <Image src={logo} alt="Applied Track Logo" className="w-8 h-8" />
+                            <h2 className="text-lg font-semibold">Admin Dashboard</h2>
+                        </SidebarHeader>
+                        <SidebarContent>
+                            <SidebarGroup>
+                                <SidebarGroupContent>
+                                    <SidebarMenu>
+                                        {navItems.map((item) => (
+                                            <SidebarMenuItem key={item.title}>
+                                                <SidebarMenuButton
+                                                    onClick={() => setActiveComponent(item.title)}
+                                                    className="flex items-center gap-3 px-3 py-2 w-full"
+                                                    isActive={activeComponent === item.title}
+                                                >
+                                                    <item.icon className="h-5 w-5" />
+                                                    <span>{item.title}</span>
+                                                </SidebarMenuButton>
+                                            </SidebarMenuItem>
+                                        ))}
+                                    </SidebarMenu>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+                        </SidebarContent>
+                        <SidebarFooter className="p-4 border-t">
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src={user?.imageUrl} />
+                                    <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">{user?.firstName} {user?.lastName}</span>
+                                    <span className="text-xs text-muted-foreground">{user?.emailAddresses[0].emailAddress}</span>
                                 </div>
                             </div>
+                        </SidebarFooter>
+                    </Sidebar>
+                    
+
+                    <div className="overflow-auto ">
+                        <div className="h-full p-6">
+                            {navItems.map(item => (
+                                activeComponent === item.title && (
+                                    <div key={item.title} className="h-full flex items-center justify-center">
+                                        <item.component />
+                                    </div>
+                                )
+                            ))}
                         </div>
                     </div>
-                </SidebarProvider>
-            </AdminOnly>
-        </div>
+                    
+                </div>
+                
+            </SidebarProvider>
+            
+        </AdminOnly>
     )
 }
