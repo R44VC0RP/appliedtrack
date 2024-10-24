@@ -153,11 +153,11 @@ export function Header({ onNotificationClick }: HeaderProps) {
     }
   };
 
-  // In the CustomPage component, memoize it to prevent recreation
-  const CustomPage = useCallback(() => {
-    // Local state for the textarea
-    const [localAbout, setLocalAbout] = useState(userDetails.about);
+  // Move the state declaration outside of the CustomPage component
+  const [localAbout, setLocalAbout] = useState(userDetails.about);
 
+  // Update the CustomPage component to use the state
+  const CustomPage = useCallback(() => {
     const handleLocalChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setLocalAbout(e.target.value);
     };
@@ -267,7 +267,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
         </div>
       </div>
     );
-  }, [userDetails.about, toast]); // Dependencies updated
+  }, [localAbout, toast]); // Add localAbout to dependencies
 
   return (
     <header className="container mx-auto p-4 mt-4">
