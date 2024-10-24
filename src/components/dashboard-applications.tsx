@@ -972,7 +972,7 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                 View Details
               </Button>
             </div>
-            
+            {/* this is a comment */}
           </div>
           {layoutMode === 'list' && (
             <div className="w-[30%] pl-4 border-l" id="hunter-section">

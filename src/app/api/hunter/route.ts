@@ -22,9 +22,9 @@ function isValidDomain(domain: string): boolean {
   return domainPattern.test(cleanDomain);
 }
 
-async function getDomainFromHunter(domain: string) {
+async function getDomainFromHunter(domain: string, initialResult: boolean = false) {
   const hunterApiKey = process.env.HUNTER_API_KEY;
-  const limit = 100;
+  const limit = initialResult ? 100 : 10;
   let allEmails: any[] = [];
   
   try {
@@ -40,18 +40,21 @@ async function getDomainFromHunter(domain: string) {
     // Add first batch of emails
     allEmails = [...initialData.data.emails];
     
-    // Calculate number of additional requests needed
-    const remainingRequests = Math.ceil(totalResults / limit) - 1;
-    
-    // Fetch remaining results
-    for (let offset = limit; offset < totalResults; offset += limit) {
-      const url = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}&offset=${offset}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Hunter API error: ${response.statusText}`);
+    // Only paginate if initialResult is true
+    if (initialResult) {
+      // Calculate number of additional requests needed
+      const remainingRequests = Math.ceil(totalResults / limit) - 1;
+      
+      // Fetch remaining results
+      for (let offset = limit; offset < totalResults; offset += limit) {
+        const url = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}&offset=${offset}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Hunter API error: ${response.statusText}`);
+        }
+        const data = await response.json();
+        allEmails = [...allEmails, ...data.data.emails];
       }
-      const data = await response.json();
-      allEmails = [...allEmails, ...data.data.emails];
     }
     
     // Sanitize all emails

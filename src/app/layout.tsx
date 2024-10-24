@@ -19,6 +19,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script defer src="https://analytics.raavai.com/script.js" data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"></script>
+      </head>
       <ClerkProvider>
         <body
           className={inter.className}

@@ -11,12 +11,22 @@ import { Input } from "@/components/ui/input"
 import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock } from 'lucide-react'
 import { Header } from '@/components/header'
 import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
+import { useToast } from "@/hooks/use-toast"
 
 // import jobTrackrLogo from '@/app/logos/logo.png'
 
+// images:
+
+import jobTrackDashboard from '@/app/images/jobTrackDashboard.png'
+import emailLookup from '@/app/images/emailLookup.png'
+import resumeManagement from '@/app/images/resumeManagement.png'
+
 export default function Homepage() {
   const [email, setEmail] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const { user } = useUser()
+  const { toast } = useToast()
   const isDev = true // Toggle for development/launch mode
 
   const features = [
@@ -54,18 +64,18 @@ export default function Homepage() {
 
   const pricingTiers = [
     { 
-      name: 'Basic', 
+      name: "Basic", 
       price: 'Free', 
       features: [
-        'Up to 10 job applications',
-        'Basic resume storage',
-        'Simple cover letter templates',
-        '2 email lookups/month'
+        'Up to 50 job applications',
+        'Store up to 5 resumes',
+        'Up to 10 custom cover letters/month',
+        '2 email domain lookups/month'
       ] 
     },
     { 
       name: 'Pro', 
-      price: '$9.99/mo', 
+      price: '$10', 
       features: [
         'Unlimited applications',
         'Multiple resume versions',
@@ -75,17 +85,50 @@ export default function Homepage() {
       ] 
     },
     { 
-      name: 'Enterprise', 
-      price: 'Custom', 
+      name: 'Power', 
+      price: '$30', 
       features: [
-        'Everything in Pro',
-        'Team collaboration',
-        'API access',
-        'Custom integrations',
-        'Dedicated account manager'
-      ] 
+        'Unlimited applications',
+        'Unlimited resumes',
+        'Unlimited cover letters',
+        '100 email lookups',
+        'Access to all beta features'
+      ]
     },
   ]
+
+  const handleWaitlistSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to join waitlist')
+      }
+
+      // Clear form and show success message
+      setEmail('')
+      toast({
+        title: "Success!",
+        description: "You've been added to our waitlist. We'll notify you when we launch!",
+      })
+
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -120,7 +163,7 @@ export default function Homepage() {
                 </p>
               </div>
               <div className="w-full max-w-sm space-y-2">
-                <form className="flex space-x-2" onSubmit={(e) => e.preventDefault()}>
+                <form className="flex space-x-2" onSubmit={handleWaitlistSignup}>
                   <Input
                     className="max-w-lg flex-1 bg-white text-primary"
                     placeholder="Enter your email"
@@ -217,14 +260,14 @@ export default function Homepage() {
                 <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-6">
                   With AppliedTrack, you&apos;re not just getting a job application tracker. You&apos;re gaining a partner in your career journey, equipped with powerful tools and insights to help you land your dream job.
                 </p>
-                <Button>
+                {/* <Button>
                   Learn More
                   <ChevronRight className="ml-2 w-4 h-4" />
-                </Button>
+                </Button> */}
               </div>
               <div className="space-y-4">
                 <Image
-                  src="/placeholder.svg?height=400&width=600"
+                  src={jobTrackDashboard}
                   alt="JobTrackr dashboard"
                   className="rounded-lg shadow-lg"
                   width={600}
@@ -233,14 +276,14 @@ export default function Homepage() {
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <Image
-                    src="/placeholder.svg?height=200&width=280"
+                    src={emailLookup}
                     alt="Team collaboration"
                     className="rounded-lg shadow-lg"
                     width={280}
                     height={200}
                   />
                   <Image
-                    src="/placeholder.svg?height=200&width=280"
+                    src={resumeManagement}
                     alt="Mobile app"
                     className="rounded-lg shadow-lg"
                     width={280}

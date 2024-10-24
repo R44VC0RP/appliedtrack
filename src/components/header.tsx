@@ -239,30 +239,33 @@ export function Header({ onNotificationClick }: HeaderProps) {
           <h1 className="text-3xl font-bold">AppliedTrack</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={onNotificationClick} className="focus:outline-none">
-                  <Bell className="h-5 w-5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Notifications
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link href="/dashboard" className="focus:outline-none">
-                  <Grid className="h-5 w-5" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                Dashboard
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <SignedIn>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button onClick={onNotificationClick} className="focus:outline-none">
+                    <Bell className="h-5 w-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Notifications
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/dashboard" className="focus:outline-none">
+                    <Grid className="h-5 w-5" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Dashboard
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </SignedIn>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
