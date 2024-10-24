@@ -10,6 +10,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: "AppliedTrack",
   description: "Get a handle on your job applications",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
