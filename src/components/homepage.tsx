@@ -122,7 +122,7 @@ export default function Homepage() {
       setEmail('')
       toast({
         title: "Success!",
-        description: `You've number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`,
+        description: `You're number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`,
       })
 
     } catch (err: any) {
