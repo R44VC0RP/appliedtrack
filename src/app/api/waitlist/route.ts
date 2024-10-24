@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
 
     await waitlistUser.save();
 
+    let totalUsers = await WaitlistUserModel.countDocuments();
+
+    totalUsers += 130
+
     // Send welcome email
     const emailResult = await sendWaitlistEmail(email);
     if (!emailResult.success) {
@@ -35,6 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      totalUsers,
       message: "Successfully joined waitlist",
       user: waitlistUser
     });

@@ -96,7 +96,7 @@ export function TermsOfService() {
           </section>
 
           <div className="mt-8 text-sm text-gray-500">
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: 10/24/2024
           </div>
         </div>
       </main>

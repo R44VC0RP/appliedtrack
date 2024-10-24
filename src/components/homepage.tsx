@@ -116,11 +116,13 @@ export default function Homepage() {
         throw new Error(data.message || 'Failed to join waitlist')
       }
 
+      const data = await response.json()
+
       // Clear form and show success message
       setEmail('')
       toast({
         title: "Success!",
-        description: "You've been added to our waitlist. We'll notify you when we launch!",
+        description: `You've number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`,
       })
 
     } catch (err: any) {
@@ -144,7 +146,7 @@ export default function Homepage() {
                       Join the Waitlist for AppliedTrack
                     </h1>
                     <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
-                      Be the first to experience the future of job application management. Coming soon!
+                      Be the first to experience the future of job application management.
                     </p>
                   </>
                 ) : (
@@ -159,7 +161,7 @@ export default function Homepage() {
                 )}
                 
                 <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
-                  Track applications, schedule interviews, and land your dream job with JobTrackr.
+                  Track applications, generate cover letters, discover the right contact, and land your dream job with AppliedTrack.
                 </p>
               </div>
               <div className="w-full max-w-sm space-y-2">
@@ -176,7 +178,7 @@ export default function Homepage() {
                   </Button>
                 </form>
                 <p className="text-xs text-gray-300">
-                  {isDev ? 'Be notified when we launch.' : 'Start your free trial. No credit card required.'}
+                  {isDev ? 'You will receive an email when we launch to sign up.' : 'Start your free trial. No credit card required.'}
                 </p>
               </div>
             </div>
