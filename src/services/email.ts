@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { renderAsync } from '@react-email/render';
 import WaitlistEmail from '@/emails/WaitlistEmail';
+import AdminWaitlistNotification from '@/emails/AdminWaitlistNotification';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -21,3 +22,27 @@ export async function sendWaitlistEmail(email: string) {
     return { success: false, error };
   }
 }
+
+export async function sendAdminNotification(userEmail: string, totalUsers: number) {
+  try {
+    const html = await renderAsync(AdminWaitlistNotification({ 
+      userEmail, 
+      totalUsers 
+    }));
+
+    const data = await resend.emails.send({
+      from: 'AppliedTrack <notifications@appliedtrack.com>',
+      to: 'raavtube@icloud.com',
+      subject: 'New AppliedTrack Waitlist Signup!',
+      html: html,
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending admin notification:', error);
+    return { success: false, error };
+  }
+}
+
+
+

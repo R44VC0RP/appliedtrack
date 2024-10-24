@@ -103,6 +103,16 @@ export default function Homepage() {
     setError('')
 
     try {
+      // Email validation
+      if (!email) {
+        throw new Error('Email is required')
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        throw new Error('Please enter a valid email address')
+      }
+
       const response = await fetch('/api/waitlist', {
         method: 'POST',
         headers: {

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import mongoose from 'mongoose';
 import { WaitlistUserModel } from '@/models/WaitlistUser';
 import { sendWaitlistEmail } from '@/services/email';
+import { sendAdminNotification } from '@/services/email';
 
 mongoose.connect(process.env.MONGODB_URI as string);
 
@@ -31,11 +32,16 @@ export async function POST(request: NextRequest) {
 
     totalUsers += 130
 
-    // Send welcome email
+    // Send welcome email to user
     const emailResult = await sendWaitlistEmail(email);
     if (!emailResult.success) {
       console.error('Failed to send welcome email:', emailResult.error);
-      // Note: We don't return an error here as the user is still successfully added to the waitlist
+    }
+
+    // Send notification to admin
+    const adminNotification = await sendAdminNotification(email, totalUsers);
+    if (!adminNotification.success) {
+      console.error('Failed to send admin notification:', adminNotification.error);
     }
 
     return NextResponse.json({

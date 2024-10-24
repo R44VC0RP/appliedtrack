@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Cookies from 'js-cookie'
 import Image from 'next/image'
 import { AdminOnly } from '@/components/auth/AdminOnly'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser } from '@clerk/nextjs'
 import { AdminUsers } from './components/adminusers'
+import { Waitlist } from './components/waitlist'
 import logo from '@/app/logos/logo.png'
 import {
     Sidebar,
@@ -43,9 +45,9 @@ const navItems: NavItem[] = [
         component: AdminUsers,
     },
     {
-        title: "Orders",
-        icon: ShoppingCart,
-        component: () => <div>Orders Component</div>, // Placeholder
+        title: "Waitlist",
+        icon: Users,
+        component: Waitlist,
     },
     {
         title: "Content",
@@ -75,8 +77,16 @@ const navItems: NavItem[] = [
 ]
 
 export default function AdminDashboard() {
-    const [activeComponent, setActiveComponent] = useState("User Management")
+    const [activeComponent, setActiveComponent] = useState(() => {
+        // Initialize from cookie or default to "User Management"
+        return Cookies.get('adminActiveComponent') || "User Management"
+    })
     const { user } = useUser()
+
+    // Update cookie when activeComponent changes
+    useEffect(() => {
+        Cookies.set('adminActiveComponent', activeComponent, { expires: 7 }) // Expires in 7 days
+    }, [activeComponent])
 
     return (
         <AdminOnly>
