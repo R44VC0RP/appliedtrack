@@ -16,6 +16,7 @@ async function getOrCreateUser(userId: string): Promise<User> {
     user = new UserModel({
       userId,
       tier: 'free',
+      role: 'user',
       dateCreated: new Date(),
       dateUpdated: new Date()
     });

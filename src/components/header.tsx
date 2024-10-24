@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Bell, Grid, Settings, FileText } from 'lucide-react'
+import { Bell, Grid, Settings, FileText, Users } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
+import { AdminOnly } from '@/components/auth/AdminOnly';
 
 import logo from '@/app/logos/logo.png'
 import {
@@ -36,13 +37,18 @@ export function Header({ onNotificationClick }: HeaderProps) {
   });
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
 
-  const handleUserDetailsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
-  };
+  // Memoize the handler to prevent recreation on each render
+  const handleUserDetailsChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setUserDetails(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }, []); // Empty dependency array since it doesn't depend on any values
 
   const handleResumeUpload = useCallback((res: any) => {
     const uploadedFile = res[0];
-    console.log("Uploaded file:", uploadedFile ) ;
+    console.log("Uploaded file:", uploadedFile);
     const saveResume = async (uploadedFile: any) => {
       try {
         const response = await fetch('/api/resumes', {
@@ -147,87 +153,121 @@ export function Header({ onNotificationClick }: HeaderProps) {
     }
   };
 
-  const CustomPage = () => (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Personal Info</h1>
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">About Me</h3>
-          <p className="text-sm text-gray-500 mb-2">This is used to help generate more accurate cover letters and other documents.</p>
-          <Textarea
-            className="min-h-[100px] w-full"
-            name="about"
-            placeholder="About Me"
-            value={userDetails.about}
-            onChange={handleUserDetailsChange}
-          />
-          <Button onClick={handleSaveChanges} className="mt-2">Save Changes</Button>
-        </div>
-        <Separator />
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Example Bio's</h3>
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">John Doe</p>
-            <p className="text-sm text-gray-500 mb-2 p-2 bg-gray-100 rounded-md">
-              John Doe is a seasoned software engineer with over 10 years of experience in the tech industry. 
-            He has a proven track record of developing high-quality software solutions and leading successful projects. 
-            John is proficient in multiple programming languages and frameworks, and he is passionate about continuous learning and improvement. 
-            His accomplishments include leading a team to develop a highly scalable web application that serves millions of users, 
-              and contributing to open-source projects that have been widely adopted by the developer community.
-            </p>
-            <p className="text-sm font-semibold">Jane Smith</p>
-            <p className="text-sm text-gray-500 mb-2 p-2 bg-gray-100 rounded-md">
-              Jane Smith is a creative and innovative marketing professional with a passion for creating engaging and effective campaigns. 
-              She has a proven track record of developing high-quality marketing strategies and leading successful projects. 
-              Jane is proficient in multiple marketing platforms and frameworks, and she is passionate about continuous learning and improvement. 
-              Her accomplishments include leading a team to develop a highly scalable marketing campaign that served millions of users, 
-              and contributing to open-source projects that have been widely adopted by the marketing community.
-            </p>
-            
-          </div>
+  // In the CustomPage component, memoize it to prevent recreation
+  const CustomPage = useCallback(() => {
+    // Local state for the textarea
+    const [localAbout, setLocalAbout] = useState(userDetails.about);
 
-          
-        </div>
-        {/* <div>
-          <h3 className="text-lg font-semibold mb-2">Resumes</h3>
-          <ScrollArea className="h-[200px] w-full border rounded-md p-4">
-            <div className="space-y-2">
-              {resumes.map((resume) => (
-                <div key={resume.resumeId} className="flex items-center justify-between">
-                  <a
-                    href={resume.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {resume.fileName}
-                  </a>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveResume(resume.resumeId)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-          <div className="mt-4">
-            <h4 className="text-md font-semibold mb-2">Upload New Resume</h4>
-            <UploadButton
-              endpoint="pdfUploader"
-              onClientUploadComplete={handleResumeUpload}
-              onUploadError={(error: Error) => {
-                console.error(error);
-                alert("Upload failed");
-              }}
+    const handleLocalChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setLocalAbout(e.target.value);
+    };
+
+    const handleSaveChanges = async () => {
+      try {
+        const response = await fetch('/api/user', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ about: localAbout }),
+        });
+
+        if (response.ok) {
+          setUserDetails(prev => ({ ...prev, about: localAbout }));
+          toast({
+            title: "Changes saved",
+            description: "Your information has been updated successfully",
+          });
+        } else {
+          console.error('Failed to update user details');
+        }
+      } catch (error) {
+        console.error('Error updating user details:', error);
+      }
+    };
+
+    return (
+      <div className="p-4">
+        <h1 className="text-2xl font-bold mb-4">Personal Info</h1>
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">About Me</h3>
+            <p className="text-sm text-gray-500 mb-2">This is used to help generate more accurate cover letters and other documents.</p>
+            <Textarea
+              className="min-h-[100px] w-full"
+              name="about"
+              placeholder="About Me"
+              value={localAbout}
+              onChange={handleLocalChange}
             />
+            <Button onClick={handleSaveChanges} className="mt-2">Save Changes</Button>
           </div>
-        </div> */}
+          <Separator />
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Example Bio's</h3>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">John Doe</p>
+              <p className="text-sm text-gray-500 mb-2 p-2 bg-gray-100 rounded-md">
+                John Doe is a seasoned software engineer with over 10 years of experience in the tech industry.
+                He has a proven track record of developing high-quality software solutions and leading successful projects.
+                John is proficient in multiple programming languages and frameworks, and he is passionate about continuous learning and improvement.
+                His accomplishments include leading a team to develop a highly scalable web application that serves millions of users,
+                and contributing to open-source projects that have been widely adopted by the developer community.
+              </p>
+              <p className="text-sm font-semibold">Jane Smith</p>
+              <p className="text-sm text-gray-500 mb-2 p-2 bg-gray-100 rounded-md">
+                Jane Smith is a creative and innovative marketing professional with a passion for creating engaging and effective campaigns.
+                She has a proven track record of developing high-quality marketing strategies and leading successful projects.
+                Jane is proficient in multiple marketing platforms and frameworks, and she is passionate about continuous learning and improvement.
+                Her accomplishments include leading a team to develop a highly scalable marketing campaign that served millions of users,
+                and contributing to open-source projects that have been widely adopted by the marketing community.
+              </p>
+
+            </div>
+
+
+          </div>
+          {/* <div>
+            <h3 className="text-lg font-semibold mb-2">Resumes</h3>
+            <ScrollArea className="h-[200px] w-full border rounded-md p-4">
+              <div className="space-y-2">
+                {resumes.map((resume) => (
+                  <div key={resume.resumeId} className="flex items-center justify-between">
+                    <a
+                      href={resume.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {resume.fileName}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveResume(resume.resumeId)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="mt-4">
+              <h4 className="text-md font-semibold mb-2">Upload New Resume</h4>
+              <UploadButton
+                endpoint="pdfUploader"
+                onClientUploadComplete={handleResumeUpload}
+                onUploadError={(error: Error) => {
+                  console.error(error);
+                  alert("Upload failed");
+                }}
+              />
+            </div>
+          </div> */}
+        </div>
       </div>
-    </div>
-  )
+    );
+  }, [userDetails.about, toast]); // Dependencies updated
 
   return (
     <header className="container mx-auto p-4 mt-4">
@@ -239,7 +279,21 @@ export function Header({ onNotificationClick }: HeaderProps) {
           <h1 className="text-3xl font-bold">AppliedTrack</h1>
         </div>
         <div className="flex items-center space-x-4">
-        <SignedIn>
+          <AdminOnly>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/admin" className="focus:outline-none">
+                    <Users className="h-5 w-5" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Admin Dashboard
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </AdminOnly>
+          <SignedIn>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -252,7 +306,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

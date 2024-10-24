@@ -3,6 +3,7 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 export interface User extends Document {
   userId: string;
   tier: 'free' | 'premium' | 'enterprise';
+  role: 'user' | 'admin';
   about: string;
   dateCreated: Date;
   dateUpdated: Date;
@@ -15,6 +16,12 @@ const UserSchema: Schema = new Schema({
     required: true, 
     enum: ['free', 'premium', 'enterprise'],
     default: 'free'
+  },
+  role: {
+    type: String,
+    required: true,
+    enum: ['user', 'admin'],
+    default: 'user'
   },
   about: { type: String, default: '' },
   dateCreated: { type: Date, default: Date.now },

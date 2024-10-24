@@ -1,0 +1,163 @@
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+import { Search, UserCog } from 'lucide-react'
+
+interface User {
+  userId: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  imageUrl?: string;
+  tier: string;
+  role: string;
+  lastSignIn?: string;
+  dateCreated: string;
+}
+
+export function AdminUsers() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/admin/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role: newRole }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "User role updated successfully",
+        });
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update user role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold flex items-center gap-2">
+          <UserCog className="w-6 h-6" />
+          User Management
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center space-x-2 mb-6">
+          <Search className="w-5 h-5 text-gray-500" />
+          <Input
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <div className="flex items-center space-x-2 mb-6">
+          You have {users.length} users.
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Tier</TableHead>
+                <TableHead>Last Sign In</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.userId}>
+                  <TableCell className="flex items-center space-x-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.imageUrl} />
+                      <AvatarFallback>
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">
+                        {user.firstName} {user.lastName}
+                      </div>
+                      <div className="text-sm text-gray-500">{user.email}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      defaultValue={user.role}
+                      onValueChange={(value) => handleRoleChange(user.userId, value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>{user.tier}</TableCell>
+                  <TableCell>
+                    {new Date(user.lastSignIn || '').toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(user.dateCreated).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm">
+                      View Details
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
