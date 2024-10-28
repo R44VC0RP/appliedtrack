@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const user = await UserModel.findOne({ userId });
     if (!user) return new NextResponse("User not found", { status: 404 });
 
+
     let subscriptionDetails = null;
     if (user.subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
@@ -58,7 +59,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       tier: user.tier,
-      subscriptionDetails
+      subscriptionDetails,
+      role: user.role
     });
   } catch (error) {
     console.error('Error fetching user:', error);

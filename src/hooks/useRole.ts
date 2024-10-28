@@ -11,6 +11,7 @@ export function useRole() {
       fetch('/api/user')
         .then(res => res.json())
         .then(data => {
+          console.log('data', data);
           setRole(data.role);
           setLoading(false);
         })
@@ -20,6 +21,8 @@ export function useRole() {
         });
     }
   }, [userId]);
+
+  console.log('role', role);
 
   return { role, loading, isAdmin: role === 'admin' };
 }
