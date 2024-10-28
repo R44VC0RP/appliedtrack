@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -76,14 +75,14 @@ export function AdminUsers() {
   );
 
   return (
-    <Card className="h-full flex flex-col w-[80vw]">
-      <CardHeader className="flex-none">
-        <CardTitle className="text-2xl font-bold flex items-center gap-2">
+    <div className="h-full flex flex-col w-[80vw]">
+      <div className="flex-none mb-6">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
           <UserCog className="w-6 h-6" />
           User Management
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 min-h-0 flex flex-col">
+        </h2>
+      </div>
+      <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex-none space-y-6">
           <div className="flex items-center space-x-2">
             <Search className="w-5 h-5 text-gray-500" />
@@ -161,7 +160,7 @@ export function AdminUsers() {
             </Table>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

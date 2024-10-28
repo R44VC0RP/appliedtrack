@@ -31,6 +31,11 @@ import {
     BarChart3,
     CreditCard
 } from 'lucide-react'
+import { StripeTestHelper } from '@/components/stripe-test-helper'
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BillingDashboard } from './components/billing-dashboard'
 
 interface NavItem {
     title: string;
@@ -50,6 +55,11 @@ const navItems: NavItem[] = [
         component: Waitlist,
     },
     {
+        title: "Billing & Subscriptions",
+        icon: CreditCard,
+        component: BillingDashboard, // We'll create this component
+    },
+    {
         title: "Content",
         icon: FileText,
         component: () => <div>Content Component</div>, // Placeholder
@@ -64,11 +74,7 @@ const navItems: NavItem[] = [
         icon: MessageSquare,
         component: () => <div>Support Component</div>, // Placeholder
     },
-    {
-        title: "Billing",
-        icon: CreditCard,
-        component: () => <div>Billing Component</div>, // Placeholder
-    },
+    
     {
         title: "Settings",
         icon: Settings,
@@ -147,6 +153,8 @@ export default function AdminDashboard() {
                 </div>
                 
             </SidebarProvider>
+            
+            {process.env.NODE_ENV === 'development' && <StripeTestHelper />}
             
         </AdminOnly>
     )

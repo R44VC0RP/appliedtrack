@@ -1,3 +1,5 @@
+'use server';
+
 import { NextResponse, NextRequest } from 'next/server';
 import mongoose from 'mongoose';
 import { WaitlistUserModel } from '@/models/WaitlistUser';

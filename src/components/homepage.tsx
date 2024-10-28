@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { SubscriptionButton } from '@/components/ui/subscription-button'
 // import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock } from 'lucide-react'
 import { Header } from '@/components/header'
@@ -251,6 +252,12 @@ export default function Homepage() {
                           </li>
                         ))}
                       </ul>
+                      {tier.price !== 'Free' && (
+                        <SubscriptionButton 
+                          tier={tier.name.toLowerCase()} 
+                          price={tier.price} 
+                        />
+                      )}
                     </CardContent>
                     
                   </Card>

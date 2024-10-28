@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Bell, Grid, Settings, FileText, Users } from 'lucide-react'
+import { Bell, Grid, Settings, FileText, Users, CreditCard } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { AdminOnly } from '@/components/auth/AdminOnly';
@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UploadButton } from "@/utils/uploadthing"
+import { Badge } from "@/components/ui/badge"
 
 interface HeaderProps {
   user?: {
@@ -269,6 +270,246 @@ export function Header({ onNotificationClick }: HeaderProps) {
     );
   }, [localAbout, toast]); // Add localAbout to dependencies
 
+  // Add this new component inside your Header component
+  const SubscriptionPage = useCallback(() => {
+    const [loading, setLoading] = useState(true); // Start with loading true
+    const [upgradeLoading, setUpgradeLoading] = useState(false);
+    const { toast } = useToast();
+    const [currentPlan, setCurrentPlan] = useState<string | null>(null); // Start with null
+    const [subscriptionDetails, setSubscriptionDetails] = useState<{
+      currentPeriodEnd: string;
+      status: string;
+      cancelAt?: string;
+    } | null>(null);
+
+    useEffect(() => {
+      fetchSubscription();
+    }, []);
+
+    const fetchSubscription = async () => {
+      try {
+        const response = await fetch('/api/user');
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentPlan(data.tier || 'free');
+          if (data.subscriptionDetails) {
+            setSubscriptionDetails({
+              currentPeriodEnd: new Date(data.subscriptionDetails.currentPeriodEnd * 1000).toLocaleDateString(),
+              status: data.subscriptionDetails.status,
+              cancelAt: data.subscriptionDetails.cancelAt 
+                ? new Date(data.subscriptionDetails.cancelAt * 1000).toLocaleDateString()
+                : undefined
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subscription:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch subscription details",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleUpgrade = async (tier: string) => {
+      try {
+        setUpgradeLoading(true);
+        const response = await fetch('/api/stripe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ tier }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create checkout session');
+        }
+
+        const { url } = await response.json();
+        window.location.href = url;
+      } catch (error) {
+        console.error('Error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start subscription process",
+          variant: "destructive",
+        });
+      } finally {
+        setUpgradeLoading(false);
+      }
+    };
+
+    const handleManageSubscription = async () => {
+      try {
+        const response = await fetch('/api/stripe/portal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create portal session');
+        }
+
+        const { url } = await response.json();
+        window.location.href = url;
+      } catch (error) {
+        console.error('Error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to open subscription management",
+          variant: "destructive",
+        });
+      }
+    };
+
+    if (loading) {
+      return (
+        <div className="p-4 space-y-4">
+          <div className="h-8 bg-muted animate-pulse rounded-md" />
+          <div className="h-24 bg-muted animate-pulse rounded-md" />
+        </div>
+      );
+    }
+
+    if (!currentPlan) {
+      return (
+        <div className="p-4">
+          <p className="text-muted-foreground">Failed to load subscription details</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4">
+        <h1 className="text-2xl font-bold mb-4">Subscription</h1>
+        <div className="space-y-6">
+          <div className="bg-muted p-4 rounded-lg">
+            <h2 className="font-semibold mb-2">
+              Current Plan: {currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)}
+            </h2>
+            {subscriptionDetails && currentPlan !== 'free' && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>Status: <Badge variant={
+                  subscriptionDetails.cancelAt ? 'destructive' :
+                  subscriptionDetails.status === 'active' ? 'default' : 'secondary'
+                }>
+                  {subscriptionDetails.cancelAt 
+                    ? `Cancels ${subscriptionDetails.cancelAt}`
+                    : subscriptionDetails.status.charAt(0).toUpperCase() + subscriptionDetails.status.slice(1)
+                  }
+                </Badge></p>
+                {subscriptionDetails.status === 'active' && (
+                  <p>Next billing date: {subscriptionDetails.currentPeriodEnd}</p>
+                )}
+              </div>
+            )}
+            {currentPlan === 'free' && (
+              <p className="text-sm text-muted-foreground mb-2">
+                Upgrade to unlock premium features
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-4">
+            {/* Show compact plans if subscription is canceled */}
+            {subscriptionDetails?.cancelAt ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Available plans after cancellation:</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border rounded-lg p-3">
+                    <h3 className="font-semibold text-sm">Pro Plan</h3>
+                    <p className="text-xs text-muted-foreground my-1">$10/month</p>
+                    <Button 
+                      onClick={() => handleUpgrade('pro')}
+                      disabled={upgradeLoading}
+                      className="w-full mt-2"
+                      size="sm"
+                    >
+                      {upgradeLoading ? "..." : "Choose Pro"}
+                    </Button>
+                  </div>
+                  <div className="border rounded-lg p-3">
+                    <h3 className="font-semibold text-sm">Power Plan</h3>
+                    <p className="text-xs text-muted-foreground my-1">$30/month</p>
+                    <Button 
+                      onClick={() => handleUpgrade('power')}
+                      disabled={upgradeLoading}
+                      className="w-full mt-2"
+                      size="sm"
+                    >
+                      {upgradeLoading ? "..." : "Choose Power"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Regular plan display for non-canceled subscriptions */}
+                {currentPlan === 'free' && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold">Pro Plan</h3>
+                    <p className="text-sm text-muted-foreground my-2">$10/month</p>
+                    <ul className="text-sm space-y-2 mb-4">
+                      <li>• Unlimited applications</li>
+                      <li>• Multiple resume versions</li>
+                      <li>• Advanced cover letter generator</li>
+                      <li>• 50 email lookups/month</li>
+                    </ul>
+                    <Button 
+                      onClick={() => handleUpgrade('pro')}
+                      disabled={upgradeLoading}
+                      className="w-full"
+                    >
+                      {upgradeLoading ? "Processing..." : "Upgrade to Pro"}
+                    </Button>
+                  </div>
+                )}
+
+                {currentPlan !== 'power' && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold">Power Plan</h3>
+                    <p className="text-sm text-muted-foreground my-2">$30/month</p>
+                    <ul className="text-sm space-y-2 mb-4">
+                      <li>• Unlimited everything</li>
+                      <li>• Priority support</li>
+                      <li>• Beta features access</li>
+                      <li>• 100 email lookups/month</li>
+                    </ul>
+                    <Button 
+                      onClick={() => handleUpgrade('power')}
+                      disabled={upgradeLoading}
+                      className="w-full"
+                    >
+                      {upgradeLoading ? "Processing..." : "Upgrade to Power"}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {currentPlan !== 'free' && (
+              <div className="mt-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleManageSubscription}
+                >
+                  Manage Subscription
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }, [toast]);
+
   return (
     <header className="container mx-auto p-4 mt-4">
       <div className="flex items-center justify-between">
@@ -373,6 +614,13 @@ export function Header({ onNotificationClick }: HeaderProps) {
                             />
                           </div>
                         </div>
+                      </UserButton.UserProfilePage>
+                      <UserButton.UserProfilePage 
+                        label="Subscription" 
+                        url="subscription" 
+                        labelIcon={<CreditCard className="w-4 h-4" />}
+                      >
+                        <SubscriptionPage />
                       </UserButton.UserProfilePage>
                     </UserButton>
                   </SignedIn>

@@ -1,3 +1,5 @@
+'use server';
+
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import mongoose from 'mongoose';

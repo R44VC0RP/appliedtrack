@@ -1,3 +1,5 @@
+'use server';
+
 import { NextResponse, NextRequest } from 'next/server';
 import { WaitlistUserModel } from '@/models/WaitlistUser';
 

@@ -35,6 +35,7 @@ import { useAuth } from '@clerk/nextjs';
 import { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useToast } from "@/hooks/use-toast"
 import { FaSync } from 'react-icons/fa';
+import { useSearchParams } from 'next/navigation';
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -245,6 +246,7 @@ export function AppliedTrack() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
   const { toast } = useToast()
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const updateColumns = () => {
@@ -286,6 +288,19 @@ export function AppliedTrack() {
 
     fetchResumes();
   }, []);
+
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const tier = searchParams.get('tier');
+    
+    if (success === 'true' && tier) {
+      toast({
+        title: "Subscription Upgraded!",
+        description: `Thanks for upgrading to ${tier.charAt(0).toUpperCase() + tier.slice(1)} tier.`,
+        variant: "default",
+      });
+    }
+  }, [searchParams, toast]);
 
   const handleKeyDown = (e: React.KeyboardEvent, job: Job) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {

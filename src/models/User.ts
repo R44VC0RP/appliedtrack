@@ -7,6 +7,9 @@ export interface User extends Document {
   about: string;
   dateCreated: Date;
   dateUpdated: Date;
+  stripeCustomerId: string;
+  subscriptionId: string;
+
 }
 
 const UserSchema: Schema = new Schema({
@@ -25,7 +28,9 @@ const UserSchema: Schema = new Schema({
   },
   about: { type: String, default: '' },
   dateCreated: { type: Date, default: Date.now },
-  dateUpdated: { type: Date, default: Date.now }
+  dateUpdated: { type: Date, default: Date.now },
+  stripeCustomerId: { type: String },
+  subscriptionId: { type: String },
 });
 
 // Check if the model already exists before compiling
