@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -50,6 +50,9 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FaTable } from 'react-icons/fa'
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import ClearbitAutocomplete from '@/components/ui/clearbit';
+import JobTitleAutocomplete from '@/components/ui/job-title-autocomplete';
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -72,7 +75,7 @@ interface HunterEmail {
 }
 
 // Job status options
-const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted']
+const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
 
 // Define types for job data
 interface Job {
@@ -80,7 +83,7 @@ interface Job {
   userId: string;
   company: string;
   position: string;
-  status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted';
+  status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted' | 'Archived';
   website: string;
   resumeLink: string;
   jobDescription: string;
@@ -96,6 +99,7 @@ interface Job {
   location?: string;
   remoteType?: 'On-site' | 'Remote' | 'Hybrid';
   jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+  dateCreated?: string;
   dateUpdated?: string;
   flag?: 'no_response' | 'update' | string;
   hunterData?: {
@@ -105,6 +109,7 @@ interface Job {
     emails?: HunterEmail[];
     dateUpdated?: string;
   };
+  isArchived?: boolean;
 }
 
 // Define types for Hunter.io search results
@@ -269,6 +274,265 @@ const columnDefs: ColumnDef[] = [
   // Add more columns as needed
 ];
 
+// Define types for the new AddJobStep
+type AddJobStep = {
+  title: string;
+  field: keyof Job;
+  type: 'text' | 'url' | 'textarea' | 'resume-date' | 'clearbit' | 'job-title';
+  placeholder?: string;
+};
+
+// Update the first step in addJobSteps array
+const addJobSteps: AddJobStep[] = [
+  {
+    title: "What company are you applying to?",
+    field: "company",
+    type: "clearbit",
+    placeholder: "Search for company..."
+  },
+  {
+    title: "What's the company's website?",
+    field: "website",
+    type: "url",
+    placeholder: "Enter company website"
+  },
+  {
+    title: "What position are you applying for?",
+    field: "position",
+    type: "job-title",
+    placeholder: "Search for position title..."
+  },
+  {
+    title: "Paste the job description",
+    field: "jobDescription",
+    type: "textarea",
+    placeholder: "Paste job description here, this will help us generate a cover letter and draft an email to the hiring manager."
+  },
+  {
+    title: "Select resume and confirm date",
+    field: "resumeLink",
+    type: "resume-date"
+  }
+];
+
+// Replace the existing Dialog in the main component with this new SteppedAddJobModal
+function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (job: Job) => void;
+  resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
+}) {
+  const { toast } = useToast()
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<Partial<Job>>({
+    dateApplied: new Date().toISOString().split('T')[0],
+    status: 'Yet to Apply',
+    company: '',
+    position: '',
+    website: '',
+    jobDescription: '',
+    resumeLink: '',
+    userId: '',
+    dateUpdated: new Date().toISOString()
+  });
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleNext = () => {
+    // Validate current step
+    const currentField = addJobSteps[currentStep].field;
+    if (!formData[currentField]) {
+      toast({
+        title: "Required Field",
+        description: `Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentStep < addJobSteps.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!formData.company || !formData.position) {
+      toast({
+        title: "Error",
+        description: "Company name and position are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    onSubmit(formData as Job);
+    setCurrentStep(0);
+    setFormData({
+      dateApplied: new Date().toISOString().split('T')[0],
+      status: 'Yet to Apply',
+      company: '',
+      position: '',
+      website: '',
+      jobDescription: '',
+      resumeLink: '',
+      userId: '',
+      dateUpdated: new Date().toISOString()
+    });
+    onClose();
+  };
+
+  const currentStepConfig = addJobSteps[currentStep];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{currentStepConfig.title}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="py-4">
+          {currentStepConfig.type === 'clearbit' ? (
+            <ClearbitAutocomplete
+              placeholder={currentStepConfig.placeholder}
+              onCompanySelect={(company) => {
+                setFormData({
+                  ...formData,
+                  company: company.name,
+                  website: `https://${company.domain}`
+                });
+              }}
+            />
+          ) : currentStepConfig.type === 'job-title' ? (
+            <JobTitleAutocomplete
+              placeholder={currentStepConfig.placeholder}
+              onTitleSelect={(title) => {
+                setFormData({...formData, [currentStepConfig.field]: title});
+              }}
+            />
+          ) : currentStepConfig.type === 'textarea' ? (
+            <Textarea
+              placeholder={currentStepConfig.placeholder}
+              value={formData[currentStepConfig.field] as string || ''}
+              onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+              className="min-h-[200px]"
+            />
+          ) : currentStepConfig.type === 'resume-date' ? (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="dateApplied">Date Applied *</Label>
+                <Input 
+                  id="dateApplied" 
+                  type="date" 
+                  value={formData.dateApplied || ''} 
+                  onChange={(e) => setFormData({...formData, dateApplied: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="resumeLink">Resume *</Label>
+                <Select 
+                  value={formData.resumeLink} 
+                  onValueChange={(value) => setFormData({...formData, resumeLink: value})}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a resume" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {resumes.map((resume) => (
+                      <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                        {resume.fileName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : (
+            <Input
+              type={currentStepConfig.type}
+              placeholder={currentStepConfig.placeholder}
+              value={formData[currentStepConfig.field] as string || ''}
+              onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+              autoFocus
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {/* Progress indicators */}
+          <div className="flex gap-1">
+            {addJobSteps.map((_, index) => (
+              <div
+                key={index}
+                className={`h-1 w-8 rounded-full ${
+                  index === currentStep ? 'bg-blue-600' : 
+                  index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Navigation buttons */}
+          <div className="flex justify-between gap-2">
+            {currentStep > 0 ? (
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                className="w-1/2"
+              >
+                Back
+              </Button>
+            ) : <div className="w-1/2" />}
+            
+            <Button
+              onClick={handleNext}
+              className="w-1/2"
+              disabled={!formData[currentStepConfig.field]}
+            >
+              {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Add this helper function at the top of the file
+const getInitialSortPreference = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('jobSortPreference') || 'newest';
+  }
+  return 'newest';
+};
+
+// Add this type definition at the top of the file
+type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
+
+// Add this constant with the categories
+const hunterCategories: { value: HunterCategory; label: string }[] = [
+  { value: 'executive', label: 'Executive' },
+  { value: 'it', label: 'IT' },
+  { value: 'finance', label: 'Finance' },
+  { value: 'management', label: 'Management' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'support', label: 'Support' },
+  { value: 'hr', label: 'HR' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'communication', label: 'Communication' },
+  { value: 'education', label: 'Education' },
+  { value: 'design', label: 'Design' },
+  { value: 'health', label: 'Health' },
+  { value: 'operations', label: 'Operations' }
+];
+
 export function AppliedTrack() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
@@ -293,6 +557,13 @@ export function AppliedTrack() {
     new Set(columnDefs.map(col => col.id))
   );
   const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [sortBy, setSortBy] = useState('newest');
+
+  // Add useEffect to handle localStorage
+  useEffect(() => {
+    const savedPreference = getInitialSortPreference();
+    setSortBy(savedPreference);
+  }, []);
 
   useEffect(() => {
     const updateColumns = () => {
@@ -470,10 +741,10 @@ export function AppliedTrack() {
       const result = await response.json();
       setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
       setIsModalOpen(false);
-      toast({
-        title: "Job Updated",
-        description: "The job has been successfully updated.",
-      })
+      // toast({
+      //   title: "Job Updated",
+      //   description: "The job has been successfully updated.",
+      // })
     } catch (error) {
       console.error('Error updating job:', error);
       toast({
@@ -498,13 +769,40 @@ export function AppliedTrack() {
   //   }
   // }
 
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = 
-      (job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-      (job.position?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-    const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredJobs = useMemo(() => {
+    let filtered = jobs.filter(job => {
+      const matchesSearch = 
+        (job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        (job.position?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+      
+      // Handle archived status separately
+      if (statusFilter === 'Archived') {
+        return matchesSearch && job.isArchived;
+      } else if (statusFilter === 'All') {
+        return matchesSearch && !job.isArchived;
+      } else {
+        return matchesSearch && job.status === statusFilter && !job.isArchived;
+      }
+    });
+
+    // Apply sorting
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.dateCreated || '').getTime() - new Date(a.dateCreated || '').getTime();
+        case 'oldest':
+          return new Date(a.dateCreated || '').getTime() - new Date(b.dateCreated || '').getTime();
+        case 'updated':
+          return new Date(b.dateUpdated || '').getTime() - new Date(a.dateUpdated || '').getTime();
+        case 'company':
+          return (a.company || '').localeCompare(b.company || '');
+        case 'status':
+          return jobStatuses.indexOf(a.status) - jobStatuses.indexOf(b.status);
+        default:
+          return 0;
+      }
+    });
+  }, [jobs, searchTerm, statusFilter, sortBy]);
 
   const fetchResumes = useCallback(async () => {
     try {
@@ -519,20 +817,7 @@ export function AppliedTrack() {
   }, []);
 
   const openNewJobModal = async () => {
-    // Fetch the latest resumes before opening the modal
     await fetchResumes();
-
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedJob({
-      userId: userId || '',
-      company: '',
-      position: '',
-      status: 'Yet to Apply',
-      website: '',
-      resumeLink: '',
-      jobDescription: '',
-      dateApplied: today,
-    });
     setIsModalOpen(true);
   };
 
@@ -641,16 +926,38 @@ export function AppliedTrack() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             </div>
             <div className="flex items-center space-x-4">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="p-2 border rounded-md"
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Statuses</SelectItem>
+                  {jobStatuses.map(status => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Insert Sort By Here */}
+              <Select
+                value={sortBy}
+                onValueChange={(value) => {
+                  setSortBy(value);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('jobSortPreference', value);
+                  }
+                }}
               >
-                <option value="All">All Statuses</option>
-                {jobStatuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Most Recently Added</SelectItem>
+                  <SelectItem value="oldest">Least Recently Added</SelectItem>
+                  <SelectItem value="updated">Last Updated</SelectItem>
+                  <SelectItem value="company">Company Name</SelectItem>
+                  <SelectItem value="status">Application Status</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-md">
                 <Button
                   variant={layoutMode === 'list' ? 'default' : 'ghost'}
@@ -894,106 +1201,12 @@ export function AppliedTrack() {
             )}
           </AnimatePresence>
 
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <DialogHeader>
-                <DialogTitle>{selectedJob?.id ? 'Edit Job' : 'Add New Job'}</DialogTitle>
-              </DialogHeader>
-              {selectedJob && (
-                <div className="flex-grow overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
-                  <div className="space-y-4 p-4">
-                    <div>
-                      <Label htmlFor="company">Company Name *</Label>
-                      <Input 
-                        id="company" 
-                        value={selectedJob.company || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, company: e.target.value})}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="position">Position *</Label>
-                      <Input 
-                        id="position" 
-                        value={selectedJob.position || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, position: e.target.value})}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="website">Company Website *</Label>
-                      <Input 
-                        id="website" 
-                        value={selectedJob.website || ''} 
-                        onChange={(e) => {
-                          let trimmedWebsite = e.target.value.trim()
-                            .replace(/^(https?:\/\/)?(www\.)?/, '')  // Remove http://, https://, and www.
-                            .replace(/\/$/, '')  // Remove trailing slash
-                            .split('/')[0];  // Keep only the domain part
-                          setSelectedJob({...selectedJob, website: trimmedWebsite});
-                        }}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="jobDescription">Job Description *</Label>
-                      <Textarea 
-                        id="jobDescription" 
-                        value={selectedJob.jobDescription || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, jobDescription: e.target.value})}
-                        className="min-h-[100px]"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="resumeLink">Resume *</Label>
-                      <Select 
-                        value={selectedJob.resumeLink} 
-                        onValueChange={(value) => setSelectedJob({...selectedJob, resumeLink: value})}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a resume" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {resumes.map((resume) => (
-                            <SelectItem key={resume.resumeId} value={resume.fileUrl}>
-                              {resume.fileName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Upload New Resume</Label>
-                      <UploadButton
-                        endpoint="pdfUploader"
-                        onClientUploadComplete={handleResumeUpload}
-                        onUploadError={(error: Error) => {
-                          console.error(error);
-                          alert("Upload failed");
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="dateApplied">Date Applied *</Label>
-                      <Input 
-                        id="dateApplied" 
-                        type="date" 
-                        value={selectedJob.dateApplied || ''} 
-                        onChange={(e) => setSelectedJob({...selectedJob, dateApplied: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="p-4">
-                <Button onClick={() => updateJobDetails(selectedJob as Job)} className="w-full">
-                  {selectedJob?.id ? 'Update Job' : 'Add Job'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <SteppedAddJobModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSubmit={addNewJob}
+            resumes={resumes}
+          />
 
           <Button 
             className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl"
@@ -1034,26 +1247,24 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
   const [isLoading, setIsLoading] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const { toast } = useToast();
+  const [selectedCategories, setSelectedCategories] = useState<Set<HunterCategory>>(new Set());
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   const handleStatusChange = (newStatus: string) => {
     updateJobStatus(job.id || '', newStatus as Job['status']);
     setIsStatusSelectOpen(false);
   };
 
-  const searchHunterDomain = async () => {
+  const handleSearch = async () => {
     setIsLoading(true);
     try {
-      // Clean the domain from the website field
       const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
       
-      const response = await fetch(`/api/hunter?domain=${domain}`);
+      const response = await fetch(`/api/hunter?domain=${domain}&categories=${Array.from(selectedCategories).join(',')}`);
       if (!response.ok) throw new Error('Failed to fetch Hunter data');
       
       const hunterResult = await response.json();
-
-      console.log('Hunter Result:', hunterResult);
       
-      // Update the job with Hunter data
       const updatedJob = {
         ...job,
         hunterData: {
@@ -1062,14 +1273,14 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
         }
       };
       
-      // Call the existing updateJobDetails function
       await updateJobDetails(updatedJob);
       
-      
-        toast({
-          title: "Hunter Data Updated",
+      toast({
+        title: "Hunter Data Updated",
         description: `Found ${hunterResult.data.data.emails?.length || 0} email patterns for ${domain}`,
       });
+      
+      setIsCategoryModalOpen(false);
     } catch (error) {
       console.error('Error fetching Hunter data:', error);
       toast({
@@ -1080,6 +1291,10 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const searchHunterDomain = () => {
+    setIsCategoryModalOpen(true);
   };
 
   const renderHunterPreview = () => {
@@ -1109,20 +1324,28 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
 
   const handleArchive = async () => {
     try {
-      // Add your archive API call here
       const response = await fetch(`/api/jobs/${job.id}/archive`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...job,
+          isArchived: true,
+          dateUpdated: new Date().toISOString()
+        })
       });
 
       if (!response.ok) throw new Error('Failed to archive job');
+
+      // Call the parent's updateJobDetails to refresh the UI
+      const updatedJob = await response.json();
+      updateJobDetails(updatedJob);
 
       toast({
         title: "Job Archived",
         description: "The job has been successfully archived.",
       });
-      
-      // Refresh the jobs list or handle UI update
-      // You might want to call a parent function to refresh the list
     } catch (error) {
       console.error('Error archiving job:', error);
       toast({
@@ -1294,19 +1517,82 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                 </div>
                 <div className="flex items-center">
                   {!job.hunterData && (
-                    <Button
-                      variant="outline"
-                      size="sm" 
-                      onClick={searchHunterDomain}
-                      disabled={isLoading}
-                      className="flex items-center gap-2"
-                    >
-                      {isLoading ? (
-                        <FaSync className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Search Domain or User'
-                      )}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm" 
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        disabled={isLoading}
+                        className="flex items-center gap-2"
+                      >
+                        {isLoading ? (
+                          <FaSync className="w-4 h-4 animate-spin" />
+                        ) : (
+                          'Find Emails'
+                        )}
+                      </Button>
+
+                      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                        <DialogContent className="sm:max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Select Department Categories</DialogTitle>
+                            <DialogDescription>
+                              Choose the departments you want to search for contacts.
+                            </DialogDescription>
+                          </DialogHeader>
+                          
+                          <div className="grid grid-cols-2 gap-4 py-4">
+                            {hunterCategories.map((category) => (
+                              <div key={category.value} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`${job.id}-${category.value}`}
+                                  checked={selectedCategories.has(category.value)}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedCategories(prev => {
+                                      const next = new Set(prev);
+                                      if (checked) {
+                                        next.add(category.value);
+                                      } else {
+                                        next.delete(category.value);
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`${job.id}-${category.value}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {category.label}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+
+                          <DialogFooter className="sm:justify-between">
+                            <Button
+                              variant="ghost"
+                              onClick={() => setIsCategoryModalOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={handleSearch}
+                              disabled={selectedCategories.size === 0 || isLoading}
+                            >
+                              {isLoading ? (
+                                <>
+                                  <FaSync className="w-4 h-4 animate-spin mr-2" />
+                                  Searching...
+                                </>
+                              ) : (
+                                'Search Selected Categories'
+                              )}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </>
                   )}
                 </div>
               </div>
@@ -1355,13 +1641,34 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
       <div className="relative group">
         <Label className="font-semibold">{label}</Label>
         {editMode ? (
-          <Input
-            value={value || ''}
-            onChange={(e) => setSelectedJob({ ...job, [field]: e.target.value })}
-            className="mt-1"
-          />
+          field === 'position' ? (
+            <JobTitleAutocomplete
+              placeholder="Search for position title..."
+              onTitleSelect={(title) => setSelectedJob({ ...job!, position: title })}
+              className="mt-1"
+            />
+          ) : field === 'interviewDate' || field === 'dateApplied' ? (
+            <Input
+              type="date"
+              value={value || ''}
+              onChange={(e) => setSelectedJob({ ...job!, [field]: e.target.value })}
+              className="mt-1"
+            />
+          ) : (
+            <Input
+              value={value || ''}
+              onChange={(e) => setSelectedJob({ ...job!, [field]: e.target.value })}
+              className="mt-1"
+            />
+          )
         ) : (
-          <p className="text-sm mt-1">{value || 'N/A'}</p>
+          <p className="text-sm mt-1">
+            {field === 'interviewDate' || field === 'dateApplied' 
+              ? value 
+                ? format(new Date(value), 'PP') 
+                : 'N/A'
+              : value || 'N/A'}
+          </p>
         )}
       </div>
     );

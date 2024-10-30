@@ -16,14 +16,15 @@ const JobSchema = new mongoose.Schema({
   contactEmail: String,
   contactPhone: String,
   interviewDate: Date,
-  dateApplied: Date,
   salary: Number,
   location: String,
   remoteType: String,
   jobType: String,
   dateCreated: Date,
   dateUpdated: Date,
+  dateApplied: Date,
   flag: String,
+  isArchived: Boolean,
 });
 
 export const JobModel = mongoose.models.Job || mongoose.model('Job', JobSchema);

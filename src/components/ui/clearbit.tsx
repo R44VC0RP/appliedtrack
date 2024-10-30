@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Input } from './input';
+import Image from 'next/image';
 
 interface Company {
   name: string;
@@ -11,19 +13,13 @@ interface Company {
 interface ClearbitAutocompleteProps {
   onCompanySelect: (company: Company) => void;
   placeholder?: string;
-  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
-  companiesProps?: React.HTMLAttributes<HTMLDivElement>;
-  companyProps?: React.HTMLAttributes<HTMLDivElement>;
-  renderResults?: () => React.ReactNode;
+  className?: string;
 }
 
 const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
   onCompanySelect,
-  placeholder = 'Company name...',
-  inputProps = {},
-  companiesProps = { className: 'companies' },
-  companyProps = { className: 'company' },
-  renderResults
+  placeholder = 'Enter company name...',
+  className = '',
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Company[]>([]);
@@ -38,13 +34,12 @@ const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
 
     try {
       const response = await fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${searchQuery}`);
-      if (!response.ok) {
-        throw new Error(response.statusText);
-      }
+      if (!response.ok) throw new Error(response.statusText);
       const data = await response.json();
       setResults(data);
     } catch (err) {
       console.error(err);
+      setResults([]);
     }
   };
 
@@ -56,68 +51,65 @@ const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!results.length) return;
 
-    let currentIndex = highlightedIndex;
-
     if (e.key === 'ArrowDown') {
-      currentIndex = currentIndex === null ? 0 : (currentIndex + 1) % results.length;
-      setHighlightedIndex(currentIndex);
-    }
-
-    if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (currentIndex === null || currentIndex === -1) {
-        currentIndex = results.length - 1;
-      } else {
-        currentIndex = currentIndex - 1;
-      }
-      setHighlightedIndex(currentIndex);
-    }
-
-    if (e.key === 'Enter' && currentIndex !== null && currentIndex >= 0) {
-      handleSelect(currentIndex);
+      setHighlightedIndex(prev => 
+        prev === null ? 0 : (prev + 1) % results.length
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => 
+        prev === null ? results.length - 1 : (prev - 1 + results.length) % results.length
+      );
+    } else if (e.key === 'Enter' && highlightedIndex !== null) {
+      e.preventDefault();
+      handleSelect(results[highlightedIndex]);
     }
   };
 
-  const handleSelect = (index: number) => {
-    const company = results[index];
+  const handleSelect = (company: Company) => {
     setQuery(company.name);
     setResults([]);
     onCompanySelect(company);
   };
 
-  const defaultRenderResults = () => {
-    return results.map((result, index) => {
-      const companyClassName = companyProps.className;
-      return (
-        <div
-          key={index}
-          className={`${companyClassName} ${highlightedIndex === index ? 'selected' : ''}`}
-          onMouseEnter={() => setHighlightedIndex(index)}
-          onMouseDown={() => handleSelect(index)}
-        >
-          <img src={result.logo} alt={result.name} className="h-6 w-6" />
-          <span className={`${companyClassName}-name`}>{result.name}</span>
-          <span className={`${companyClassName}-domain`}>{result.domain}</span>
-        </div>
-      );
-    });
-  };
-
   return (
-    <div className="relative w-full">
-      <input
-        {...inputProps}
+    <div className={`relative ${className}`}>
+      <Input
         type="text"
         value={query}
-        autoComplete="off"
-        placeholder={placeholder}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder={placeholder}
+        autoFocus
+        className="w-full"
       />
       {results.length > 0 && (
-        <div {...companiesProps} className="absolute w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-          {renderResults ? renderResults() : defaultRenderResults()}
+        <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto">
+          {results.map((company, index) => (
+            <div
+              key={company.domain}
+              className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors
+                ${highlightedIndex === index ? 'bg-gray-50' : ''}
+              `}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              onClick={() => handleSelect(company)}
+            >
+              <div className="flex-shrink-0">
+                <Image
+                  src={company.logo}
+                  alt={company.name}
+                  width={32}
+                  height={32}
+                  className="rounded-md"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-medium text-sm">{company.name}</span>
+                <span className="text-xs text-gray-500">{company.domain}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
