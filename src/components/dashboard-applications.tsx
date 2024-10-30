@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 // import logo from '@/app/logos/logo.png'
 import hunterLogo from '@/app/logos/hunter.png'
 import { UploadButton } from "@/utils/uploadthing";
@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings, Archive, Settings2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch } from "@/components/ui/switch"
 // import Masonry from 'react-masonry-css'
@@ -36,6 +36,20 @@ import { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useToast } from "@/hooks/use-toast"
 import { FaSync } from 'react-icons/fa';
 import { useSearchParams } from 'next/navigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { FaTable } from 'react-icons/fa'
+import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -228,6 +242,33 @@ const getFlagIcon = (flag: string) => {
   }
 }
 
+// Add these types and interfaces
+type SortDirection = 'asc' | 'desc' | null;
+
+interface SortState {
+  column: keyof Job | null;
+  direction: SortDirection;
+}
+
+interface ColumnDef {
+  id: keyof Job;
+  label: string;
+  required?: boolean;
+  sortable?: boolean;
+  render?: (job: Job) => React.ReactNode;
+}
+
+// Add column definitions
+const columnDefs: ColumnDef[] = [
+  { id: 'company', label: 'Company', required: true, sortable: true },
+  { id: 'position', label: 'Position', sortable: true },
+  { id: 'status', label: 'Status', required: true, sortable: true },
+  { id: 'dateApplied', label: 'Date Applied', sortable: true },
+  { id: 'dateUpdated', label: 'Last Updated', sortable: true },
+  { id: 'contactName', label: 'Contact' },
+  // Add more columns as needed
+];
+
 export function AppliedTrack() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
@@ -236,7 +277,7 @@ export function AppliedTrack() {
   const [statusFilter, setStatusFilter] = useState<string>('All')
   // const [hunterIoResults, setHunterIoResults] = useState<HunterIoResult[]>([])
   // const [isSearchingHunterIo, setIsSearchingHunterIo] = useState<boolean>(false)
-  const [layoutMode, setLayoutMode] = useState<'list' | 'masonry'>('list')
+  const [layoutMode, setLayoutMode] = useState<'list' | 'masonry' | 'table'>('list')
   const [columns, setColumns] = useState(3)
   // const containerRef = useRef<HTMLDivElement>(null)
   const isTablet = useMediaQuery({ maxWidth: 1024 })
@@ -247,6 +288,11 @@ export function AppliedTrack() {
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
   const { toast } = useToast()
   const searchParams = useSearchParams();
+  const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
+  const [visibleColumns, setVisibleColumns] = useState<Set<keyof Job>>(
+    new Set(columnDefs.map(col => col.id))
+  );
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   useEffect(() => {
     const updateColumns = () => {
@@ -553,6 +599,22 @@ export function AppliedTrack() {
     saveResume(uploadedFile);
   }, [selectedJob]);
 
+  const sortedJobs = useMemo(() => {
+    if (!sortState.column || !sortState.direction) return filteredJobs;
+
+    return [...filteredJobs].sort((a, b) => {
+      const aVal = a[sortState.column!];
+      const bVal = b[sortState.column!];
+
+      if (!aVal && !bVal) return 0;
+      if (!aVal) return 1;
+      if (!bVal) return -1;
+
+      const comparison = String(aVal).localeCompare(String(bVal));
+      return sortState.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredJobs, sortState]);
+
   return (
     <>
     <Header
@@ -604,22 +666,184 @@ export function AppliedTrack() {
                 >
                   <Grid className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant={layoutMode === 'table' ? 'default' : 'ghost'}
+                  size="icon"
+                  onClick={() => setLayoutMode('table')}
+                >
+                  <FaTable className="h-4 w-4" />
+                </Button>
               </div>
               
             </div>
           </div>
 
           <AnimatePresence>
-            {layoutMode === 'list' ? (
+            {layoutMode === 'table' ? (
+              <div className="w-full">
+                <div className="flex justify-end mb-4">
+                  <Dialog open={showColumnSelector} onOpenChange={setShowColumnSelector}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <Settings2 className="h-4 w-4" />
+                        Configure Columns
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Visible Columns</DialogTitle>
+                        <DialogDescription>
+                          Select which columns you want to display in the table.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        {columnDefs.map((col) => (
+                          <div key={col.id} className="flex items-center space-x-2">
+                            <Switch
+                              id={`col-${col.id}`}
+                              checked={visibleColumns.has(col.id)}
+                              disabled={col.required}
+                              onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                  const next = new Set(prev);
+                                  if (checked) {
+                                    next.add(col.id);
+                                  } else if (!col.required) {
+                                    next.delete(col.id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                            />
+                            <Label htmlFor={`col-${col.id}`} className="flex-1">
+                              {col.label}
+                              {col.required && (
+                                <span className="ml-2 text-xs text-gray-500">(Required)</span>
+                              )}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {columnDefs
+                        .filter(col => visibleColumns.has(col.id))
+                        .map((col) => (
+                          <TableHead 
+                            key={col.id}
+                            className={col.sortable ? 'cursor-pointer select-none hover:bg-gray-50' : ''}
+                            onClick={() => {
+                              if (!col.sortable) return;
+                              setSortState(prev => ({
+                                column: col.id,
+                                direction: 
+                                  prev.column === col.id
+                                    ? prev.direction === 'asc'
+                                      ? 'desc'
+                                      : prev.direction === 'desc'
+                                        ? null
+                                        : 'asc'
+                                    : 'asc'
+                              }));
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              {col.label}
+                              {col.sortable && (
+                                <span className="text-gray-400">
+                                  {sortState.column === col.id ? (
+                                    sortState.direction === 'asc' ? (
+                                      <FaSortUp className="text-blue-500" />
+                                    ) : sortState.direction === 'desc' ? (
+                                      <FaSortDown className="text-blue-500" />
+                                    ) : (
+                                      <FaSort />
+                                    )
+                                  ) : (
+                                    <FaSort />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </TableHead>
+                        ))}
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedJobs.map((job) => (
+                      <TableRow key={job.id}>
+                        {columnDefs
+                          .filter(col => visibleColumns.has(col.id))
+                          .map((col) => (
+                            <TableCell key={col.id}>
+                              {col.id === 'status' ? (
+                                <Badge className={`${getStatusColor(job.status)}`}>
+                                  {job.status}
+                                </Badge>
+                              ) : col.id === 'dateApplied' || col.id === 'dateUpdated' ? (
+                                job[col.id] ? format(new Date(job[col.id]!), 'PP') : 'N/A'
+                              ) : col.id === 'contactName' ? (
+                                <div className="flex flex-col">
+                                  <span>{job.contactName || 'N/A'}</span>
+                                  {job.contactEmail && (
+                                    <a href={`mailto:${job.contactEmail}`} className="text-sm text-blue-600 hover:underline">
+                                      {job.contactEmail}
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                String(job[col.id] || 'N/A')
+                              )}
+                            </TableCell>
+                          ))}
+                        <TableCell>
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openJobDetails(job)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Select
+                              value={job.status}
+                              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue>{job.status}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {jobStatuses.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {status}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : layoutMode === 'list' ? (
               <motion.div
                 className="space-y-6"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id || `job-${job.company}-${job.position}`} // Add a unique key here
+                    key={job.id || `job-${job.company}-${job.position}`}
                     layout
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -649,7 +873,7 @@ export function AppliedTrack() {
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id || `job-${job.company}-${job.position}`} // Add a unique key here
+                    key={job.id || `job-${job.company}-${job.position}`}
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -798,17 +1022,17 @@ export function AppliedTrack() {
 }
 
 // Update JobCard component
-function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStatus, updateJobDetails, sendToast=true }: { 
+function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStatus, updateJobDetails }: { 
   job: Job, 
   openJobDetails: (job: Job) => void, 
   handleKeyDown: (e: React.KeyboardEvent, job: Job) => void, 
-  layoutMode: 'list' | 'masonry', 
+  layoutMode: 'list' | 'masonry' | 'table', 
   updateJobStatus: (jobId: string, newStatus: Job['status']) => void,
   updateJobDetails: (job: Job) => Promise<void>,
-  sendToast?: boolean
 }) {
   const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const { toast } = useToast();
 
   const handleStatusChange = (newStatus: string) => {
@@ -883,6 +1107,32 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
     );
   };
 
+  const handleArchive = async () => {
+    try {
+      // Add your archive API call here
+      const response = await fetch(`/api/jobs/${job.id}/archive`, {
+        method: 'PUT',
+      });
+
+      if (!response.ok) throw new Error('Failed to archive job');
+
+      toast({
+        title: "Job Archived",
+        description: "The job has been successfully archived.",
+      });
+      
+      // Refresh the jobs list or handle UI update
+      // You might want to call a parent function to refresh the list
+    } catch (error) {
+      console.error('Error archiving job:', error);
+      toast({
+        title: "Error",
+        description: "Failed to archive the job. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Card 
       className="w-full hover:shadow-lg transition-shadow duration-300"
@@ -892,23 +1142,70 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span className="text-2xl">{job.company}</span>
-          <Select
-            open={isStatusSelectOpen}
-            onOpenChange={setIsStatusSelectOpen}
-            value={job.status}
-            onValueChange={handleStatusChange}
-          >
-            <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
-              <SelectValue>{job.status}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {jobStatuses.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              open={isStatusSelectOpen}
+              onOpenChange={setIsStatusSelectOpen}
+              value={job.status}
+              onValueChange={handleStatusChange}
+            >
+              <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
+                <SelectValue>{job.status}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {jobStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Archive Job</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to archive this job application for {job.company}? 
+                          This will remove it from your active applications list.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchive();
+                          }}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Archive
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Archive Job</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -1007,7 +1304,7 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                       {isLoading ? (
                         <FaSync className="w-4 h-4 animate-spin" />
                       ) : (
-                        'Search Domain'
+                        'Search Domain or User'
                       )}
                     </Button>
                   )}
@@ -1023,14 +1320,6 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                     </Badge>
                   </div>
                   {renderHunterPreview()}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => openJobDetails(job)}
-                  >
-                    View All Contacts
-                  </Button>
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-4">
@@ -1156,8 +1445,8 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-2xl font-bold">{job.company}</DialogTitle>
           <div className="flex space-x-4 mt-4">
             <Button
@@ -1174,133 +1463,139 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
             </Button>
           </div>
         </DialogHeader>
-        <ScrollArea className="flex-grow">
-          {activeTab === 'details' ? (
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  {renderField("Position", job.position, "position")}
-                  <Badge className={`${getStatusColor(job.status)} text-sm`}>{job.status}</Badge>
-                  <p className="text-sm text-gray-500">
-                    Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
-                  </p>
-                  {renderField("Website", job.website, "website")}
+
+        <ScrollArea className="flex-grow px-6">
+          <div className="py-4">
+            {activeTab === 'details' ? (
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    {renderField("Position", job.position, "position")}
+                    <Badge className={`${getStatusColor(job.status)} text-sm`}>{job.status}</Badge>
+                    <p className="text-sm text-gray-500">
+                      Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
+                    </p>
+                    {renderField("Website", job.website, "website")}
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Contact Information</h4>
+                    {renderField("Contact Name", job.contactName, "contactName")}
+                    {renderField("Contact Email", job.contactEmail, "contactEmail")}
+                    {renderField("Contact Phone", job.contactPhone, "contactPhone")}
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Contact Information</h4>
-                  {renderField("Contact Name", job.contactName, "contactName")}
-                  {renderField("Contact Email", job.contactEmail, "contactEmail")}
-                  {renderField("Contact Phone", job.contactPhone, "contactPhone")}
+                <Separator />
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold">Job Description</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
+                    >
+                      {isJobDescriptionCollapsed ? 'Expand' : 'Collapse'}
+                    </Button>
+                  </div>
+                  {!isJobDescriptionCollapsed && (
+                    editMode ? (
+                      <Textarea
+                        value={job.jobDescription || ''}
+                        onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                        className="min-h-[100px] mt-1"
+                      />
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
+                    )
+                  )}
                 </div>
-              </div>
-              <Separator />
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-semibold">Job Description</h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
-                  >
-                    {isJobDescriptionCollapsed ? 'Expand' : 'Collapse'}
-                  </Button>
-                </div>
-                {!isJobDescriptionCollapsed && (
-                  editMode ? (
+                <Separator />
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold">Notes</h4>
+                    {!editMode && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditMode(true)}
+                      >
+                        Add Notes
+                      </Button>
+                    )}
+                  </div>
+                  {editMode ? (
                     <Textarea
-                      value={job.jobDescription || ''}
-                      onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                      value={job.notes || ''}
+                      onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
                       className="min-h-[100px] mt-1"
                     />
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
-                  )
-                )}
-              </div>
-              <Separator />
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-semibold">Notes</h4>
-                  {!editMode && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditMode(true)}
-                    >
-                      Add Notes
-                    </Button>
+                    <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
                   )}
                 </div>
-                {editMode ? (
-                  <Textarea
-                    value={job.notes || ''}
-                    onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
-                    className="min-h-[100px] mt-1"
-                  />
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
-                )}
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <h4 className="font-semibold">Important Dates</h4>
-                {renderField("Interview Date", job.interviewDate, "interviewDate")}
-                {renderField("Date Applied", job.dateApplied, "dateApplied")}
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <h4 className="font-semibold">Documents</h4>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Important Dates</h4>
+                  {renderField("Interview Date", job.interviewDate, "interviewDate")}
+                  {renderField("Date Applied", job.dateApplied, "dateApplied")}
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Documents</h4>
+                  <div className="space-y-4">
+                    {job.resumeLink && (
+                      <div>
+                        <Label className="font-semibold">Resume</Label>
+                        <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
+                      </div>
+                    )}
+                    {job.coverLetterLink && (
+                      <div>
+                        <Label className="font-semibold">Cover Letter</Label>
+                        <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Separator />
                 <div className="space-y-4">
-                  {job.resumeLink && (
-                    <div>
-                      <Label className="font-semibold">Resume</Label>
-                      <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
-                    </div>
-                  )}
-                  {job.coverLetterLink && (
-                    <div>
-                      <Label className="font-semibold">Cover Letter</Label>
-                      <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
-                    </div>
-                  )}
+                  <h4 className="font-semibold">Additional Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {renderField("Salary", job.salary, "salary")}
+                    {renderField("Location", job.location, "location")}
+                    {renderField("Remote Type", job.remoteType, "remoteType")}
+                    {renderField("Job Type", job.jobType, "jobType")}
+                  </div>
                 </div>
               </div>
-              <Separator />
-              <div className="space-y-4">
-                <h4 className="font-semibold">Additional Details</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {renderField("Salary", job.salary, "salary")}
-                  {renderField("Location", job.location, "location")}
-                  {renderField("Remote Type", job.remoteType, "remoteType")}
-                  {renderField("Job Type", job.jobType, "jobType")}
-                </div>
+            ) : (
+              <div className="p-6">
+                {renderHunterTab()}
               </div>
-            </div>
-          ) : (
-            <div className="p-6">
-              {renderHunterTab()}
-            </div>
-          )}
-        </ScrollArea>
-        <div className="p-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="edit-mode">Edit Mode</Label>
-            <Switch
-              id="edit-mode"
-              checked={editMode}
-              onCheckedChange={(checked) => setEditMode(checked)}
-            />
+            )}
           </div>
-          <div className="flex space-x-2">
-            <DialogClose asChild>
-              <Button variant="outline">Close</Button>
-            </DialogClose>
-            <Button onClick={() => {
-              onClose();
-              if (job) updateJobDetails(job);
-            }}>
-              Save Changes
-            </Button>
+        </ScrollArea>
+
+        <div className="p-6 border-t">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="edit-mode">Edit Mode</Label>
+              <Switch
+                id="edit-mode"
+                checked={editMode}
+                onCheckedChange={(checked) => setEditMode(checked)}
+              />
+            </div>
+            <div className="flex space-x-2">
+              <DialogClose asChild>
+                <Button variant="outline">Close</Button>
+              </DialogClose>
+              <Button onClick={() => {
+                onClose();
+                if (job) updateJobDetails(job);
+              }}>
+                Save Changes
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

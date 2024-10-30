@@ -122,10 +122,7 @@ export async function PUT(request: NextRequest) {
   // Process Hunter data if present
   if (jobData.hunterData) {
     jobData.hunterData = {
-      domain: jobData.hunterData.data.domain,
-      pattern: jobData.hunterData.data.pattern,
-      organization: jobData.hunterData.data.organization,
-      emails: jobData.hunterData.data.emails,
+      ...jobData.hunterData,
       dateUpdated: new Date().toISOString()
     };
   }

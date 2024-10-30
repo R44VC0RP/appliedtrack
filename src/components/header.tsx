@@ -507,7 +507,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
             </TooltipProvider>
           </AdminOnly>
           <SignedIn>
-            <TooltipProvider>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button onClick={onNotificationClick} className="focus:outline-none">
@@ -518,7 +518,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                   Notifications
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
 
             <TooltipProvider>
               <Tooltip>

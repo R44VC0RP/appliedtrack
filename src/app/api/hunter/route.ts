@@ -4,6 +4,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import mongoose from 'mongoose';
 
+const departments = ['executive', 'it', 'finance', 'management', 'sales', 'legal', 'support', 'hr', 'marketing', 'communication', 'education', 'design', 'health', 'operations'];
+
 // Ensure connection is established
 const connectDB = async () => {
   try {
@@ -24,40 +26,36 @@ function isValidDomain(domain: string): boolean {
   return domainPattern.test(cleanDomain);
 }
 
-async function getDomainFromHunter(domain: string, initialResult: boolean = false) {
+// department: [executive, it, finance, management, sales, legal, support, hr, marketing, communication, education, design, health, operations]
+
+async function hunterDomainSearch(domain: string, amount: number = 5, department: string[] = [], initialResult: boolean = false) {
+  
+  if (department.length > 0 && !department.every(dep => departments.includes(dep))) {
+    console.error('Invalid department:', department);
+    throw new Error('Invalid department');
+  }
+
+  if (amount < 1 || amount > 30) {
+    console.error('Invalid amount:', amount);
+    throw new Error('Invalid amount');
+  }
+
   const hunterApiKey = process.env.HUNTER_API_KEY;
   const limit = initialResult ? 100 : 10;
   let allEmails: any[] = [];
   
   try {
     // First request to get total results
-    const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}`;
+    const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${amount}`;
     const initialResponse = await fetch(initialUrl);
     if (!initialResponse.ok) {
       throw new Error(`Hunter API error: ${initialResponse.statusText}`);
     }
-    const initialData = await initialResponse.json();
-    const totalResults = initialData.meta.results;
+    const dataResponse = await initialResponse.json();
+    const totalResults = dataResponse.meta.results;
     
-    // Add first batch of emails
-    allEmails = [...initialData.data.emails];
     
-    // Only paginate if initialResult is true
-    if (initialResult) {
-      // Calculate number of additional requests needed
-      const remainingRequests = Math.ceil(totalResults / limit) - 1;
-      
-      // Fetch remaining results
-      for (let offset = limit; offset < totalResults; offset += limit) {
-        const url = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}&offset=${offset}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Hunter API error: ${response.statusText}`);
-        }
-        const data = await response.json();
-        allEmails = [...allEmails, ...data.data.emails];
-      }
-    }
+    
     
     // Sanitize all emails
     const sanitizedEmails = allEmails.map((email: {
@@ -73,9 +71,9 @@ async function getDomainFromHunter(domain: string, initialResult: boolean = fals
 
     // Construct final data object
     const sanitizedData = {
-      ...initialData,
+      ...dataResponse,
       data: {
-        ...initialData.data,
+        ...dataResponse.data,
         emails: sanitizedEmails
       }
     };
@@ -113,7 +111,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch from Hunter.io
-    const { data: hunterData, total_results } = await getDomainFromHunter(domain);
+    const { data: hunterData, total_results } = await hunterDomainSearch(domain);
 
     return NextResponse.json({
       data: hunterData,
