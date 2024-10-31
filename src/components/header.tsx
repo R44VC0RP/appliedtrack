@@ -508,7 +508,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
               </Tooltip>
             </TooltipProvider>
           </SignedIn>
-          <SignedIn>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
@@ -529,7 +529,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          </SignedIn>
+          
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
