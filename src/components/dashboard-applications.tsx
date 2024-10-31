@@ -60,7 +60,10 @@ interface HunterEmail {
   value: string;
   type: string;
   confidence: number;
-  sources: Array<any>;
+  sources: Array<{
+    uri: string | null;
+    [key: string]: any;
+  }>;
   first_name?: string;
   last_name?: string;
   position?: string;
@@ -109,6 +112,15 @@ interface Job {
     organization?: string;
     emails?: HunterEmail[];
     dateUpdated?: string;
+    meta?: {
+      results: number;
+      limit: number;
+      offset: number;
+      params: {
+        domain: string;
+        [key: string]: any;
+      };
+    };
   };
   isArchived?: boolean;
 }
@@ -988,7 +1000,9 @@ export function AppliedTrack() {
                   <SelectContent>
                     <SelectItem value="All">All Statuses</SelectItem>
                     {jobStatuses.map(status => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                      <SelectItem key={status} value={status}>
+                        {status === 'Archived' ? `${status} (${jobs.filter(job => job.isArchived === true).length})` : status}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1343,15 +1357,18 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
     try {
       const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
       
-      const response = await fetch(`/api/hunter?domain=${domain}&categories=${Array.from(selectedCategories).join(',')}`);
+      // Updated API call with new parameters
+      const response = await fetch(`/api/hunter?action=domainSearch&domain=${domain}&departments=${Array.from(selectedCategories).join(',')}&limit=10`);
+      
       if (!response.ok) throw new Error('Failed to fetch Hunter data');
       
       const hunterResult = await response.json();
       
+      // Update the job with the hunter data
       const updatedJob = {
         ...job,
         hunterData: {
-          ...hunterResult.data,
+          ...hunterResult.data.data,
           dateUpdated: new Date().toISOString()
         }
       };
@@ -1368,13 +1385,13 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
       console.error('Error fetching Hunter data:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch Hunter data",
+        description: "Failed to fetch Hunter data. Please check the domain and try again.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
+};
 
   const searchHunterDomain = () => {
     setIsCategoryModalOpen(true);
@@ -1391,9 +1408,14 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
         {previewEmails.map((email, index) => (
           <div key={index} className="flex items-center justify-between text-sm">
             <span>{email.first_name} {email.last_name}</span>
-            <Badge variant="outline" className="text-xs">
-              {email.position}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {email.position}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                {email.confidence}%
+              </Badge>
+            </div>
           </div>
         ))}
         {remainingCount > 0 && (
@@ -1588,7 +1610,7 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                           variant="ghost" 
                           size="icon"
                           className="hover:bg-red-100 hover:text-red-600 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
+                          
                         >
                           <Archive className="h-4 w-4" />
                         </Button>
