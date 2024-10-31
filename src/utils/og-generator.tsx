@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { siteConfig } from '@/config/metadata';
 
 // Image metadata
 export const size = {
@@ -10,6 +11,7 @@ export const size = {
 export async function GenerateImage(params: {
   title: string;
   description?: string;
+  type?: 'default' | 'blog' | 'job';
 }) {
   // Fonts
   const interSemiBold = fetch(
@@ -21,42 +23,51 @@ export async function GenerateImage(params: {
 
   return new ImageResponse(
     (
-      // ImageResponse JSX element
       <div
         style={{
-          fontSize: 160,
-          background: "black",
+          background: "linear-gradient(to bottom right, #000000, #1a1a1a)",
           width: "100%",
           height: "100%",
           display: "flex",
-          textAlign: "center",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
-          fontFamily: "Inter, sans-serif",
+          padding: "40px",
         }}
       >
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            textAlign: "center",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
+            textAlign: "center",
+            color: "white",
+            fontFamily: "Inter, sans-serif",
+            gap: "24px",
           }}
         >
-          <span style={{ fontWeight: 600 }}>{params.title}</span>
-          <span style={{ fontSize: 40, fontWeight: 300 }}>
-            {params.description}
-          </span>
+          <div style={{ fontSize: "64px", fontWeight: 600, lineHeight: 1.2 }}>
+            {params.title}
+          </div>
+          {params.description && (
+            <div style={{ fontSize: "32px", fontWeight: 300, color: "#9ca3af" }}>
+              {params.description}
+            </div>
+          )}
+          <div style={{ 
+            fontSize: "24px", 
+            fontWeight: 600,
+            position: "absolute",
+            bottom: "40px",
+            color: "#6b7280"
+          }}>
+            {siteConfig.name}
+          </div>
         </div>
       </div>
     ),
-    // ImageResponse options
     {
-      // For convenience, we can re-use the exported opengraph-image
-      // size config to also set the ImageResponse's width and height.
       ...size,
       fonts: [
         {
