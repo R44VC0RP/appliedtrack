@@ -283,7 +283,6 @@ const columnDefs: ColumnDef[] = [
   { id: 'status', label: 'Status', required: true, sortable: true },
   { id: 'dateApplied', label: 'Date Applied', sortable: true },
   { id: 'dateUpdated', label: 'Last Updated', sortable: true },
-  { id: 'contactName', label: 'Contact' },
   // Add more columns as needed
 ];
 
@@ -1363,12 +1362,14 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
       if (!response.ok) throw new Error('Failed to fetch Hunter data');
       
       const hunterResult = await response.json();
+
+      console.log(hunterResult.data.data.data);
       
       // Update the job with the hunter data
       const updatedJob = {
         ...job,
         hunterData: {
-          ...hunterResult.data.data,
+          ...hunterResult.data.data.data,
           dateUpdated: new Date().toISOString()
         }
       };
@@ -1987,7 +1988,7 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
               onClick={() => setActiveTab('hunter')}
               className="whitespace-nowrap"
             >
-              Hunter.io Data
+              Contacts Found
             </Button>
           </div>
         </DialogHeader>

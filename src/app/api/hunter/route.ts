@@ -46,6 +46,7 @@ async function hunterDomainSearch(domain: string, amount: number = 5, department
   try {
     // First request to get total results
     const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${amount}`;
+    console.log('Initial URL:', initialUrl);
     const initialResponse = await fetch(initialUrl);
     if (!initialResponse.ok) {
       throw new Error(`Hunter API error: ${initialResponse.statusText}`);
@@ -54,27 +55,9 @@ async function hunterDomainSearch(domain: string, amount: number = 5, department
     const totalResults = dataResponse.meta.results;
 
     // Sanitize all emails
-    const sanitizedEmails = allEmails.map((email: {
-      sources: { uri: string | null }[];
-      [key: string]: any;
-    }) => ({
-      ...email,
-      sources: email.sources.map(source => ({
-        ...source,
-        uri: source.uri ? encodeURI(source.uri) : null
-      }))
-    }));
+    
 
-    // Construct final data object
-    const sanitizedData = {
-      ...dataResponse,
-      data: {
-        ...dataResponse.data,
-        emails: sanitizedEmails
-      }
-    };
-
-    return { data: sanitizedData, total_results: totalResults };
+    return { data: dataResponse, total_results: totalResults };
   } catch (error) {
     console.error('Error fetching from Hunter:', error);
     throw error;
