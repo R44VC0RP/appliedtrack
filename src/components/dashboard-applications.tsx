@@ -596,6 +596,7 @@ export function AppliedTrack() {
   );
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
+  const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
 
   // Add useEffect to handle localStorage
   useEffect(() => {
@@ -629,11 +630,16 @@ export function AppliedTrack() {
     return () => window.removeEventListener('resize', updateLayout);
   }, [isMobile, isTablet, mounted]);
 
+
   useEffect(() => {
     if (isLoaded && userId) {
+      // console.log("Fetching jobs");
       fetch('/api/jobs')
         .then(response => response.json())
-        .then(data => setJobs(data))
+        .then(data => {
+          console.log("Jobs fetched:", data);
+          setJobs(data)
+        })
         .catch(error => console.error('Error fetching jobs:', error));
     }
   }, [isLoaded, userId]);
@@ -787,6 +793,7 @@ export function AppliedTrack() {
       }
 
       const result = await response.json();
+      console.log("There are ", jobs.length, " jobs");
       setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
       setIsModalOpen(false);
       // toast({
@@ -803,34 +810,31 @@ export function AppliedTrack() {
     }
   };
 
-  // const searchHunterIoContacts = async () => {
-  //   if (selectedJob) {
-  //     setIsSearchingHunterIo(true)
-  //     try {
-  //       const results = await searchHunterIo(selectedJob.company, selectedJob.position)
-  //       setHunterIoResults(results)
-  //     } catch (error) {
-  //       console.error('Error searching Hunter.io:', error)
-  //       setHunterIoResults([])
-  //     }
-  //     setIsSearchingHunterIo(false)
-  //   }
-  // }
 
   const filteredJobs = useMemo(() => {
+    console.log("Filtering jobs with status:", statusFilter);
+    console.log("Current jobs:", jobs);
+    
     let filtered = jobs.filter(job => {
+      // Search term filter
       const matchesSearch = 
-        (job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-        (job.position?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+        job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.position?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Handle archived status separately
-      if (statusFilter === 'Archived') {
-        return matchesSearch && job.isArchived;
-      } else if (statusFilter === 'All') {
-        return matchesSearch && !job.isArchived;
+      // Status filter
+      let matchesStatus = true;
+      if (statusFilter !== 'All') {
+        if (statusFilter === 'Archived') {
+          matchesStatus = !!job.isArchived;
+        } else {
+          matchesStatus = job.status === statusFilter && !job.isArchived;
+        }
       } else {
-        return matchesSearch && job.status === statusFilter && !job.isArchived;
+        // When "All" is selected, show all non-archived jobs
+        matchesStatus = !job.isArchived;
       }
+
+      return matchesSearch && matchesStatus;
     });
 
     // Apply sorting
@@ -933,6 +937,7 @@ export function AppliedTrack() {
   }, [selectedJob]);
 
   const sortedJobs = useMemo(() => {
+    console.log(filteredJobs);
     if (!sortState.column || !sortState.direction) return filteredJobs;
 
     return [...filteredJobs].sort((a, b) => {
@@ -955,8 +960,8 @@ export function AppliedTrack() {
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
           <div className="space-y-3">
-            <div className="h-40 bg-gray-200 rounded"></div>
-            <div className="h-40 bg-gray-200 rounded"></div>
+            <div className="h-40 bg-gray-200 rounded-md"></div>
+            <div className="h-40 bg-gray-200 rounded-md "></div>
             <div className="h-40 bg-gray-200 rounded"></div>
           </div>
         </div>
@@ -967,7 +972,7 @@ export function AppliedTrack() {
   return (
     <>
     <Header
-        user={{ name: 'John Doe' }}
+        // user={{ name: 'John Doe' }}
         onNotificationClick={handleNotificationClick}
         onProfileClick={handleProfileClick}
       />
@@ -1000,7 +1005,10 @@ export function AppliedTrack() {
                     <SelectItem value="All">All Statuses</SelectItem>
                     {jobStatuses.map(status => (
                       <SelectItem key={status} value={status}>
-                        {status === 'Archived' ? `${status} (${jobs.filter(job => job.isArchived === true).length})` : status}
+                        {status === 'Archived' 
+                          ? `${status} (${jobs.filter(job => job.isArchived === true).length})`
+                          : `${status} (${jobs.filter(job => job.status === status && !job.isArchived).length})`
+                        }
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1260,6 +1268,7 @@ export function AppliedTrack() {
                       layoutMode={layoutMode} 
                       updateJobStatus={updateJobStatus}
                       updateJobDetails={updateJobDetails}
+                      setActiveTab={setActiveTab}
                     />
                   </motion.div>
                 ))}
@@ -1290,6 +1299,7 @@ export function AppliedTrack() {
                       layoutMode={layoutMode} 
                       updateJobStatus={updateJobStatus}
                       updateJobDetails={updateJobDetails}
+                      setActiveTab={setActiveTab}
                     />
                   </motion.div>
                 ))}
@@ -1318,6 +1328,7 @@ export function AppliedTrack() {
             setSelectedJob={setSelectedJob}
             setIsModalOpen={setIsModalOpen}
             updateJobDetails={updateJobDetails}
+            activeTab={activeTab}
           />
 
           <SettingsModal
@@ -1331,13 +1342,22 @@ export function AppliedTrack() {
 }
 
 // Update JobCard component
-function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStatus, updateJobDetails }: { 
-  job: Job, 
-  openJobDetails: (job: Job) => void, 
-  handleKeyDown: (e: React.KeyboardEvent, job: Job) => void, 
-  layoutMode: 'list' | 'masonry' | 'table', 
-  updateJobStatus: (jobId: string, newStatus: Job['status']) => void,
-  updateJobDetails: (job: Job) => Promise<void>,
+function JobCard({ 
+  job, 
+  openJobDetails, 
+  handleKeyDown, 
+  layoutMode, 
+  updateJobStatus, 
+  updateJobDetails,
+  setActiveTab  // Add this prop
+}: { 
+  job: Job;
+  openJobDetails: (job: Job) => void;
+  handleKeyDown: (e: React.KeyboardEvent, job: Job) => void;
+  layoutMode: 'list' | 'masonry' | 'table';
+  updateJobStatus: (jobId: string, newStatus: Job['status']) => void;
+  updateJobDetails: (job: Job) => Promise<void>;
+  setActiveTab: (tab: 'details' | 'hunter') => void;  // Add this type
 }) {
   const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -1378,7 +1398,7 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
       
       toast({
         title: "Hunter Data Updated",
-        description: `Found ${hunterResult.data.data.emails?.length || 0} email patterns for ${domain}`,
+        description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`,
       });
       
       setIsCategoryModalOpen(false);
@@ -1420,9 +1440,16 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
           </div>
         ))}
         {remainingCount > 0 && (
-          <p className="text-sm text-gray-500 text-right">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click event
+              openJobDetails(job);
+              setIsCategoryModalOpen(true);
+            }}
+            className="w-full text-right text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+          >
             +{remainingCount} more contacts
-          </p>
+          </button>
         )}
       </div>
     );
@@ -1762,6 +1789,14 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                           </DialogHeader>
                           
                           <div className="grid grid-cols-2 gap-4 py-4">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${job.id}-all-categories`}
+                                checked={selectedCategories.size === hunterCategories.length}
+                                onCheckedChange={() => setSelectedCategories(new Set(hunterCategories.map(c => c.value)))}
+                              />
+                              <Label htmlFor={`${job.id}-all-categories`}>Select All</Label>
+                            </div>
                             {hunterCategories.map((category) => (
                               <div key={category.value} className="flex items-center space-x-2">
                                 <Checkbox
@@ -1842,17 +1877,26 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
 }
 
 // New ViewDetailsModal component
-function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails }: {
+function ViewDetailsModal({ 
+  isOpen, 
+  onClose, 
+  job, 
+  setSelectedJob, 
+  setIsModalOpen, 
+  updateJobDetails,
+  activeTab: initialActiveTab  // Add this prop
+}: {
   isOpen: boolean;
   onClose: () => void;
   job: Job | null;
   setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>;
   setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   updateJobDetails: (job: Job) => void;
+  activeTab?: 'details' | 'hunter';  // Add this type
 }) {
+  const [activeTab, setActiveTab] = useState<'details' | 'hunter'>(initialActiveTab || 'details');
   const [editMode, setEditMode] = useState<boolean>(false);
   const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
 
   if (!job) return null;
 

@@ -56,46 +56,49 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Check if user is admin
     const { userId } = getAuth(request);
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Verify admin role from database
     const currentUser = await UserModel.findOne({ userId });
     if (!currentUser || currentUser.role !== 'admin') {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
     const body = await request.json();
-    const { userId: targetUserId, role } = body;
+    const { userId: targetUserId, role, tier } = body;
 
-    // Update role in MongoDB
+    // Create update object with only provided fields
+    const updateFields: any = {
+      dateUpdated: new Date()
+    };
+    if (role) updateFields.role = role;
+    if (tier) updateFields.tier = tier;
+
+    // Update in MongoDB
     await UserModel.findOneAndUpdate(
       { userId: targetUserId },
       { 
-        $set: { 
-          role,
-          dateUpdated: new Date()
-        },
+        $set: updateFields,
         $setOnInsert: {
-          tier: 'free',
           dateCreated: new Date()
         }
       },
       { upsert: true, new: true }
     );
 
-    // Update metadata in Clerk
-    await clerkClient.users.updateUser(targetUserId, {
-      privateMetadata: { role },
-    });
+    // Update metadata in Clerk if role is changed
+    if (role) {
+      await clerkClient.users.updateUser(targetUserId, {
+        privateMetadata: { role },
+      });
+    }
 
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error("Error updating user role:", error);
+    console.error("Error updating user:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

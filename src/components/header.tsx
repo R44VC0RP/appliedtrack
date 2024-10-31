@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/hooks/use-toast"
 import { AdminOnly } from '@/components/auth/AdminOnly';
 import { useTheme } from "next-themes"
+import { TierOnly } from '@/components/auth/TierOnly';
 import logo from '@/app/logos/logo.png'
 import {
   SignInButton,
@@ -278,7 +279,7 @@ function SubscriptionPage() {
 }
 
 // Move CustomPage outside of Header component as a separate component
-function CustomPage() {
+function PersonalPage() {
   const { toast } = useToast();
   const [localAbout, setLocalAbout] = useState('');
 
@@ -465,6 +466,12 @@ export function Header({ onNotificationClick }: HeaderProps) {
             <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
           </Link>
           <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
+          <TierOnly tier="free">
+            This
+          </TierOnly>
+          <TierOnly tier="pro,power">
+            This
+          </TierOnly>
         </div>
         <div className="flex items-center space-x-4">
           <AdminOnly fallback={null}>
@@ -542,7 +549,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                   <SignedIn>
                     <UserButton>
                       <UserButton.UserProfilePage label="Personal Info" url="personal-info" labelIcon={<Settings className="w-4 h-4" />}>
-                        <CustomPage />
+                        <PersonalPage />
                       </UserButton.UserProfilePage>
                       <UserButton.UserProfilePage label="Resumes" url="resumes" labelIcon={<FileText className="w-4 h-4" />}>
                         <div className="p-4">

@@ -17,6 +17,7 @@ interface User {
   role: string;
   lastSignIn?: string;
   dateCreated: string;
+  isUpdating?: boolean;
 }
 
 export function AdminUsers() {
@@ -43,28 +44,48 @@ export function AdminUsers() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string }) => {
     try {
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.userId === userId 
+            ? { ...user, isUpdating: true }
+            : user
+        )
+      );
+
       const response = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role: newRole }),
+        body: JSON.stringify({ userId, ...updates }),
       });
 
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "User role updated successfully",
-        });
-        fetchUsers();
+      if (!response.ok) {
+        throw new Error('Failed to update user');
       }
+
+      toast({
+        title: "Success",
+        description: `User ${Object.keys(updates).join(' and ')} updated successfully`,
+        variant: "default",
+      });
+      
+      await fetchUsers();
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Error updating user:', error);
       toast({
         title: "Error",
-        description: "Failed to update user role",
+        description: "Failed to update user. Please try again.",
         variant: "destructive",
       });
+      
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.userId === userId 
+            ? { ...user, isUpdating: false }
+            : user
+        )
+      );
     }
   };
 
@@ -131,7 +152,8 @@ export function AdminUsers() {
                     <TableCell>
                       <Select
                         defaultValue={user.role}
-                        onValueChange={(value) => handleRoleChange(user.userId, value)}
+                        onValueChange={(value) => handleUserUpdate(user.userId, { role: value })}
+                        disabled={user.isUpdating}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
@@ -142,7 +164,22 @@ export function AdminUsers() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>{user.tier}</TableCell>
+                    <TableCell>
+                      <Select
+                        defaultValue={user.tier}
+                        onValueChange={(value) => handleUserUpdate(user.userId, { tier: value })}
+                        disabled={user.isUpdating}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="free">Free</SelectItem>
+                          <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="power">Power</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell>
                       {new Date(user.lastSignIn || '').toLocaleDateString()}
                     </TableCell>

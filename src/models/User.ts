@@ -2,7 +2,7 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface User extends Document {
   userId: string;
-  tier: 'free' | 'premium' | 'enterprise';
+  tier: 'free' | 'pro' | 'power';
   role: 'user' | 'admin';
   about: string;
   dateCreated: Date;
@@ -17,7 +17,7 @@ const UserSchema: Schema = new Schema({
   tier: { 
     type: String, 
     required: true, 
-    enum: ['free', 'premium', 'enterprise'],
+    enum: ['free', 'pro', 'power'],
     default: 'free'
   },
   role: {

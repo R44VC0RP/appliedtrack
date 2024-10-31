@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
   const user = await getOrCreateUser(userId);
   
   let limit = 10; // Default limit for free tier
-  if (user.tier === 'premium') {
+  if (user.tier === 'pro') {
     limit = 50;
-  } else if (user.tier === 'enterprise') {
+  } else if (user.tier === 'power') {
     limit = 0; // No limit
   }
   

@@ -1,26 +1,44 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 
-export function useRole() {
-  const { userId } = useAuth();
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+interface UserRole {
+  isAdmin: boolean;
+  tier: string;
+  loading: boolean;
+}
+
+export function useRole(): UserRole {
+  const { user, isLoaded } = useUser();
+  const [role, setRole] = useState<UserRole>({
+    isAdmin: false,
+    tier: 'free',
+    loading: true
+  });
 
   useEffect(() => {
-    if (userId) {
-      fetch('/api/user')
-        .then(res => res.json())
-        .then(data => {
-          
-          setRole(data.role);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error('Error fetching user role:', error);
-          setLoading(false);
-        });
-    }
-  }, [userId]);
+    const fetchRole = async () => {
+      if (!isLoaded || !user) {
+        setRole({ isAdmin: false, tier: 'free', loading: false });
+        return;
+      }
 
-  return { role, loading, isAdmin: role === 'admin' };
+      try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+        console.log("data", data);
+        setRole({
+          isAdmin: data.role === 'admin',
+          tier: data.tier || 'free',
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setRole({ isAdmin: false, tier: 'free', loading: false });
+      }
+    };
+
+    fetchRole();
+  }, [user, isLoaded]);
+
+  return role;
 }

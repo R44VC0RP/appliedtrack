@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BillingDashboard } from './components/billing-dashboard'
+import { TierConfig } from './components/tier-config'
 
 interface NavItem {
     title: string;
@@ -60,9 +61,9 @@ const navItems: NavItem[] = [
         component: BillingDashboard, // We'll create this component
     },
     {
-        title: "Content",
-        icon: FileText,
-        component: () => <div>Content Component</div>, // Placeholder
+        title: "Configs",
+        icon: Settings,
+        component: TierConfig, // Placeholder
     },
     {
         title: "Analytics",
