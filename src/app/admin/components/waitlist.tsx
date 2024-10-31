@@ -15,11 +15,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface WaitlistUser {
   _id: string;
   email: string;
   dateSignedUp: string;
+  isNotified: boolean;
+  dateUpdated?: string;
 }
 
 export function Waitlist() {
@@ -40,7 +43,9 @@ export function Waitlist() {
       if (response.ok) {
         const data = await response.json();
         setWaitlistUsers(data);
+        
       }
+
     } catch (error) {
       console.error('Error fetching waitlist users:', error);
     } finally {
@@ -51,6 +56,38 @@ export function Waitlist() {
   const filteredUsers = waitlistUsers.filter(user => 
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleSendInvite = async (email: string) => {
+    try {
+      const response = await fetch(`/api/invitations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send invitation');
+      }
+
+      // Refresh the waitlist to show updated status
+      await fetchWaitlistUsers();
+
+      toast({
+        title: "Success",
+        description: "Invitation sent successfully",
+      });
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send invitation",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleDelete = async (user: WaitlistUser) => {
     try {
@@ -109,6 +146,7 @@ export function Waitlist() {
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Signed Up Date</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -122,9 +160,19 @@ export function Waitlist() {
                     {new Date(user.dateSignedUp).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
+                    <Badge variant={user.isNotified ? "default" : "secondary"}>
+                      {user.isNotified ? "Invited" : "Pending"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        Send Invite
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={user.isNotified}
+                        onClick={() => handleSendInvite(user.email)}
+                      >
+                        {user.isNotified ? "Invited" : "Send Invite"}
                       </Button>
                       <Button
                         variant="outline"

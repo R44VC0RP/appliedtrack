@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const waitlistUser = new WaitlistUserModel({
       email,
       dateSignedUp: new Date(),
+      isNotified: false,
+      dateUpdated: new Date()
     });
 
     await waitlistUser.save();
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const waitlistUsers = await WaitlistUserModel.find()
+      .select('email dateSignedUp isNotified dateUpdated')
       .sort({ dateSignedUp: -1 })
       .lean()
       .exec();

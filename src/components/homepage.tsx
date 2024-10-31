@@ -104,7 +104,6 @@ export default function Homepage() {
     setError('')
 
     try {
-      // Email validation
       if (!email) {
         throw new Error('Email is required')
       }
@@ -122,22 +121,29 @@ export default function Homepage() {
         body: JSON.stringify({ email }),
       })
 
+      if (response.status === 409) {
+        throw new Error('This email is already on our waitlist!')
+      }
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || 'Failed to join waitlist')
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to join waitlist')
       }
 
       const data = await response.json()
-
-      // Clear form and show success message
       setEmail('')
+      
       toast({
         title: "Success!",
         description: `You're number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`,
       })
 
     } catch (err: any) {
-      setError(err.message || 'Something went wrong')
+      toast({
+        title: "Notice",
+        description: err.message,
+        variant: err.message.includes('already on our waitlist') ? "default" : "destructive"
+      })
     } finally {
       setIsSubmitting(false)
     }
