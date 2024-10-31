@@ -144,10 +144,10 @@ export default function Homepage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen dark:bg-gray-950">
       <Header />
       <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-primary">
+        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-primary dark:bg-gray-900">
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
@@ -195,9 +195,9 @@ export default function Homepage() {
             </div>
           </div>
         </section>
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-white">
+        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-white dark:bg-gray-950">
           <div className="container mx-auto px-4 md:px-6">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center mb-12">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center mb-12 dark:text-white">
               Features that Empower Your Job Search
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -208,13 +208,13 @@ export default function Homepage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <Card className="h-full">
+                  <Card className="h-full dark:bg-gray-900 dark:border-gray-800">
                     <CardHeader>
-                      <feature.icon className="w-10 h-10 text-primary mb-2" />
-                      <CardTitle>{feature.title}</CardTitle>
+                      <feature.icon className="w-10 h-10 text-primary dark:text-primary mb-2" />
+                      <CardTitle className="dark:text-white">{feature.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p>{feature.description}</p>
+                      <p className="dark:text-gray-400">{feature.description}</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -222,7 +222,7 @@ export default function Homepage() {
             </div>
           </div>
         </section>
-        <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-gray-100">
+        <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-gray-100 dark:bg-gray-900">
           <div className="container mx-auto px-4 md:px-6">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center mb-12">
               Choose the Right Plan for You
@@ -235,7 +235,7 @@ export default function Homepage() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
-                  <Card className="h-full flex flex-col">
+                  <Card className="h-full flex flex-col dark:bg-gray-800 dark:border-gray-700">
                     <CardHeader>
                       <CardTitle>{tier.name}</CardTitle>
                       <CardDescription>
@@ -253,10 +253,12 @@ export default function Homepage() {
                         ))}
                       </ul>
                       {tier.price !== 'Free' && (
+                        <SignedIn>
                         <SubscriptionButton 
                           tier={tier.name.toLowerCase()} 
                           price={tier.price} 
                         />
+                        </SignedIn>
                       )}
                     </CardContent>
                     
@@ -266,17 +268,17 @@ export default function Homepage() {
             </div>
           </div>
         </section>
-        <section id="about" className="w-full py-12 md:py-24 lg:py-32 bg-white">
+        <section id="about" className="w-full py-12 md:py-24 lg:py-32 bg-white dark:bg-gray-950">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
               <div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl mb-4">
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                   About AppliedTrack
                 </h2>
-                <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-4">
+                <p className="text-gray-500 dark:text-gray-400 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-4">
                   AppliedTrack was born out of a simple idea: to make the job search process easier and more efficient for everyone. 
                 </p>
-                <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-6">
+                <p className="text-gray-500 dark:text-gray-400 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mb-6">
                   With AppliedTrack, you&apos;re not just getting a job application tracker. You&apos;re gaining a partner in your career journey, equipped with powerful tools and insights to help you land your dream job.
                 </p>
                 {/* <Button>
@@ -314,18 +316,18 @@ export default function Homepage() {
           </div>
         </section>
       </main>
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center justify-center px-4 md:px-6 border-t">
-        <p className="text-xs text-gray-500">© 2024 AppliedTrack. All rights reserved.</p>
+      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center justify-center px-4 md:px-6 border-t dark:border-gray-800 dark:bg-gray-950">
+        <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 AppliedTrack. All rights reserved.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link 
             href="/terms" 
-            className="text-xs hover:underline underline-offset-4 text-gray-500 hover:text-gray-900"
+            className="text-xs hover:underline underline-offset-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
           >
             Terms of Service
           </Link>
           <Link 
             href="/privacy" 
-            className="text-xs hover:underline underline-offset-4 text-gray-500 hover:text-gray-900"
+            className="text-xs hover:underline underline-offset-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
           >
             Privacy Policy
           </Link>

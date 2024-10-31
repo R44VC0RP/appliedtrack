@@ -3,7 +3,8 @@ import './globals.css'
 import { Inter } from 'next/font/google'
 import type { Metadata } from 'next'
 import { Toaster } from "@/components/ui/toaster"
-
+import { ThemeProvider } from "@/components/theme-provider"
+import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,21 +22,27 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <head>
-        <script defer src="https://analytics.raavai.com/script.js" data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"></script>
-      </head>
-      <ClerkProvider>
-        <body
-          className={inter.className}
-          data-new-gr-c-s-check-loaded=""
-          data-gr-ext-installed=""
-          suppressHydrationWarning
-        >
-          {children}
-          <Toaster />
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          <Script
+            src="https://analytics.raavai.com/script.js"
+            data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"
+            strategy="lazyOnload"
+          />
+        </head>
+        <body className={inter.className} suppressHydrationWarning>
+          <ThemeProvider 
+            attribute="class" 
+            defaultTheme="system" 
+            enableSystem 
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
         </body>
-      </ClerkProvider>
-    </html>
+      </html>
+    </ClerkProvider>
   )
 }

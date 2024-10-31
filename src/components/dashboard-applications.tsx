@@ -53,6 +53,7 @@ import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import ClearbitAutocomplete from '@/components/ui/clearbit';
 import JobTitleAutocomplete from '@/components/ui/job-title-autocomplete';
 import { Checkbox } from "@/components/ui/checkbox"
+import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -391,9 +392,11 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{currentStepConfig.title}</DialogTitle>
+      <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="text-xl sm:text-2xl">
+            {currentStepConfig.title}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="py-4">
@@ -407,35 +410,30 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   website: `https://${company.domain}`
                 });
               }}
-            />
-          ) : currentStepConfig.type === 'job-title' ? (
-            <JobTitleAutocomplete
-              placeholder={currentStepConfig.placeholder}
-              onTitleSelect={(title) => {
-                setFormData({...formData, [currentStepConfig.field]: title});
-              }}
+              className="w-full"
             />
           ) : currentStepConfig.type === 'textarea' ? (
             <Textarea
               placeholder={currentStepConfig.placeholder}
               value={formData[currentStepConfig.field] as string || ''}
               onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
-              className="min-h-[200px]"
+              className="min-h-[150px] sm:min-h-[200px] w-full"
             />
           ) : currentStepConfig.type === 'resume-date' ? (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               <div>
-                <Label htmlFor="dateApplied">Date Applied *</Label>
+                <Label htmlFor="dateApplied" className="block mb-2">Date Applied *</Label>
                 <Input 
                   id="dateApplied" 
                   type="date" 
                   value={formData.dateApplied || ''} 
                   onChange={(e) => setFormData({...formData, dateApplied: e.target.value})}
                   required
+                  className="w-full"
                 />
               </div>
               <div>
-                <Label htmlFor="resumeLink">Resume *</Label>
+                <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
                 <Select 
                   value={formData.resumeLink} 
                   onValueChange={(value) => setFormData({...formData, resumeLink: value})}
@@ -443,7 +441,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a resume" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[40vh]">
                     {resumes.map((resume) => (
                       <SelectItem key={resume.resumeId} value={resume.fileUrl}>
                         {resume.fileName}
@@ -459,14 +457,15 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
               placeholder={currentStepConfig.placeholder}
               value={formData[currentStepConfig.field] as string || ''}
               onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+              className="w-full"
               autoFocus
             />
           )}
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 mt-4">
           {/* Progress indicators */}
-          <div className="flex gap-1">
+          <div className="flex gap-1 justify-center">
             {addJobSteps.map((_, index) => (
               <div
                 key={index}
@@ -479,7 +478,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
           </div>
 
           {/* Navigation buttons */}
-          <div className="flex justify-between gap-2">
+          <div className="flex justify-between gap-2 mt-2">
             {currentStep > 0 ? (
               <Button
                 variant="outline"
@@ -533,6 +532,34 @@ const hunterCategories: { value: HunterCategory; label: string }[] = [
   { value: 'operations', label: 'Operations' }
 ];
 
+// Add this helper function near the top
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth <= 640;
+};
+
+// Add this custom hook at the top of the file
+function useClientMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const mediaQuery = window.matchMedia(query);
+    setMatches(mediaQuery.matches);
+
+    const listener = (e: MediaQueryListEvent) => {
+      setMatches(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, [query]);
+
+  // Return false during SSR, actual value after mounting
+  return mounted ? matches : false;
+}
+
 export function AppliedTrack() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
@@ -544,8 +571,8 @@ export function AppliedTrack() {
   const [layoutMode, setLayoutMode] = useState<'list' | 'masonry' | 'table'>('list')
   const [columns, setColumns] = useState(3)
   // const containerRef = useRef<HTMLDivElement>(null)
-  const isTablet = useMediaQuery({ maxWidth: 1024 })
-  const isMobile = useMediaQuery({ maxWidth: 640 })
+  const isTablet = useClientMediaQuery('(max-width: 1024px)')
+  const isMobile = useClientMediaQuery('(max-width: 640px)')
   const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState<boolean>(false)
   const { isLoaded, userId } = useAuth();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -565,21 +592,31 @@ export function AppliedTrack() {
     setSortBy(savedPreference);
   }, []);
 
-  useEffect(() => {
-    const updateColumns = () => {
-      if (isMobile) {
-        setColumns(1)
-      } else if (isTablet) {
-        setColumns(2)
-      } else {
-        setColumns(3)
-      }
-    }
+  // Add mounting state
+  const [mounted, setMounted] = useState(false);
 
-    updateColumns()
-    window.addEventListener('resize', updateColumns)
-    return () => window.removeEventListener('resize', updateColumns)
-  }, [isMobile, isTablet])
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const updateLayout = () => {
+      if (isMobile) {
+        setLayoutMode('list');
+        setColumns(1);
+      } else if (isTablet) {
+        setColumns(2);
+      } else {
+        setColumns(3);
+      }
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, [isMobile, isTablet, mounted]);
 
   useEffect(() => {
     if (isLoaded && userId) {
@@ -900,6 +937,22 @@ export function AppliedTrack() {
     });
   }, [filteredJobs, sortState]);
 
+  // Return null or loading state during SSR
+  if (!mounted) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
+          <div className="space-y-3">
+            <div className="h-40 bg-gray-200 rounded"></div>
+            <div className="h-40 bg-gray-200 rounded"></div>
+            <div className="h-40 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
     <Header
@@ -925,64 +978,94 @@ export function AppliedTrack() {
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             </div>
-            <div className="flex items-center space-x-4">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All Statuses</SelectItem>
-                  {jobStatuses.map(status => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* Insert Sort By Here */}
-              <Select
-                value={sortBy}
-                onValueChange={(value) => {
-                  setSortBy(value);
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem('jobSortPreference', value);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Sort by..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Most Recently Added</SelectItem>
-                  <SelectItem value="oldest">Least Recently Added</SelectItem>
-                  <SelectItem value="updated">Last Updated</SelectItem>
-                  <SelectItem value="company">Company Name</SelectItem>
-                  <SelectItem value="status">Application Status</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-md">
-                <Button
-                  variant={layoutMode === 'list' ? 'default' : 'ghost'}
-                  size="icon"
-                  onClick={() => setLayoutMode('list')}
+            {/* Hide layout controls on mobile */}
+            {!isMobile && (
+              <div className="flex items-center space-x-4">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Statuses</SelectItem>
+                    {jobStatuses.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sortBy}
+                  onValueChange={(value) => {
+                    setSortBy(value);
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('jobSortPreference', value);
+                    }
+                  }}
                 >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
-                  size="icon"
-                  onClick={() => setLayoutMode('masonry')}
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={layoutMode === 'table' ? 'default' : 'ghost'}
-                  size="icon"
-                  onClick={() => setLayoutMode('table')}
-                >
-                  <FaTable className="h-4 w-4" />
-                </Button>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Most Recently Added</SelectItem>
+                    <SelectItem value="oldest">Least Recently Added</SelectItem>
+                    <SelectItem value="updated">Last Updated</SelectItem>
+                    <SelectItem value="company">Company Name</SelectItem>
+                    <SelectItem value="status">Application Status</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <div className="bg-background border rounded-lg p-1 flex items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={layoutMode === 'list' ? 'default' : 'ghost'}
+                          size="icon"
+                          onClick={() => setLayoutMode('list')}
+                          className="h-8 w-8"
+                        >
+                          <LayoutList className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>List View</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
+                          size="icon"
+                          onClick={() => setLayoutMode('masonry')}
+                          className="h-8 w-8"
+                        >
+                          <LayoutGrid className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Grid View</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={layoutMode === 'table' ? 'default' : 'ghost'}
+                          size="icon"
+                          onClick={() => setLayoutMode('table')}
+                          className="h-8 w-8"
+                        >
+                          <Table2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Table View</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-              
-            </div>
+            )}
           </div>
 
           <AnimatePresence>
@@ -1356,6 +1439,118 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
     }
   };
 
+  // Add new state for quick notes
+  const [showQuickNote, setShowQuickNote] = useState(false);
+  const [quickNote, setQuickNote] = useState('');
+
+  const handleQuickNoteSubmit = () => {
+    if (quickNote.trim()) {
+      const updatedJob = {
+        ...job,
+        notes: job.notes ? `${job.notes}\n\n${quickNote}` : quickNote,
+        dateUpdated: new Date().toISOString()
+      };
+      updateJobDetails(updatedJob);
+      setQuickNote('');
+      setShowQuickNote(false);
+    }
+  };
+
+  // Replace useMediaQuery with useClientMediaQuery
+  const isMobile = useClientMediaQuery('(max-width: 640px)');
+
+  // Add useEffect to prevent hydration mismatch
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Return null during SSR or before mounting
+  if (!mounted) return null;
+
+  if (isMobile) {
+    return (
+      <Card className="w-full">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold text-lg">{job.company}</h3>
+              <p className="text-sm text-gray-600">{job.position}</p>
+            </div>
+            <Select
+              value={job.status}
+              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
+            >
+              <SelectTrigger className={`w-[130px] ${getStatusColor(job.status)}`}>
+                <SelectValue>{job.status}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {jobStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() => openJobDetails(job)}
+            >
+              <Pencil className="w-4 h-4" />
+              Details
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() => setShowQuickNote(!showQuickNote)}
+            >
+              <FileText className="w-4 h-4" />
+              Quick Note
+            </Button>
+          </div>
+
+          {showQuickNote && (
+            <div className="mt-4 space-y-2">
+              <Textarea
+                placeholder="Add a quick note..."
+                value={quickNote}
+                onChange={(e) => setQuickNote(e.target.value)}
+                className="text-sm"
+                rows={3}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowQuickNote(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleQuickNoteSubmit}
+                >
+                  Save Note
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 text-xs text-gray-500">
+            Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PP') : 'N/A'}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Return existing desktop card layout
   return (
     <Card 
       className="w-full hover:shadow-lg transition-shadow duration-300"
@@ -1388,14 +1583,16 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
                 <TooltipTrigger asChild>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        className="hover:bg-red-100 hover:text-red-600 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
+                      <span className="inline-block"> {/* Use span instead of div for inline elements */}
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      </span>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -1623,12 +1820,12 @@ function JobCard({ job, openJobDetails, handleKeyDown, layoutMode, updateJobStat
 
 // New ViewDetailsModal component
 function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails }: {
-  isOpen: boolean,
-  onClose: () => void,
-  job: Job | null,
-  setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>,
-  setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>,
-  updateJobDetails: (job: Job) => void
+  isOpen: boolean;
+  onClose: () => void;
+  job: Job | null;
+  setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>;
+  setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  updateJobDetails: (job: Job) => void;
 }) {
   const [editMode, setEditMode] = useState<boolean>(false);
   const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
@@ -1752,30 +1949,32 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-2">
-          <DialogTitle className="text-2xl font-bold">{job.company}</DialogTitle>
-          <div className="flex space-x-4 mt-4">
+      <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2">
+          <DialogTitle className="text-xl sm:text-2xl font-bold">{job?.company}</DialogTitle>
+          <div className="flex space-x-2 mt-4 overflow-x-auto pb-2">
             <Button
               variant={activeTab === 'details' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('details')}
+              className="whitespace-nowrap"
             >
               Details
             </Button>
             <Button
               variant={activeTab === 'hunter' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('hunter')}
+              className="whitespace-nowrap"
             >
               Hunter.io Data
             </Button>
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-grow px-6">
+        <ScrollArea className="flex-grow px-4 sm:px-6">
           <div className="py-4">
             {activeTab === 'details' ? (
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-4">
                     {renderField("Position", job.position, "position")}
                     <Badge className={`${getStatusColor(job.status)} text-sm`}>{job.status}</Badge>
@@ -1808,10 +2007,12 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
                       <Textarea
                         value={job.jobDescription || ''}
                         onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
-                        className="min-h-[100px] mt-1"
+                        className="min-h-[100px] sm:min-h-[200px]"
                       />
                     ) : (
-                      <p className="text-sm whitespace-pre-wrap mt-1">{job.jobDescription}</p>
+                      <div className="max-h-[200px] overflow-y-auto">
+                        <p className="text-sm whitespace-pre-wrap">{job.jobDescription}</p>
+                      </div>
                     )
                   )}
                 </div>
@@ -1833,7 +2034,7 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
                     <Textarea
                       value={job.notes || ''}
                       onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
-                      className="min-h-[100px] mt-1"
+                      className="min-h-[100px] sm:min-h-[200px]"
                     />
                   ) : (
                     <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
@@ -1875,15 +2076,15 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
                 </div>
               </div>
             ) : (
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {renderHunterTab()}
               </div>
             )}
           </div>
         </ScrollArea>
 
-        <div className="p-6 border-t">
-          <div className="flex justify-between items-center">
+        <div className="p-4 sm:p-6 border-t">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center space-x-2">
               <Label htmlFor="edit-mode">Edit Mode</Label>
               <Switch
@@ -1892,14 +2093,21 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
                 onCheckedChange={(checked) => setEditMode(checked)}
               />
             </div>
-            <div className="flex space-x-2">
-              <DialogClose asChild>
-                <Button variant="outline">Close</Button>
-              </DialogClose>
-              <Button onClick={() => {
-                onClose();
-                if (job) updateJobDetails(job);
-              }}>
+            <div className="flex space-x-2 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                className="flex-1 sm:flex-none"
+              >
+                Close
+              </Button>
+              <Button 
+                onClick={() => {
+                  onClose();
+                  if (job) updateJobDetails(job);
+                }}
+                className="flex-1 sm:flex-none"
+              >
                 Save Changes
               </Button>
             </div>
