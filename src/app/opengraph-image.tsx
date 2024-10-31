@@ -14,6 +14,6 @@ export const size = {
 export default async function Image() {
   return await GenerateImage({
     title: "AppliedTrack",
-    description: "Track your job applications",
+    description: "Get a handle on your job applications.",
   });
 }
