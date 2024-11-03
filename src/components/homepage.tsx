@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -148,6 +148,28 @@ export default function Homepage() {
       setIsSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    const trackCampaignVisit = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ref = urlParams.get('ref');
+      console.log('ref', ref)
+      
+      if (ref) {
+        try {
+          await fetch('/api/campaigns/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ref }),
+          });
+        } catch (error) {
+          console.error('Error tracking campaign visit:', error);
+        }
+      }
+    };
+
+    trackCampaignVisit();
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen dark:bg-gray-950">

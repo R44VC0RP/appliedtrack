@@ -37,6 +37,7 @@ import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
+import { CampaignManagement } from './components/campaign-management'
 
 interface NavItem {
     title: string;
@@ -66,9 +67,9 @@ const navItems: NavItem[] = [
         component: TierConfig, // Placeholder
     },
     {
-        title: "Analytics",
+        title: "Campaigns",
         icon: BarChart3,
-        component: () => <div>Analytics Component</div>, // Placeholder
+        component: CampaignManagement,
     },
     {
         title: "Support",
