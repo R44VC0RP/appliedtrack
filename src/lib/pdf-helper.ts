@@ -1,4 +1,5 @@
-const PDFParser = require("pdf2json");
+import PDFParser from 'pdf2json';
+
 import fetch from 'node-fetch';
 import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -17,7 +18,7 @@ export default class Pdf {
 
       // Parse the PDF
       return new Promise((resolve, reject) => {
-        const pdfParser = new PDFParser(null, 1);
+        const pdfParser = new PDFParser(null, true);
 
         pdfParser.on("pdfParser_dataError", (errData: any) => {
           reject(errData.parserError);
