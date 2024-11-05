@@ -6,20 +6,38 @@ import { WaitlistUserModel } from '@/models/WaitlistUser';
 import { sendWaitlistEmail } from '@/services/email';
 import { sendAdminNotification } from '@/services/email';
 
+import { CampaignModel } from '@/models/Campaign';
+
 mongoose.connect(process.env.MONGODB_URI as string);
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const { email, ref } = await request.json();
 
     if (!email) {
       return new NextResponse("Email is required", { status: 400 });
     }
 
+    
+
     // Check if email already exists
     const existingUser = await WaitlistUserModel.findOne({ email });
     if (existingUser) {
       return new NextResponse("Email already registered", { status: 409 });
+    }
+
+    if (ref) {
+      console.log('Referral:', ref);
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/campaigns/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ref, type: 'signup' }),
+        });
+      } catch (error) {
+        console.error('Error tracking campaign:', error);
+        // Continue with waitlist signup even if campaign tracking fails
+      }
     }
 
     // Create new waitlist user

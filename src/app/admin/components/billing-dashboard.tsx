@@ -61,7 +61,7 @@ export function BillingDashboard() {
   const { active, mrr, trial } = calculateMetrics();
 
   return (
-    <div className="h-full w-full p-6">
+    <div className="h-full w-[90vw] p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Billing Dashboard</h2>
         <Badge variant={stripeMode === 'live' ? 'default' : 'secondary'}>

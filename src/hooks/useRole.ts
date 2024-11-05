@@ -25,7 +25,7 @@ export function useRole(): UserRole {
       try {
         const response = await fetch('/api/user');
         const data = await response.json();
-        console.log("data", data);
+        // console.log("data", data);
         setRole({
           isAdmin: data.role === 'admin',
           tier: data.tier || 'free',

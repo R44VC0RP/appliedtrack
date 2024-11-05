@@ -54,6 +54,8 @@ import ClearbitAutocomplete from '@/components/ui/clearbit';
 import JobTitleAutocomplete from '@/components/ui/job-title-autocomplete';
 import { Checkbox } from "@/components/ui/checkbox"
 import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
+import { OnboardingModal } from '@/components/onboarding-modal';
+import { auth } from '@clerk/nextjs/server';
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -355,8 +357,18 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
   };
 
   const handleNext = () => {
-    // Validate current step
     const currentField = addJobSteps[currentStep].field;
+    
+    // Special validation for company step
+    if (currentField === 'company' && !formData.company) {
+      toast({
+        title: "Required Field",
+        description: "Please select a company from the suggestions",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!formData[currentField]) {
       toast({
         title: "Required Field",
@@ -403,112 +415,166 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="text-xl sm:text-2xl">
-            {currentStepConfig.title}
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="py-4">
-          {currentStepConfig.type === 'clearbit' ? (
-            <ClearbitAutocomplete
-              placeholder={currentStepConfig.placeholder}
-              onCompanySelect={(company) => {
-                setFormData({
-                  ...formData,
-                  company: company.name,
-                  website: `https://${company.domain}`
-                });
-              }}
-              className="w-full"
-            />
-          ) : currentStepConfig.type === 'textarea' ? (
-            <Textarea
-              placeholder={currentStepConfig.placeholder}
-              value={formData[currentStepConfig.field] as string || ''}
-              onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
-              className="min-h-[150px] sm:min-h-[200px] w-full"
-            />
-          ) : currentStepConfig.type === 'resume-date' ? (
-            <div className="space-y-4 w-full">
-              <div>
-                <Label htmlFor="dateApplied" className="block mb-2">Date Applied *</Label>
-                <Input 
-                  id="dateApplied" 
-                  type="date" 
-                  value={formData.dateApplied || ''} 
-                  onChange={(e) => setFormData({...formData, dateApplied: e.target.value})}
-                  required
-                  className="w-full"
-                />
+      <DialogContent className={`sm:max-w-md w-[45vw] ${currentStepConfig.type === 'clearbit' ? 'h-fit  ' : 'h-fit'} p-4 sm:p-6`} >
+        {currentStepConfig.type === 'clearbit' ? (
+          // Special layout for Clearbit step
+          <div className="flex flex-col h-full">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl sm:text-2xl">
+                {currentStepConfig.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="mt-4">
+              <ClearbitAutocomplete
+                placeholder={currentStepConfig.placeholder}
+                onCompanySelect={(company) => {
+                  console.log(company);
+                  setFormData(prev => ({
+                    ...prev,
+                    company: company.name,
+                    website: `https://${company.domain}`,
+                    dateUpdated: new Date().toISOString()
+                  }));
+                }}
+                className="w-full p-2"
+              />
+            </div>
+
+            <div className="mt-auto pt-4">
+              {/* Progress indicators */}
+              <div className="flex gap-1 justify-center mb-4">
+                {addJobSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 w-8 rounded-full ${
+                      index === currentStep ? 'bg-blue-600' : 
+                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
               </div>
-              <div>
-                <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
-                <Select 
-                  value={formData.resumeLink} 
-                  onValueChange={(value) => setFormData({...formData, resumeLink: value})}
+
+              {/* Navigation buttons */}
+              <div className="flex justify-between gap-2">
+                {currentStep > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="w-1/2"
+                  >
+                    Back
+                  </Button>
+                ) : <div className="w-1/2" />}
+                
+                <Button
+                  onClick={handleNext}
+                  className="w-1/2"
+                  disabled={!formData[currentStepConfig.field]}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a resume" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[40vh]">
-                    {resumes.map((resume) => (
-                      <SelectItem key={resume.resumeId} value={resume.fileUrl}>
-                        {resume.fileName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                </Button>
               </div>
             </div>
-          ) : (
-            <Input
-              type={currentStepConfig.type}
-              placeholder={currentStepConfig.placeholder}
-              value={formData[currentStepConfig.field] as string || ''}
-              onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
-              className="w-full"
-              autoFocus
-            />
-          )}
-        </div>
-
-        <div className="flex flex-col gap-4 mt-4">
-          {/* Progress indicators */}
-          <div className="flex gap-1 justify-center">
-            {addJobSteps.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1 w-8 rounded-full ${
-                  index === currentStep ? 'bg-blue-600' : 
-                  index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                }`}
-              />
-            ))}
           </div>
-
-          {/* Navigation buttons */}
-          <div className="flex justify-between gap-2 mt-2">
-            {currentStep > 0 ? (
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                className="w-1/2"
-              >
-                Back
-              </Button>
-            ) : <div className="w-1/2" />}
+        ) : (
+          // Original layout for other steps
+          <>
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl sm:text-2xl">
+                {currentStepConfig.title}
+              </DialogTitle>
+            </DialogHeader>
             
-            <Button
-              onClick={handleNext}
-              className="w-1/2"
-              disabled={!formData[currentStepConfig.field]}
-            >
-              {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
-            </Button>
-          </div>
-        </div>
+            <div className="py-4">
+              {currentStepConfig.type === 'textarea' ? (
+                <Textarea
+                  placeholder={currentStepConfig.placeholder}
+                  value={formData[currentStepConfig.field] as string || ''}
+                  onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+                  className="min-h-[150px] sm:min-h-[200px] w-full"
+                />
+              ) : currentStepConfig.type === 'resume-date' ? (
+                <div className="space-y-4 w-full">
+                  <div>
+                    <Label htmlFor="dateApplied" className="block mb-2">Date Applied *</Label>
+                    <Input 
+                      id="dateApplied" 
+                      type="date" 
+                      value={formData.dateApplied || ''} 
+                      onChange={(e) => setFormData({...formData, dateApplied: e.target.value})}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
+                    <Select 
+                      value={formData.resumeLink} 
+                      onValueChange={(value) => setFormData({...formData, resumeLink: value})}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a resume" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[40vh]">
+                        {resumes.map((resume) => (
+                          <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                            {resume.fileName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <Input
+                  type={currentStepConfig.type}
+                  placeholder={currentStepConfig.placeholder}
+                  value={formData[currentStepConfig.field] as string || ''}
+                  onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+                  className="w-full"
+                  autoFocus
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4 mt-4">
+              {/* Progress indicators */}
+              <div className="flex gap-1 justify-center">
+                {addJobSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 w-8 rounded-full ${
+                      index === currentStep ? 'bg-blue-600' : 
+                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex justify-between gap-2 mt-2">
+                {currentStep > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="w-1/2"
+                  >
+                    Back
+                  </Button>
+                ) : <div className="w-1/2" />}
+                
+                <Button
+                  onClick={handleNext}
+                  className="w-1/2"
+                  disabled={!formData[currentStepConfig.field]}
+                >
+                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -597,6 +663,26 @@ export function AppliedTrack() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Move the useEffect to the top level of the component
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!isLoaded || !userId) return;
+      
+      try {
+        const response = await fetch('/api/user');
+        if (response.ok) {
+          const data = await response.json();
+          setShowOnboarding(!data.onBoardingComplete);
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [isLoaded, userId]); // Add dependencies
 
   // Add useEffect to handle localStorage
   useEffect(() => {
@@ -637,7 +723,7 @@ export function AppliedTrack() {
       fetch('/api/jobs')
         .then(response => response.json())
         .then(data => {
-          console.log("Jobs fetched:", data);
+          // console.log("Jobs fetched:", data);
           setJobs(data)
         })
         .catch(error => console.error('Error fetching jobs:', error));
@@ -793,7 +879,7 @@ export function AppliedTrack() {
       }
 
       const result = await response.json();
-      console.log("There are ", jobs.length, " jobs");
+      // console.log("There are ", jobs.length, " jobs");
       setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
       setIsModalOpen(false);
       // toast({
@@ -812,8 +898,8 @@ export function AppliedTrack() {
 
 
   const filteredJobs = useMemo(() => {
-    console.log("Filtering jobs with status:", statusFilter);
-    console.log("Current jobs:", jobs);
+    // console.log("Filtering jobs with status:", statusFilter);
+    // console.log("Current jobs:", jobs);
     
     let filtered = jobs.filter(job => {
       // Search term filter
@@ -875,12 +961,12 @@ export function AppliedTrack() {
 
   const handleNotificationClick = () => {
     // Handle notification click
-    console.log('Notification clicked')
+    // console.log('Notification clicked')
   }
 
   const handleProfileClick = () => {
     // Handle profile click
-    console.log('Profile clicked')
+    // console.log('Profile clicked')
   }
 
   const pasteFromClipboard = async () => {
@@ -896,7 +982,7 @@ export function AppliedTrack() {
 
   const handleResumeUpload = useCallback((res: any) => {
     const uploadedFile = res[0];
-    console.log("Uploaded file:", uploadedFile);
+    // console.log("Uploaded file:", uploadedFile);
     const saveResume = async (uploadedFile: any) => {
       try {
         const response = await fetch('/api/resumes', {
@@ -917,7 +1003,7 @@ export function AppliedTrack() {
         }
 
         const data = await response.json();
-        console.log('Resume saved:', data);
+        // console.log('Resume saved:', data);
         
         // Update the resumes state and the selected job's resumeLink
         setResumes(prevResumes => [...prevResumes, {
@@ -937,7 +1023,7 @@ export function AppliedTrack() {
   }, [selectedJob]);
 
   const sortedJobs = useMemo(() => {
-    console.log(filteredJobs);
+    // console.log(filteredJobs);
     if (!sortState.column || !sortState.direction) return filteredJobs;
 
     return [...filteredJobs].sort((a, b) => {
@@ -961,14 +1047,10 @@ export function AppliedTrack() {
   // Return null or loading state during SSR
   if (!mounted) {
     return (
-      <div className="container mx-auto p-4">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="space-y-3">
-            <div className="h-40 bg-gray-200 rounded-md"></div>
-            <div className="h-40 bg-gray-200 rounded-md "></div>
-            <div className="h-40 bg-gray-200 rounded"></div>
-          </div>
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-lg font-medium text-muted-foreground">Booting up...</p>
         </div>
       </div>
     );
@@ -976,6 +1058,7 @@ export function AppliedTrack() {
 
   return (
     <>
+      { showOnboarding && <OnboardingModal isOpen={showOnboarding} /> }
       <Header
         onNotificationClick={handleNotificationClick}
         onProfileClick={handleProfileClick}
@@ -1094,8 +1177,8 @@ export function AppliedTrack() {
           {!hasActiveJobs ? (
             <div className="flex flex-col items-center justify-center min-h-[60vh] relative">
               <div className="text-center space-y-4 max-w-lg">
-                <h2 className="text-2xl font-bold text-gray-900">Start Tracking Your Job Applications</h2>
-                <p className="text-gray-600">
+                <h2 className="text-2xl font-bold text-foreground">Start Tracking Your Job Applications</h2>
+                <p className="text-muted-foreground">
                   Keep track of your job applications, manage contacts, and never miss an opportunity. 
                   Click the + button to add your first job application or click here to add your first job application.
 
@@ -1400,7 +1483,7 @@ function JobCard({
       
       const hunterResult = await response.json();
 
-      console.log(hunterResult.data.data.data);
+      // console.log(hunterResult.data.data.data);
       
       // Update the job with the hunter data
       const updatedJob = {
@@ -2224,7 +2307,7 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 
   const handleResumeUpload = useCallback((res: any) => {
     const uploadedFile = res[0];
-    console.log("Uploaded file:", uploadedFile);
+    // console.log("Uploaded file:", uploadedFile);
     const saveResume = async (uploadedFile: any) => {
       try {
         const response = await fetch('/api/resumes', {
@@ -2245,7 +2328,7 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
         }
 
         const data = await response.json();
-        console.log('Resume saved:', data);
+        // console.log('Resume saved:', data);
         
         // Update the resumes state immediately after successful upload
         setResumes(prevResumes => [...prevResumes, {

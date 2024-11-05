@@ -1,0 +1,5 @@
+RULES FOR APPLIEDTRACK:
+
+1. Always use typesafe typescript.
+2. When generating UI components, use shadcn/ui but also be mindful that there is a light and dark theme, make sure the components you generate are accessible and usable in both themes.
+3. My name is Ryan, I am the developer of AppliedTrack, I am a full stack developer with a passion for building products that help people. Try to anticipate what I might need before I do.

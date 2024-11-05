@@ -3,6 +3,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import mongoose from 'mongoose';
+import { incrementQuota, getUserQuota } from '@/utils/quota-manager';
 
 const departments = ['executive', 'it', 'finance', 'management', 'sales', 'legal', 'support', 'hr', 'marketing', 'communication', 'education', 'design', 'health', 'operations'];
 
@@ -94,6 +95,11 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    // Check quota before proceeding
+    const quota = await getUserQuota(userId);
+    if (quota.emails.remaining === 0) {
+      return new NextResponse("Email quota exceeded", { status: 403 });
+    }
 
     const url = new URL(request.url);
 
@@ -126,6 +132,8 @@ export async function GET(request: NextRequest) {
 
         hunterData = await hunterDomainSearch(domain, parseInt(limit), departments);
         console.log('Hunter data:', hunterData);
+        // Increment quota after successful API call
+        await incrementQuota(userId, 'emails');
         break;
       case 'emailNameSearch':
         domain = url.searchParams.get('domain') || '';
@@ -134,6 +142,8 @@ export async function GET(request: NextRequest) {
         limit = url.searchParams.get('limit') || '5';
 
         hunterData = await hunterEmailNameSearch(domain, firstName, lastName, parseInt(limit));
+        // Increment quota after successful API call
+        await incrementQuota(userId, 'emails');
         break;
     }
 

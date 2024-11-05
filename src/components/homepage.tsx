@@ -23,6 +23,7 @@ import emailLookup from '@/app/images/emailLookup.png'
 import resumeManagement from '@/app/images/resumeManagement.png'
 
 export default function Homepage() {
+  const [refItem, setRefItem] = useState('')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -68,20 +69,20 @@ export default function Homepage() {
       name: "Basic", 
       price: 'Free', 
       features: [
-        'Up to 50 job applications',
-        'Store up to 5 resumes',
-        'Up to 10 custom cover letters/month',
-        '2 email domain lookups/month'
+        'Up to 15 job applications',
+        'Unlimited resumes',
+        'Up to 5 personalized cover letters/month',
+        '5 email domain lookups/month'
       ] 
     },
     { 
       name: 'Pro', 
       price: '$10', 
       features: [
-        'Unlimited applications',
-        'Multiple resume versions',
-        'Advanced cover letter generator',
-        '50 email lookups/month',
+        '100 applications',
+        'Unlimited resumes',
+        'Up to 25 personalized cover letters/month',
+        '25 email lookups/month',
         'Priority support'
       ] 
     },
@@ -92,8 +93,7 @@ export default function Homepage() {
         'Unlimited applications',
         'Unlimited resumes',
         'Unlimited cover letters',
-        '100 email lookups',
-        'Access to all beta features'
+        '50 email lookups',
       ]
     },
   ]
@@ -118,7 +118,7 @@ export default function Homepage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, ref: refItem }),
       })
 
       if (response.status === 409) {
@@ -154,14 +154,18 @@ export default function Homepage() {
       const urlParams = new URLSearchParams(window.location.search);
       const ref = urlParams.get('ref');
       console.log('ref', ref)
+      setRefItem(ref || '')
+      const type = "access"
       
       if (ref) {
         try {
           await fetch('/api/campaigns/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ref }),
+            body: JSON.stringify({ ref, type }),
           });
+          // remove ref from url
+          window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error) {
           console.error('Error tracking campaign visit:', error);
         }

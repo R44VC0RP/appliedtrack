@@ -38,6 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
+import AiPlayground from './components/aiplayground'
 
 interface NavItem {
     title: string;
@@ -72,9 +73,9 @@ const navItems: NavItem[] = [
         component: CampaignManagement,
     },
     {
-        title: "Support",
+        title: "AI Playground",
         icon: MessageSquare,
-        component: () => <div>Support Component</div>, // Placeholder
+        component: AiPlayground,
     },
     
     {

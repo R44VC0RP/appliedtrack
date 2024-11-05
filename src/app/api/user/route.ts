@@ -18,12 +18,12 @@ export const PUT = async (request: NextRequest) => {
   }
 
   const userData = await request.json();
-  const { about } = userData;
+  const { about, onBoardingComplete } = userData;
 
   try {
     const user = await UserModel.findOneAndUpdate(
       { userId },
-      { $set: { about, dateUpdated: new Date() } },
+      { $set: { about, dateUpdated: new Date(), onBoardingComplete } },
       { new: true, runValidators: true }
     );
     
@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
     const user = await UserModel.findOne({ userId });
     if (!user) return new NextResponse("User not found", { status: 404 });
 
-
     let subscriptionDetails = null;
     if (user.subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
@@ -60,7 +59,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       tier: user.tier,
       subscriptionDetails,
-      role: user.role
+      role: user.role,
+      onBoardingComplete: user.onBoardingComplete
     });
   } catch (error) {
     console.error('Error fetching user:', error);

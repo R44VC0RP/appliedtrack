@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Bell, Grid, Settings, FileText, Users, CreditCard, Settings2 } from 'lucide-react'
+import { Bell, Grid, Settings, FileText, Users, CreditCard, Settings2, PieChart } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { AdminOnly } from '@/components/auth/AdminOnly';
@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { CircleProgress } from "@/components/ui/circle-progress"
 
 interface HeaderProps {
   user?: {
@@ -36,6 +37,13 @@ interface HeaderProps {
   };
   onNotificationClick?: () => void;
   onProfileClick?: () => void;
+}
+
+interface QuotaData {
+  jobs: { used: number; limit: number; remaining: number };
+  coverLetters: { used: number; limit: number; remaining: number };
+  emails: { used: number; limit: number; remaining: number };
+  resetDate: Date;
 }
 
 // Move SubscriptionPage outside of Header component as a separate component
@@ -155,14 +163,14 @@ function SubscriptionPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4 dark:text-white">Subscription</h1>
+      <h1 className="text-2xl font-bold mb-4 text-foreground">Subscription</h1>
       <div className="space-y-6">
-        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
-          <h2 className="font-semibold mb-2 dark:text-white">
+        <div className="bg-muted p-4 rounded-lg">
+          <h2 className="font-semibold mb-2 text-foreground">
             Current Plan: {currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)}
           </h2>
           {subscriptionDetails && currentPlan !== 'free' && (
-            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1">
               <p>Status: <Badge variant={
                 subscriptionDetails.cancelAt ? 'destructive' :
                 subscriptionDetails.status === 'active' ? 'default' : 'secondary'
@@ -178,7 +186,7 @@ function SubscriptionPage() {
             </div>
           )}
           {currentPlan === 'free' && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <p className="text-sm text-muted-foreground mb-2">
               Upgrade to unlock premium features
             </p>
           )}
@@ -221,9 +229,9 @@ function SubscriptionPage() {
               {/* Regular plan display for non-canceled subscriptions */}
               {currentPlan === 'free' && (
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold">Pro Plan</h3>
+                  <h3 className="font-semibold text-foreground">Pro Plan</h3>
                   <p className="text-sm text-muted-foreground my-2">$10/month</p>
-                  <ul className="text-sm space-y-2 mb-4">
+                  <ul className="text-sm space-y-2 mb-4 text-foreground">
                     <li>• Unlimited applications</li>
                     <li>• Multiple resume versions</li>
                     <li>• Advanced cover letter generator</li>
@@ -241,9 +249,9 @@ function SubscriptionPage() {
 
               {currentPlan !== 'power' && (
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold">Power Plan</h3>
+                  <h3 className="font-semibold text-foreground">Power Plan</h3>
                   <p className="text-sm text-muted-foreground my-2">$30/month</p>
-                  <ul className="text-sm space-y-2 mb-4">
+                  <ul className="text-sm space-y-2 mb-4 text-foreground">
                     <li>• Unlimited everything</li>
                     <li>• Priority support</li>
                     <li>• Beta features access</li>
@@ -312,15 +320,15 @@ function PersonalPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4 dark:text-white">Personal Info</h1>
+      <h1 className="text-2xl font-bold mb-4 text-foreground">Personal Info</h1>
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold mb-2 dark:text-white">About Me</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          <h3 className="text-lg font-semibold mb-2 text-foreground">About Me</h3>
+          <p className="text-sm text-muted-foreground mb-2">
             This is used to help generate more accurate cover letters and other documents.
           </p>
           <Textarea
-            className="min-h-[100px] w-full dark:bg-gray-800 dark:text-white dark:border-gray-700"
+            className="min-h-[100px] w-full bg-background text-foreground"
             name="about"
             placeholder="About Me"
             value={localAbout}
@@ -328,20 +336,20 @@ function PersonalPage() {
           />
           <Button onClick={handleSaveChanges} className="mt-2">Save Changes</Button>
         </div>
-        <Separator className="dark:bg-gray-700" />
+        <Separator />
         <div>
-          <h3 className="text-lg font-semibold mb-2 dark:text-white">Example Bio's</h3>
+          <h3 className="text-lg font-semibold mb-2 text-foreground">Example Bio's</h3>
           <div className="space-y-2">
-            <p className="text-sm font-semibold dark:text-white">John Doe</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-md">
+            <p className="text-sm font-semibold text-foreground">John Doe</p>
+            <p className="text-sm text-muted-foreground mb-2 p-2 bg-muted rounded-md">
               John Doe is a seasoned software engineer with over 10 years of experience in the tech industry.
               He has a proven track record of developing high-quality software solutions and leading successful projects.
               John is proficient in multiple programming languages and frameworks, and he is passionate about continuous learning and improvement.
               His accomplishments include leading a team to develop a highly scalable web application that serves millions of users,
               and contributing to open-source projects that have been widely adopted by the developer community.
             </p>
-            <p className="text-sm font-semibold dark:text-white">Jane Smith</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-md">
+            <p className="text-sm font-semibold text-foreground">Jane Smith</p>
+            <p className="text-sm text-muted-foreground mb-2 p-2 bg-muted rounded-md">
               Jane Smith is a creative and innovative marketing professional with a passion for creating engaging and effective campaigns.
               She has a proven track record of developing high-quality marketing strategies and leading successful projects.
               Jane is proficient in multiple marketing platforms and frameworks, and she is passionate about continuous learning and improvement.
@@ -355,14 +363,41 @@ function PersonalPage() {
   );
 }
 
+// Add this interface near the top with other interfaces
+interface UserMetadata {
+  tier?: string;
+  publicMetadata?: {
+    tier?: string;
+  };
+  fullName?: string;
+}
+
 export function Header({ onNotificationClick }: HeaderProps) {
-  const { user, isSignedIn } = useUser();
+  const { user: clerkUser, isSignedIn } = useUser();
+  const user = clerkUser as UserMetadata;
+  // console.log("User:", user);
+  const [userTier, setUserTier] = useState<string>('free');
   const { toast } = useToast();
   const [userDetails, setUserDetails] = useState({
     about: '',
   });
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
   const { setTheme } = useTheme();
+  const [quotaData, setQuotaData] = useState<QuotaData | null>(null);
+
+  // Add this function to fetch user tier
+  const fetchUserTier = useCallback(async () => {
+    if (!isSignedIn) return;
+    try {
+      const response = await fetch('/api/user');
+      if (response.ok) {
+        const data = await response.json();
+        setUserTier(data.tier || 'free');
+      }
+    } catch (error) {
+      console.error('Error fetching user tier:', error);
+    }
+  }, [isSignedIn]);
 
   // Modify fetchResumes to check auth status
   const fetchResumes = useCallback(async () => {
@@ -400,9 +435,16 @@ export function Header({ onNotificationClick }: HeaderProps) {
     }
   }, [fetchResumes, fetchUserDetails, isSignedIn]);
 
+  // Add this to your existing useEffect
+  useEffect(() => {
+    if (isSignedIn) {
+      fetchUserTier();
+    }
+  }, [fetchUserTier, isSignedIn]);
+
   const handleResumeUpload = useCallback((res: any) => {
     const uploadedFile = res[0];
-    console.log("Uploaded file:", uploadedFile);
+    // console.log("Uploaded file:", uploadedFile);
     const saveResume = async (uploadedFile: any) => {
       try {
         const response = await fetch('/api/resumes', {
@@ -427,7 +469,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
         }
 
         const data = await response.json();
-        console.log('Resume saved:', data);
+        // console.log('Resume saved:', data);
 
         setResumes(prevResumes => [...prevResumes, {
           resumeId: "RESUME_" + uploadedFile.key,
@@ -458,14 +500,46 @@ export function Header({ onNotificationClick }: HeaderProps) {
     }
   };
 
+  const fetchQuotaData = useCallback(async () => {
+    if (!isSignedIn) return;
+    try {
+      const response = await fetch('/api/quota');
+      if (response.ok) {
+        const data = await response.json();
+        // console.log("Quota data:", data);
+        setQuotaData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching quota:', error);
+    }
+  }, [isSignedIn]);
+
+  useEffect(() => {
+    if (isSignedIn) {
+      fetchQuotaData();
+      fetchResumes();
+      fetchUserDetails();
+    }
+  }, [fetchQuotaData, isSignedIn]);
+
   return (
     <header className="container mx-auto p-4 mt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Link href="/">
-            <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
-          </Link>
-          <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
+          <SignedOut>
+            <Link href="/" className="flex items-center space-x-2">
+              <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
+              <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
+            </Link>
+            
+          </SignedOut>
+          <SignedIn>
+            <Link href="/dashboard" className="flex items-center space-x-2">
+              <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
+              <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
+            </Link>
+          </SignedIn>
+          
           {/* <TierOnly tier="free">
             This
           </TierOnly>
@@ -516,6 +590,57 @@ export function Header({ onNotificationClick }: HeaderProps) {
             </TooltipProvider>
           </SignedIn>
           
+          <SignedIn>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    onClick={() => {
+                      // You can add a modal or dropdown here to show detailed usage
+                    }}
+                  >
+                    <PieChart className="h-5 w-5" />
+                    {quotaData && (
+                      <div className="absolute -top-1 -right-1">
+                        <CircleProgress
+                          value={Math.round((quotaData.emails.used / quotaData.emails.limit) * 100)}
+                          size="small"
+                          variant={
+                            quotaData.emails.remaining < 3
+                              ? "destructive" 
+                              : quotaData.emails.remaining < 7
+                                ? "warning" 
+                                : "default"
+                          }
+                        />
+                      </div>
+                    )}
+                    
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {quotaData ? (
+                    <div className="space-y-2">
+                      <p>Email Lookups: {quotaData.emails.used}/{quotaData.emails.limit}</p>
+                      <p>Cover Letters: {quotaData.coverLetters.used}/{quotaData.coverLetters.limit}</p>
+                      <p>Jobs: {quotaData.jobs.used}/{quotaData.jobs.limit}</p>
+                      <p>You are on the {userTier} tier</p>
+                      <p className="text-xs text-muted-foreground">
+                        Resets on {new Date(quotaData.resetDate).toLocaleDateString()}
+                      </p>
+                      
+                    </div>
+                  ) : (
+                    "Loading quota..."
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </SignedIn>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
@@ -553,8 +678,8 @@ export function Header({ onNotificationClick }: HeaderProps) {
                       </UserButton.UserProfilePage>
                       <UserButton.UserProfilePage label="Resumes" url="resumes" labelIcon={<FileText className="w-4 h-4" />}>
                         <div className="p-4">
-                          <h1 className="text-2xl font-bold mb-4">Resumes</h1>
-                          <ScrollArea className="h-[300px] w-full border rounded-md p-4">
+                          <h1 className="text-2xl font-bold mb-4 text-foreground">Resumes</h1>
+                          <ScrollArea className="h-[300px] w-full border rounded-md p-4 bg-background border-border">
                             <div className="space-y-2">
                               {resumes.map((resume) => (
                                 <div key={resume.resumeId} className="flex items-center justify-between">
@@ -578,7 +703,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                             </div>
                           </ScrollArea>
                           <div className="mt-4">
-                            <h4 className="text-md font-semibold mb-2">Upload New Resume</h4>
+                            <h4 className="text-md font-semibold mb-2 text-foreground">Upload New Resume</h4>
                             <UploadButton
                               endpoint="pdfUploader"
                               onClientUploadComplete={handleResumeUpload}

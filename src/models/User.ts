@@ -9,7 +9,7 @@ export interface User extends Document {
   dateUpdated: Date;
   stripeCustomerId: string;
   subscriptionId: string;
-
+  onBoardingComplete: boolean;
 }
 
 const UserSchema: Schema = new Schema({
@@ -26,6 +26,7 @@ const UserSchema: Schema = new Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  onBoardingComplete: { type: Boolean, default: false },
   about: { type: String, default: '' },
   dateCreated: { type: Date, default: Date.now },
   dateUpdated: { type: Date, default: Date.now },
