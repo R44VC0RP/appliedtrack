@@ -39,6 +39,7 @@ import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
 import AiPlayground from './components/aiplayground'
+import { LoggingDashboard } from './components/logging-dashboard'
 
 interface NavItem {
     title: string;
@@ -77,7 +78,11 @@ const navItems: NavItem[] = [
         icon: MessageSquare,
         component: AiPlayground,
     },
-    
+    {
+        title: "Logging",
+        icon: FileText,
+        component: LoggingDashboard,
+    },
     {
         title: "Settings",
         icon: Settings,
@@ -100,7 +105,8 @@ export default function AdminDashboard() {
     return (
         <AdminOnly>
             <SidebarProvider>
-                <div className="grid grid-cols-[auto,1fr] h-screen">
+                {/* <div className="grid grid-cols-[auto,1fr] h-screen"> */}
+                <div className="flex h-screen w-full">
                     <Sidebar>
                         <SidebarHeader className="p-4 border-b inline-flex items-center gap-2" onClick={() => window.location.href = '/'}>
                             <Image src={logo} alt="Applied Track Logo" className="w-8 h-8" />
@@ -141,11 +147,19 @@ export default function AdminDashboard() {
                     </Sidebar>
                     
 
-                    <div className="overflow-auto ">
+                    <div className="flex-1 overflow-auto">
+                        <div className="w-full">
+                            <div className="p-3 flex items-center justify-start gap-2 items-center">
+                                <SidebarTrigger />
+                                <p className="text-lg font-semibold">Hi {user?.firstName}!</p>
+                            </div>
+                            <hr className="border-border mb-4" />
+                        </div>
+
                         <div className="h-full p-6">
                             {navItems.map(item => (
                                 activeComponent === item.title && (
-                                    <div key={item.title} className="h-full flex items-center justify-center">
+                                    <div key={item.title} className="h-full w-full">
                                         <item.component />
                                     </div>
                                 )
@@ -156,8 +170,6 @@ export default function AdminDashboard() {
                 </div>
                 
             </SidebarProvider>
-            
-            {process.env.NODE_ENV === 'development' && <StripeTestHelper />}
             
         </AdminOnly>
     )

@@ -78,7 +78,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <Dialog>
         <DialogTrigger asChild>
           <Button className="mb-4">Generate Cover Letter</Button>

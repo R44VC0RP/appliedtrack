@@ -3,9 +3,8 @@ import { getAuth } from '@clerk/nextjs/server';
 import mongoose from 'mongoose';
 import { CampaignModel } from '@/models/Campaign';
 import { UserModel } from '@/models/User';
+import { Logger } from '@/lib/logger';
 
-// Move this to a separate database config file
-mongoose.connect(process.env.MONGODB_URI as string);
 
 /**
  * DELETE /api/admin/campaigns/[id]
@@ -29,25 +28,46 @@ export async function DELETE(
     // Validate authentication
     const { userId } = getAuth(request);
     if (!userId) {
+      await Logger.warning('campaign_delete_unauthorized', {
+        attemptedCampaignId: params.id
+      });
       return new NextResponse("Unauthorized: Authentication required", { status: 401 });
     }
 
     // Validate admin privileges
     const user = await UserModel.findOne({ userId });
     if (!user || user.role !== 'admin') {
+      await Logger.warning('campaign_delete_forbidden', {
+        userId,
+        attemptedCampaignId: params.id
+      });
       return new NextResponse("Forbidden: Admin access required", { status: 403 });
     }
 
     // Validate campaign ID format
     if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      await Logger.warning('campaign_delete_invalid_id', {
+        userId,
+        invalidId: params.id
+      });
       return new NextResponse("Invalid campaign ID format", { status: 400 });
     }
 
     // Delete campaign
     const deletedCampaign = await CampaignModel.findByIdAndDelete(params.id);
     if (!deletedCampaign) {
+      await Logger.warning('campaign_delete_not_found', {
+        userId,
+        campaignId: params.id
+      });
       return new NextResponse("Campaign not found", { status: 404 });
     }
+
+    await Logger.info('campaign_deleted', {
+      userId,
+      campaignId: params.id,
+      campaignName: deletedCampaign.name
+    });
 
     return NextResponse.json({ 
       success: true,
@@ -55,6 +75,12 @@ export async function DELETE(
       campaignId: params.id
     });
   } catch (error) {
+    await Logger.error('campaign_delete_error', {
+      userId: getAuth(request)?.userId,
+      campaignId: params.id,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
     console.error('Error deleting campaign:', error);
     return new NextResponse(
       "Internal server error while deleting campaign", 

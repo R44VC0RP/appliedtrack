@@ -90,7 +90,7 @@ export function TierConfig() {
   }
 
   return (
-    <div className="h-full flex flex-col w-[80vw]">
+    <div className="h-full flex flex-col w-full max-w-full">
       <div className="flex-none mb-6">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Settings className="w-6 h-6" />

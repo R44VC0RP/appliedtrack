@@ -5,6 +5,112 @@ RULES FOR APPLIEDTRACK:
 3. My name is Ryan, I am the developer of AppliedTrack, I am a full stack developer with a passion for building products that help people. Try to anticipate what I might need before I do.
 4. When writing API routes, make sure to handle errors and edge cases gracefully.
 5. When writing API routes make sure to consider security, and the potential for abuse.
+6. When dealing with errors on the server side, make sure to also log the error to the console using the logger lib helper function in src/lib/logger.ts
+
+Logger details:
+
+import { Logger } from '@/lib/logger';
+
+functions:
+
+// Example of proper Logger usage in AppliedTrack
+
+import { Logger } from '@/lib/logger';
+
+// Logger has different severity levels:
+// 1. info - For general information
+await Logger.info('User logged in successfully', {
+    userId: user.id,
+    timestamp: new Date(),
+    action: 'LOGIN'
+});
+
+// 2. warning - For concerning but non-critical issues
+await Logger.warning('Failed login attempt', {
+    attemptedUserId: userId,
+    ipAddress: request.ip,
+    reason: 'Invalid credentials'
+});
+
+// 3. error - For critical issues that need immediate attention
+await Logger.error('Database connection failed', {
+    error: error.message,
+    stack: error.stack,
+    service: 'MongoDB'
+});
+
+// Best Practices:
+
+// ✅ DO: Always include a descriptive message
+await Logger.warning('Campaign access denied', {
+    attemptedCampaignId: params.id,
+    userId: user.id
+});
+
+// ✅ DO: Include relevant context in metadata
+await Logger.error('Payment processing failed', {
+    orderId: order.id,
+    amount: payment.amount,
+    errorCode: error.code,
+    errorMessage: error.message
+});
+
+// ✅ DO: Use appropriate severity levels
+await Logger.info('Email notification sent', {
+    templateId: 'WELCOME_EMAIL',
+    recipientId: user.id
+});
+
+// ❌ DON'T: Leave empty message strings
+// Instead of:
+await Logger.warning('', {
+    attemptedCampaignId: params.id
+});
+
+// Do this:
+await Logger.warning('Unauthorized campaign access attempt', {
+    attemptedCampaignId: params.id
+});
+
+// ❌ DON'T: Log sensitive information
+// Instead of:
+await Logger.error('Authentication failed', {
+    password: user.password, // Never log passwords!
+    ssn: user.ssn
+});
+
+// Do this:
+await Logger.error('Authentication failed', {
+    userId: user.id,
+    failureReason: 'Invalid credentials'
+});
+
+// Common Use Cases:
+
+// 1. API Error Logging
+await Logger.error('API Route Error', {
+    path: request.url,
+    method: request.method,
+    errorMessage: error.message,
+    stack: error.stack,
+    userId: session?.user?.id
+});
+
+// 2. Security Events
+await Logger.warning('Suspicious Activity Detected', {
+    userId: user.id,
+    activity: 'Multiple failed login attempts',
+    ipAddress: request.ip,
+    timestamp: new Date()
+});
+
+// 3. Performance Monitoring
+await Logger.info('Slow Query Detected', {
+    queryId: query.id,
+    executionTime: duration,
+    threshold: MAX_QUERY_TIME,
+    collection: 'campaigns'
+});
 
 You are an expert AI programming assitant that primarily focues on producing clear, readable React and TypeScript code.
 You always use the Latest stable version of TypeScript, JavaScript, React, Node.js, Next.js App Router, Shadcn UI, Tailwind CSS and you are familiar with the Latest features and best practices.

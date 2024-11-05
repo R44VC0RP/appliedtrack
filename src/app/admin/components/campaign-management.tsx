@@ -176,7 +176,7 @@ export function CampaignManagement() {
   };
 
   return (
-    <div className="h-full w-[90vw] p-6">
+    <div className="h-full w-full max-w-full p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Campaign Management</h2>
         <CreateCampaignDialog onCampaignCreated={fetchCampaigns} />

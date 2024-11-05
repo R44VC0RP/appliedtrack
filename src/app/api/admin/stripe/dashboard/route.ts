@@ -1,24 +1,44 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
+import { Logger } from '@/lib/logger';
 import { checkRole } from '@/middleware/checkRole';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// Initialize Stripe client
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-09-30.acacia' // Explicitly specify API version
+});
 
+/**
+ * GET /api/admin/stripe/dashboard
+ * 
+ * Fetches Stripe dashboard data including account mode and subscription information.
+ * Restricted to admin users only.
+ * 
+ * @param request - Next.js request object
+ * @returns Stripe dashboard data or error response
+ */
 export async function GET(request: NextRequest) {
   try {
     // Check admin authorization
     const authError = await checkRole(request, ['admin']);
-    if (authError) return authError;
+    if (authError) {
+      await Logger.warning('Unauthorized access attempt to Stripe dashboard', {
+        path: request.url,
+        ip: request.ip
+      });
+      return authError;
+    }
 
     // Get Stripe account info
     const account = await stripe.accounts.retrieve();
     const mode = account.charges_enabled ? 'live' : 'test';
 
-    // Get subscriptions
+    // Get subscriptions with pagination
     const subscriptions = await stripe.subscriptions.list({
-      limit: 100,
+      limit: 100, // Consider making this configurable
       expand: ['data.customer'],
+      status: 'all' // Explicitly fetch all subscription statuses
     });
 
     // Format subscription data
@@ -34,13 +54,25 @@ export async function GET(request: NextRequest) {
       created: sub.created,
     }));
 
+    await Logger.info('Stripe dashboard data fetched successfully', {
+      subscriptionCount: formattedSubscriptions.length,
+      mode
+    });
+
     return NextResponse.json({
       mode,
       subscriptions: formattedSubscriptions,
     });
 
   } catch (error) {
-    console.error('Error fetching Stripe dashboard data:', error);
-    return new NextResponse('Error fetching Stripe dashboard data', { status: 500 });
+    await Logger.error('Error fetching Stripe dashboard data', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return NextResponse.json(
+      { error: 'Failed to fetch Stripe dashboard data' },
+      { status: 500 }
+    );
   }
 }
