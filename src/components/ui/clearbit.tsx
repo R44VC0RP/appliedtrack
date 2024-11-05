@@ -12,12 +12,14 @@ interface Company {
 
 interface ClearbitAutocompleteProps {
   onCompanySelect: (company: Company) => void;
+  onCustomInput: (companyName: string) => void;
   placeholder?: string;
   className?: string;
 }
 
 const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
   onCompanySelect,
+  onCustomInput,
   placeholder = 'Enter company name...',
   className = '',
 }) => {
@@ -73,8 +75,10 @@ const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-    queryClearbit(e.target.value);
+    const value = e.target.value;
+    setQuery(value);
+    queryClearbit(value);
+    onCustomInput(value);
   };
 
   const handleSelect = (company: Company) => {

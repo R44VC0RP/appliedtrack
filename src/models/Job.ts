@@ -10,6 +10,11 @@ const JobSchema = new mongoose.Schema({
   resumeLink: String,
   hunterData: Object,
   coverLetterLink: String,
+  coverLetter: {
+    url: String,
+    status: String,
+    dateGenerated: Date
+  },
   jobDescription: String,
   notes: String,
   contactName: String,

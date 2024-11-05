@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   const user = await getOrCreateUser(userId);
-  
+
   let limit = 10; // Default limit for free tier
   if (user.tier === 'pro') {
     limit = 50;
@@ -46,8 +46,18 @@ export async function GET(request: NextRequest) {
     .limit(limit)
     .lean()
     .exec();
+
+  // Ensure all jobs have the required cover letter fields
+  const processedJobs = jobs.map(job => ({
+    ...job,
+    coverLetter: job.coverLetter || {
+      url: '',
+      status: 'not_started',
+      dateGenerated: null
+    }
+  }));
   
-  return NextResponse.json(jobs);
+  return NextResponse.json(processedJobs);
 }
 
 export async function POST(request: NextRequest) {
@@ -72,6 +82,11 @@ export async function POST(request: NextRequest) {
     dateCreated: new Date(),
     dateUpdated: new Date(),
     status: jobData.status || "Yet to Apply", // Default to "Yet to Apply" if not provided
+    coverLetter: {
+      url: '',  // or null
+      status: 'not_started',
+      dateGenerated: null
+    }
   });
   
   try {
@@ -124,6 +139,18 @@ export async function PUT(request: NextRequest) {
     jobData.hunterData = {
       ...jobData.hunterData,
       dateUpdated: new Date().toISOString()
+    };
+  }
+
+  // Handle coverLetter update
+  if (jobData.coverLetter) {
+    console.log('jobData.coverLetter', jobData.coverLetter);
+    jobData.coverLetter = {
+      ...jobData.coverLetter,
+      status: 'ready',
+      dateGenerated: new Date().toISOString(),
+      url: jobData.coverLetter.pdfUrl
+
     };
   }
 

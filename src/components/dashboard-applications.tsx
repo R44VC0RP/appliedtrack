@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTr
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings, Archive, Settings2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings, Archive, Settings2, Download, Loader2, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch } from "@/components/ui/switch"
 // import Masonry from 'react-masonry-css'
@@ -56,6 +56,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 import { OnboardingModal } from '@/components/onboarding-modal';
 import { auth } from '@clerk/nextjs/server';
+import { userInfo } from 'os';
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -125,6 +126,11 @@ interface Job {
     };
   };
   isArchived?: boolean;
+  coverLetter?: {
+    url: string;
+    status: 'generating' | 'ready' | 'failed' | 'not_started';
+    dateGenerated?: string;
+  };
 }
 
 // Define types for Hunter.io search results
@@ -358,7 +364,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
   const handleNext = () => {
     const currentField = addJobSteps[currentStep].field;
-    
+
     // Special validation for company step
     if (currentField === 'company' && !formData.company) {
       toast({
@@ -394,7 +400,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
       });
       return;
     }
-    
+
     onSubmit(formData as Job);
     setCurrentStep(0);
     setFormData({
@@ -437,6 +443,14 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     dateUpdated: new Date().toISOString()
                   }));
                 }}
+                onCustomInput={(companyName) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    company: companyName,
+                    website: '', // Clear website when custom input
+                    dateUpdated: new Date().toISOString()
+                  }));
+                }}
                 className="w-full p-2"
               />
             </div>
@@ -447,10 +461,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                 {addJobSteps.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-1 w-8 rounded-full ${
-                      index === currentStep ? 'bg-blue-600' : 
+                    className={`h-1 w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
                       index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -466,7 +479,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     Back
                   </Button>
                 ) : <div className="w-1/2" />}
-                
+
                 <Button
                   onClick={handleNext}
                   className="w-1/2"
@@ -485,33 +498,33 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                 {currentStepConfig.title}
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="py-4">
               {currentStepConfig.type === 'textarea' ? (
                 <Textarea
                   placeholder={currentStepConfig.placeholder}
                   value={formData[currentStepConfig.field] as string || ''}
-                  onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
                   className="min-h-[150px] sm:min-h-[200px] w-full"
                 />
               ) : currentStepConfig.type === 'resume-date' ? (
                 <div className="space-y-4 w-full">
                   <div>
                     <Label htmlFor="dateApplied" className="block mb-2">Date Applied *</Label>
-                    <Input 
-                      id="dateApplied" 
-                      type="date" 
-                      value={formData.dateApplied || ''} 
-                      onChange={(e) => setFormData({...formData, dateApplied: e.target.value})}
+                    <Input
+                      id="dateApplied"
+                      type="date"
+                      value={formData.dateApplied || ''}
+                      onChange={(e) => setFormData({ ...formData, dateApplied: e.target.value })}
                       required
                       className="w-full"
                     />
                   </div>
                   <div>
                     <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
-                    <Select 
-                      value={formData.resumeLink} 
-                      onValueChange={(value) => setFormData({...formData, resumeLink: value})}
+                    <Select
+                      value={formData.resumeLink}
+                      onValueChange={(value) => setFormData({ ...formData, resumeLink: value })}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a resume" />
@@ -531,7 +544,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   type={currentStepConfig.type}
                   placeholder={currentStepConfig.placeholder}
                   value={formData[currentStepConfig.field] as string || ''}
-                  onChange={(e) => setFormData({...formData, [currentStepConfig.field]: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
                   className="w-full"
                   autoFocus
                 />
@@ -544,10 +557,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                 {addJobSteps.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-1 w-8 rounded-full ${
-                      index === currentStep ? 'bg-blue-600' : 
+                    className={`h-1 w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
                       index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -563,7 +575,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     Back
                   </Button>
                 ) : <div className="w-1/2" />}
-                
+
                 <Button
                   onClick={handleNext}
                   className="w-1/2"
@@ -669,7 +681,7 @@ export function AppliedTrack() {
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (!isLoaded || !userId) return;
-      
+
       try {
         const response = await fetch('/api/user');
         if (response.ok) {
@@ -749,7 +761,7 @@ export function AppliedTrack() {
   useEffect(() => {
     const success = searchParams.get('success');
     const tier = searchParams.get('tier');
-    
+
     if (success === 'true' && tier) {
       toast({
         title: "Subscription Upgraded!",
@@ -763,7 +775,7 @@ export function AppliedTrack() {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault()
       const currentStatusIndex = jobStatuses.indexOf(job.status)
-      const newStatusIndex = e.key === 'ArrowLeft' 
+      const newStatusIndex = e.key === 'ArrowLeft'
         ? (currentStatusIndex - 1 + jobStatuses.length) % jobStatuses.length
         : (currentStatusIndex + 1) % jobStatuses.length
       updateJobStatus(job.id || '', jobStatuses[newStatusIndex] as Job['status'])
@@ -801,16 +813,16 @@ export function AppliedTrack() {
   }, [])
 
   const updateJobStatus = (jobId: string, newStatus: Job['status']) => {
-    const updatedJobs = jobs.map(job => 
-      job.id === jobId ? { 
-        ...job, 
-        status: newStatus, 
+    const updatedJobs = jobs.map(job =>
+      job.id === jobId ? {
+        ...job,
+        status: newStatus,
         dateUpdated: new Date().toISOString(),
         flag: 'update' as const  // Use 'as const' to narrow the type
       } : job
     );
     setJobs(updatedJobs);
-    
+
     const updatedJob = updatedJobs.find(job => job.id === jobId);
     if (updatedJob) {
       updateJobDetails(updatedJob);
@@ -900,13 +912,13 @@ export function AppliedTrack() {
   const filteredJobs = useMemo(() => {
     // console.log("Filtering jobs with status:", statusFilter);
     // console.log("Current jobs:", jobs);
-    
+
     let filtered = jobs.filter(job => {
       // Search term filter
-      const matchesSearch = 
+      const matchesSearch =
         job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         job.position?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       // Status filter
       let matchesStatus = true;
       if (statusFilter !== 'All') {
@@ -973,7 +985,7 @@ export function AppliedTrack() {
     try {
       const text = await navigator.clipboard.readText();
       if (selectedJob) {
-        setSelectedJob({...selectedJob, jobDescription: text});
+        setSelectedJob({ ...selectedJob, jobDescription: text });
       }
     } catch (err) {
       console.error('Failed to read clipboard contents: ', err);
@@ -1004,7 +1016,7 @@ export function AppliedTrack() {
 
         const data = await response.json();
         // console.log('Resume saved:', data);
-        
+
         // Update the resumes state and the selected job's resumeLink
         setResumes(prevResumes => [...prevResumes, {
           resumeId: "RESUME_" + uploadedFile.key,
@@ -1012,7 +1024,7 @@ export function AppliedTrack() {
           fileName: uploadedFile.name
         }]);
         if (selectedJob) {
-          setSelectedJob({...selectedJob, resumeLink: uploadedFile.url});
+          setSelectedJob({ ...selectedJob, resumeLink: uploadedFile.url });
         }
       } catch (error) {
         console.error('Error saving resume:', error);
@@ -1058,7 +1070,7 @@ export function AppliedTrack() {
 
   return (
     <>
-      { showOnboarding && <OnboardingModal isOpen={showOnboarding} /> }
+      {showOnboarding && <OnboardingModal isOpen={showOnboarding} />}
       <Header
         onNotificationClick={handleNotificationClick}
         onProfileClick={handleProfileClick}
@@ -1090,7 +1102,7 @@ export function AppliedTrack() {
                     <SelectItem value="All">All Statuses</SelectItem>
                     {jobStatuses.map(status => (
                       <SelectItem key={status} value={status}>
-                        {status === 'Archived' 
+                        {status === 'Archived'
                           ? `${status} (${jobs.filter(job => job.isArchived === true).length})`
                           : `${status} (${jobs.filter(job => job.status === status && !job.isArchived).length})`
                         }
@@ -1118,7 +1130,7 @@ export function AppliedTrack() {
                     <SelectItem value="status">Application Status</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <div className="bg-background border rounded-lg p-1 flex items-center gap-1">
                   <TooltipProvider>
                     <Tooltip>
@@ -1179,12 +1191,12 @@ export function AppliedTrack() {
               <div className="text-center space-y-4 max-w-lg">
                 <h2 className="text-2xl font-bold text-foreground">Start Tracking Your Job Applications</h2>
                 <p className="text-muted-foreground">
-                  Keep track of your job applications, manage contacts, and never miss an opportunity. 
+                  Keep track of your job applications, manage contacts, and never miss an opportunity.
                   Click the + button to add your first job application or click here to add your first job application.
 
                 </p>
                 <Button onClick={openNewJobModal}>Add Your First Job Application</Button>
-                
+
               </div>
             </div>
           ) : (
@@ -1244,14 +1256,14 @@ export function AppliedTrack() {
                         {columnDefs
                           .filter(col => visibleColumns.has(col.id))
                           .map((col) => (
-                            <TableHead 
+                            <TableHead
                               key={col.id}
                               className={col.sortable ? 'cursor-pointer select-none hover:bg-gray-50' : ''}
                               onClick={() => {
                                 if (!col.sortable) return;
                                 setSortState(prev => ({
                                   column: col.id,
-                                  direction: 
+                                  direction:
                                     prev.column === col.id
                                       ? prev.direction === 'asc'
                                         ? 'desc'
@@ -1360,11 +1372,11 @@ export function AppliedTrack() {
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <JobCard 
-                        job={job} 
-                        openJobDetails={openJobDetails} 
-                        handleKeyDown={handleKeyDown} 
-                        layoutMode={layoutMode} 
+                      <JobCard
+                        job={job}
+                        openJobDetails={openJobDetails}
+                        handleKeyDown={handleKeyDown}
+                        layoutMode={layoutMode}
                         updateJobStatus={updateJobStatus}
                         updateJobDetails={updateJobDetails}
                         setActiveTab={setActiveTab}
@@ -1391,11 +1403,11 @@ export function AppliedTrack() {
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <JobCard 
-                        job={job} 
-                        openJobDetails={openJobDetails} 
-                        handleKeyDown={handleKeyDown} 
-                        layoutMode={layoutMode} 
+                      <JobCard
+                        job={job}
+                        openJobDetails={openJobDetails}
+                        handleKeyDown={handleKeyDown}
+                        layoutMode={layoutMode}
                         updateJobStatus={updateJobStatus}
                         updateJobDetails={updateJobDetails}
                         setActiveTab={setActiveTab}
@@ -1414,7 +1426,7 @@ export function AppliedTrack() {
             resumes={resumes}
           />
 
-          <Button 
+          <Button
             className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
             onClick={openNewJobModal}
           >
@@ -1442,15 +1454,15 @@ export function AppliedTrack() {
 }
 
 // Update JobCard component
-function JobCard({ 
-  job, 
-  openJobDetails, 
-  handleKeyDown, 
-  layoutMode, 
-  updateJobStatus, 
+function JobCard({
+  job,
+  openJobDetails,
+  handleKeyDown,
+  layoutMode,
+  updateJobStatus,
   updateJobDetails,
   setActiveTab  // Add this prop
-}: { 
+}: {
   job: Job;
   openJobDetails: (job: Job) => void;
   handleKeyDown: (e: React.KeyboardEvent, job: Job) => void;
@@ -1475,16 +1487,16 @@ function JobCard({
     setIsLoading(true);
     try {
       const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-      
+
       // Updated API call with new parameters
       const response = await fetch(`/api/hunter?action=domainSearch&domain=${domain}&departments=${Array.from(selectedCategories).join(',')}&limit=10`);
-      
+
       if (!response.ok) throw new Error('Failed to fetch Hunter data');
-      
+
       const hunterResult = await response.json();
 
       // console.log(hunterResult.data.data.data);
-      
+
       // Update the job with the hunter data
       const updatedJob = {
         ...job,
@@ -1493,14 +1505,14 @@ function JobCard({
           dateUpdated: new Date().toISOString()
         }
       };
-      
+
       await updateJobDetails(updatedJob);
-      
+
       toast({
         title: "Hunter Data Updated",
         description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`,
       });
-      
+
       setIsCategoryModalOpen(false);
     } catch (error) {
       console.error('Error fetching Hunter data:', error);
@@ -1512,7 +1524,7 @@ function JobCard({
     } finally {
       setIsLoading(false);
     }
-};
+  };
 
   const searchHunterDomain = () => {
     setIsCategoryModalOpen(true);
@@ -1540,7 +1552,7 @@ function JobCard({
           </div>
         ))}
         {remainingCount > 0 && (
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation(); // Prevent card click event
               openJobDetails(job);
@@ -1702,7 +1714,7 @@ function JobCard({
 
   // Return existing desktop card layout
   return (
-    <Card 
+    <Card
       className="w-full hover:shadow-lg transition-shadow duration-300"
       tabIndex={0}
       onKeyDown={(e) => handleKeyDown(e, job)}
@@ -1734,11 +1746,11 @@ function JobCard({
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <span className="inline-block"> {/* Use span instead of div for inline elements */}
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="icon"
                           className="hover:bg-red-100 hover:text-red-600 transition-colors"
-                          
+
                         >
                           <Archive className="h-4 w-4" />
                         </Button>
@@ -1748,7 +1760,7 @@ function JobCard({
                       <AlertDialogHeader>
                         <AlertDialogTitle>Archive Job</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to archive this job application for {job.company}? 
+                          Are you sure you want to archive this job application for {job.company}?
                           This will remove it from your active applications list.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
@@ -1756,7 +1768,7 @@ function JobCard({
                         <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
                           Cancel
                         </AlertDialogCancel>
-                        <AlertDialogAction 
+                        <AlertDialogAction
                           onClick={(e) => {
                             e.stopPropagation();
                             handleArchive();
@@ -1810,11 +1822,7 @@ function JobCard({
                 <FileText className="w-4 h-4 mr-1" />
                 Resume (standard)
               </a>
-              <a href={job.coverLetterLink} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-blue-600 hover:underline">
-                <Mail className="w-4 h-4 mr-1" />
-                Cover Letter (Ready)
-                <CheckCircle2 className="w-4 h-4 ml-1" />
-              </a>
+              <CoverLetterButton job={job} />
               {job.interviewDate && (
                 <span className="flex items-center text-sm text-gray-600">
                   <Calendar className="w-4 h-4 mr-1" />
@@ -1831,10 +1839,10 @@ function JobCard({
                   return (
                     <div key={status} className="flex items-center">
                       {index > 0 && <div className="h-0.5 w-2 bg-gray-300"></div>}
-                      <div 
+                      <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs
-                          ${isCompleted 
-                            ? 'bg-blue-500 text-white' 
+                          ${isCompleted
+                            ? 'bg-blue-500 text-white'
                             : 'bg-gray-200 text-gray-600'
                           } ${isCurrent ? 'ring-2 ring-blue-300' : ''}`}
                       >
@@ -1845,9 +1853,9 @@ function JobCard({
                 })}
               </div>
             </div>
-            
-            <div 
-              onClick={() => openJobDetails(job)} 
+
+            <div
+              onClick={() => openJobDetails(job)}
               className="w-full mt-4 cursor-pointer"
             >
               <Button variant="outline" size="sm" className="w-full">
@@ -1867,7 +1875,7 @@ function JobCard({
                     <>
                       <Button
                         variant="outline"
-                        size="sm" 
+                        size="sm"
                         onClick={() => setIsCategoryModalOpen(true)}
                         disabled={isLoading}
                         className="flex items-center gap-2"
@@ -1887,7 +1895,7 @@ function JobCard({
                               Choose the departments you want to search for contacts.
                             </DialogDescription>
                           </DialogHeader>
-                          
+
                           <div className="grid grid-cols-2 gap-4 py-4">
                             <div className="flex items-center space-x-2">
                               <Checkbox
@@ -1951,7 +1959,7 @@ function JobCard({
                   )}
                 </div>
               </div>
-              
+
               {job.hunterData ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1977,12 +1985,12 @@ function JobCard({
 }
 
 // New ViewDetailsModal component
-function ViewDetailsModal({ 
-  isOpen, 
-  onClose, 
-  job, 
-  setSelectedJob, 
-  setIsModalOpen, 
+function ViewDetailsModal({
+  isOpen,
+  onClose,
+  job,
+  setSelectedJob,
+  setIsModalOpen,
   updateJobDetails,
   activeTab: initialActiveTab  // Add this prop
 }: {
@@ -2027,9 +2035,9 @@ function ViewDetailsModal({
           )
         ) : (
           <p className="text-sm mt-1">
-            {field === 'interviewDate' || field === 'dateApplied' 
-              ? value 
-                ? format(new Date(value), 'PP') 
+            {field === 'interviewDate' || field === 'dateApplied'
+              ? value
+                ? format(new Date(value), 'PP')
                 : 'N/A'
               : value || 'N/A'}
           </p>
@@ -2053,7 +2061,7 @@ function ViewDetailsModal({
           <h3 className="text-lg font-semibold">Email Pattern</h3>
           <Badge variant="secondary">{job.hunterData.pattern}</Badge>
         </div>
-        
+
         <div className="space-y-4">
           {job.hunterData.emails.map((email, index) => (
             <Card key={index} className="p-4">
@@ -2066,7 +2074,7 @@ function ViewDetailsModal({
                 </div>
                 <Badge variant="outline">{email.confidence}% confidence</Badge>
               </div>
-              
+
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
                   <Label>Email</Label>
@@ -2091,7 +2099,7 @@ function ViewDetailsModal({
                   </div>
                 )}
               </div>
-              
+
               <div className="mt-4 flex gap-2">
                 {email.linkedin && (
                   <a href={email.linkedin} target="_blank" rel="noopener noreferrer">
@@ -2261,14 +2269,14 @@ function ViewDetailsModal({
               />
             </div>
             <div className="flex space-x-2 w-full sm:w-auto">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={onClose}
                 className="flex-1 sm:flex-none"
               >
                 Close
               </Button>
-              <Button 
+              <Button
                 onClick={() => {
                   onClose();
                   if (job) updateJobDetails(job);
@@ -2329,7 +2337,7 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 
         const data = await response.json();
         // console.log('Resume saved:', data);
-        
+
         // Update the resumes state immediately after successful upload
         setResumes(prevResumes => [...prevResumes, {
           resumeId: "RESUME_" + uploadedFile.key,
@@ -2371,7 +2379,7 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   useEffect(() => {
     fetchResumes();
     fetchUserDetails();
-    
+
   }, [fetchResumes, fetchUserDetails]);
 
   const handleSaveChanges = async () => {
@@ -2476,4 +2484,119 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     </Dialog>
   );
 }
+
+const generateCoverLetter = async (job: Job, setIsGenerating: (isGenerating: string) => void) => {
+  try {
+    const response = await fetch('/api/genai', {
+      method: 'POST',
+      body: JSON.stringify({ job }),
+    });
+
+    const data = await response.json();
+    console.log('data', data);
+    
+    if (data.success) {
+      setIsGenerating("ready");
+      const response_update = await fetch(`/api/jobs`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: job.id,
+          coverLetter: {
+            ...data.coverLetterData,
+            status: 'ready',
+            dateGenerated: new Date().toISOString()
+          }
+        }),
+      });
+      // update the local job with the cover letter data  
+      
+      
+
+      if (!response_update.ok) {
+        throw new Error('Failed to update job with cover letter');
+      }
+    }
+  } catch (error) {
+    console.error('Error generating cover letter:', error);
+    setIsGenerating("failed");
+  }
+};
+
+// Replace the existing cover letter link with this new component:
+const CoverLetterButton = ({ job }: { job: Job }) => {
+  const [isGenerating, setIsGenerating] = useState("not_started");
+  const [resumeUrl, setResumeUrl] = useState(job.resumeLink);
+
+  if (!job.coverLetter) {
+    return null;
+  }
+
+  switch (isGenerating) {
+    case 'generating':
+      return (
+        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Generating Cover Letter...
+        </Button>
+      );
+
+    case 'ready':
+      return (
+        <a
+          href={job.coverLetter.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center text-sm text-blue-600 hover:underline"
+        >
+          <Download className="w-4 h-4 mr-1" />
+          Download Cover Letter
+          <CheckCircle2 className="w-4 h-4 ml-1 text-green-500" />
+        </a>
+      );
+
+    case 'failed':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2 text-red-600"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateCoverLetter(job, setIsGenerating);
+          }}
+        >
+          <>
+            <AlertCircle className="h-4 w-4" />
+            Generation Failed - Retry
+          </>
+        </Button>
+      );
+
+    case 'not_started':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateCoverLetter(job, setIsGenerating);
+          }}
+        >
+
+          <>
+            <Sparkles className="h-4 w-4" />
+            Generate Cover Letter
+          </>
+
+        </Button>
+      );
+
+    default:
+      return null;
+  }
+};
 
