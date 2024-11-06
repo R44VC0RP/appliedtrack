@@ -228,12 +228,11 @@ export async function PUT(request: NextRequest) {
 
     // Handle coverLetter update
     if (jobData.coverLetter) {
-      console.log('jobData.coverLetter', jobData.coverLetter);
       jobData.coverLetter = {
-        ...jobData.coverLetter,
-        status: 'ready',
-        dateGenerated: new Date().toISOString(),
-        url: jobData.coverLetter.pdfUrl
+        url: jobData.coverLetter.url,
+        status: jobData.coverLetter.status,
+        dateGenerated: jobData.coverLetter.dateGenerated,
+        dateUpdated: new Date().toISOString()
       };
     }
 

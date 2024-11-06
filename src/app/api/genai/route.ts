@@ -9,6 +9,7 @@ import { jsPDF } from 'jspdf';
 import { File } from '@web-std/file';
 import { JobModel, Job } from '@/models/Job';
 import { Logger } from '@/lib/logger';
+import '@/components/fonts/EBGaramond-Medium-normal'
 
 /**
  * Creates a PDF buffer from a cover letter body text
@@ -21,6 +22,7 @@ async function createCoverLetterPDF(coverLetterBody: string): Promise<Buffer> {
         
         // Configure PDF settings
         doc.setFontSize(14);
+        doc.setFont('EB Garamond');
         
         // Split text into lines to handle word wrapping
         const splitText = doc.splitTextToSize(coverLetterBody, 180); // 180 is the max width
@@ -76,36 +78,39 @@ async function createCoverLetter(job: Job) {
         });
 
         const prompt_to_create_cover_letter = `
-        You are a master cover letter generator. You are given a resume and a job description. You need to generate a cover letter for the job.
+            You are a master cover letter generator. You are given a resume and a job description. You need to generate a cover letter for the job.
 
-        Cover Letter Instructions:
+            Cover Letter Instructions:
 
-        Strong Opening: Start with an engaging, personalized introduction that reflects your career objectives and enthusiasm for the role.
+            Strong Opening: Start with an engaging, personalized introduction that reflects your career objectives and enthusiasm for the role.
 
-        Use Job Keywords: Include specific keywords from the job description to show you’re a match and to help with Applicant Tracking Software (ATS) systems.
+            Use Job Keywords: Include specific keywords from the job description to show you’re a match and to help with Applicant Tracking Software (ATS) systems.
 
-        Tailor to the Company: Reference the company’s values or mission to show you’ve done your research and align with their culture.
+            Tailor to the Company: Reference the company’s values or mission to show you’ve done your research and align with their culture.
 
-        Show Real-world Examples: Use concrete achievements to demonstrate your skills, which makes your claims more credible.
+            Show Real-world Examples: Use concrete achievements to demonstrate your skills, which makes your claims more credible.
 
-        Purposeful Conclusion: End with a brief summary of why you're a good fit and express interest in discussing further.
+            Purposeful Conclusion: End with a brief summary of why you're a good fit and express interest in discussing further.
 
-        Concise Formatting: Aim for 300-400 words. Use clear paragraphs, an easy-to-read font, and close formally (e.g., "Yours sincerely").
+            Concise Formatting: Aim for 300-400 words. Use clear paragraphs, an easy-to-read font, and close formally (e.g., "Yours sincerely").
 
-        You are going to write a cover letter for ${job.company} as ${user.name}.
+            You are going to write a cover letter for ${job.company} as ${user.name}.
 
-        Here is ${user.name}'s resume: ${resumeText}
+            Here is ${user.name}'s resume: ${resumeText}
 
-        And here is ${user.name}'s personal statement: ${user.about}
+            And here is ${user.name}'s personal statement: ${user.about}
 
-        Generate a professional cover letter for ${job.company} that is tailored to the job description and the user's resume and personal statement. 
+            Generate a professional cover letter for ${job.company} that is tailored to the job description and the user's resume and personal statement. 
 
-        Please address it to the hiring manager of ${job.company}.
+            Please address it to the hiring manager of ${job.company}.
 
-        Please include the greeting and closing of the letter in the body param.
+            Please include the greeting and closing of the letter in the body param.
         `
 
-        console.log('prompt_to_create_cover_letter', prompt_to_create_cover_letter);
+        await Logger.info('Cover letter generation prompt', {
+            jobId: job.id,
+            promptLength: prompt_to_create_cover_letter.length
+        });
 
         // Generate cover letter using GPT
         const { object } = await generateObject({
@@ -119,8 +124,6 @@ async function createCoverLetter(job: Job) {
             }),
             prompt: prompt_to_create_cover_letter,
         });
-
-        console.log('object', object);
 
         await Logger.info('Cover letter generated successfully', {
             jobId: job.id,

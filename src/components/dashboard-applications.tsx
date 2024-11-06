@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 // import logo from '@/app/logos/logo.png'
 import hunterLogo from '@/app/logos/hunter.png'
 import { UploadButton } from "@/utils/uploadthing";
@@ -33,7 +33,7 @@ import {
 } from '@clerk/nextjs'
 import { useAuth } from '@clerk/nextjs';
 import { OurFileRouter } from "@/app/api/uploadthing/core";
-import { useToast } from "@/hooks/use-toast"
+// import { useToast } from "@/hooks/use-toast"
 import { FaSync } from 'react-icons/fa';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -57,6 +57,9 @@ import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 import { OnboardingModal } from '@/components/onboarding-modal';
 import { auth } from '@clerk/nextjs/server';
 import { userInfo } from 'os';
+
+import { toast } from "sonner"
+
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -261,7 +264,10 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
-const generateCoverLetter = async (job: Job, setIsGenerating: (isGenerating: string) => void) => {
+const generateCoverLetter = async (
+  job: Job, 
+  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>
+) => {
   try {
     const response = await fetch('/api/genai', {
       method: 'POST',
@@ -269,31 +275,30 @@ const generateCoverLetter = async (job: Job, setIsGenerating: (isGenerating: str
     });
 
     const data = await response.json();
-    console.log('data', data);
     
     if (data.success) {
-      setIsGenerating("ready");
+      // Update to match the server's expected structure
       const response_update = await fetch(`/api/jobs`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           id: job.id,
           coverLetter: {
-            ...data.coverLetterData,
+            url: data.data.pdfUrl,  // This is what we receive from genai
             status: 'ready',
-            dateGenerated: new Date().toISOString()
+            dateGenerated: new Date().toISOString(),
+            dateUpdated: new Date().toISOString()  // Add this to track updates
           }
         }),
       });
-      // update the local job with the cover letter data  
-      
-      
 
       if (!response_update.ok) {
         throw new Error('Failed to update job with cover letter');
       }
+
+      setIsGenerating("ready");
     }
   } catch (error) {
     console.error('Error generating cover letter:', error);
@@ -301,7 +306,8 @@ const generateCoverLetter = async (job: Job, setIsGenerating: (isGenerating: str
   }
 };
 
-// ============= Custom Hooks =============
+
+//#region ============= Custom Hooks =============
 function useClientMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -340,7 +346,6 @@ export function AppliedTrack() {
   const { isLoaded, userId } = useAuth();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
-  const { toast } = useToast()
   const searchParams = useSearchParams();
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
   const [visibleColumns, setVisibleColumns] = useState<Set<keyof Job>>(
@@ -437,10 +442,8 @@ export function AppliedTrack() {
     const tier = searchParams.get('tier');
 
     if (success === 'true' && tier) {
-      toast({
-        title: "Subscription Upgraded!",
-        description: `Thanks for upgrading to ${tier.charAt(0).toUpperCase() + tier.slice(1)} tier.`,
-        variant: "default",
+      toast("Subscription Upgraded!", {
+        description: `Thanks for upgrading to ${tier.charAt(0).toUpperCase() + tier.slice(1)} tier.`
       });
     }
   }, [searchParams, toast]);
@@ -530,17 +533,10 @@ export function AppliedTrack() {
       const addedJob = await response.json();
       setJobs([...jobs, addedJob]);
       setIsModalOpen(false);
-      toast({
-        title: "Job Added",
-        description: "The new job has been successfully added.",
-      })
+      toast.success("Job Added")
     } catch (error) {
       console.error('Error adding new job:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add the new job. Please try again.",
-        variant: "destructive",
-      })
+      toast.error("Failed to add the new job. Please try again.")
     }
   };
 
@@ -574,11 +570,7 @@ export function AppliedTrack() {
       // })
     } catch (error) {
       console.error('Error updating job:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update the job. Please try again.",
-        variant: "destructive",
-      })
+      toast.error("Failed to update the job. Please try again.")
     }
   };
 
@@ -1127,7 +1119,9 @@ export function AppliedTrack() {
   )
 }
 
-// ============= Small Components =============
+//#endregion
+
+//#region ============= Small Components =============
 const SignedOutCallback = () => {
   useEffect(() => {
     window.location.href = "/";
@@ -1319,8 +1313,13 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 }
 
 const CoverLetterButton = ({ job }: { job: Job }) => {
-  const [isGenerating, setIsGenerating] = useState("not_started");
+  const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
   const [resumeUrl, setResumeUrl] = useState(job.resumeLink);
+  const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
+
+  // if (job.coverLetter?.status === 'ready') {
+  //   setIsGenerating("ready");
+  // }
 
   if (!job.coverLetter) {
     return null;
@@ -1337,16 +1336,41 @@ const CoverLetterButton = ({ job }: { job: Job }) => {
 
     case 'ready':
       return (
-        <a
-          href={job.coverLetter.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center text-sm text-blue-600 hover:underline"
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
+          onClick={async () => {
+            try {
+              // Fetch the PDF file
+              const response = await fetch(coverLetterUrl || '');
+              const blob = await response.blob();
+              
+              // Create a temporary URL for the blob
+              const url = window.URL.createObjectURL(blob);
+              
+              // Create a temporary anchor element
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${job.company.replace(/\s+/g, '_')}_coverletter.pdf`;
+              
+              // Append to document, click, and cleanup
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              
+              // Revoke the temporary URL
+              window.URL.revokeObjectURL(url);
+            } catch (error) {
+              console.error('Error downloading cover letter:', error);
+              toast.error("Failed to download the cover letter. Please try again.")
+            }
+          }}
         >
-          <Download className="w-4 h-4 mr-1" />
-          Download Cover Letter
-          <CheckCircle2 className="w-4 h-4 ml-1 text-green-500" />
-        </a>
+          <Download className="w-4 h-4" />
+          <span>Download Cover Letter</span>
+          <CheckCircle2 className="w-4 h-4 text-green-500" />
+        </Button>
       );
 
     case 'failed':
@@ -1413,7 +1437,7 @@ function JobCard({
   const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-  const { toast } = useToast();
+  // const { toast } = useToast();
   const [selectedCategories, setSelectedCategories] = useState<Set<HunterCategory>>(new Set());
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
@@ -1447,19 +1471,14 @@ function JobCard({
 
       await updateJobDetails(updatedJob);
 
-      toast({
-        title: "Hunter Data Updated",
-        description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`,
+      toast.success("Hunter Data Updated", {
+        description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`
       });
 
       setIsCategoryModalOpen(false);
     } catch (error) {
       console.error('Error fetching Hunter data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch Hunter data. Please check the domain and try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch Hunter data. Please check the domain and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -1526,17 +1545,12 @@ function JobCard({
       const updatedJob = await response.json();
       updateJobDetails(updatedJob);
 
-      toast({
-        title: "Job Archived",
-        description: "The job has been successfully archived.",
+      toast.success("Job Archived", {
+        description: "The job has been successfully archived"
       });
     } catch (error) {
       console.error('Error archiving job:', error);
-      toast({
-        title: "Error",
-        description: "Failed to archive the job. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to archive the job. Please try again.");
     }
   };
 
@@ -1752,26 +1766,26 @@ function JobCard({
                 </TooltipProvider>
               </div>
             </div>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-2">
               <a href={job.website} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-blue-600 hover:underline">
                 <ExternalLink className="w-4 h-4 mr-1" />
-                Company Website
+                {job.website}
               </a>
               <a href={job.resumeLink} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-blue-600 hover:underline">
                 <FileText className="w-4 h-4 mr-1" />
-                Resume (standard)
+                Resume
               </a>
               <CoverLetterButton job={job} />
               {job.interviewDate && (
                 <span className="flex items-center text-sm text-gray-600">
                   <Calendar className="w-4 h-4 mr-1" />
-                  Interview: {job.interviewDate}
+                  Interview: {format(new Date(job.interviewDate), 'PPP')}
                 </span>
               )}
             </div>
             <div className="mt-4">
               <h4 className="font-semibold mb-2">Application Progress</h4>
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1 ">
                 {jobStatuses.map((status, index) => {
                   const isCompleted = jobStatuses.indexOf(job.status) >= index;
                   const isCurrent = job.status === status;
@@ -1930,7 +1944,6 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
   onSubmit: (job: Job) => void;
   resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
 }) {
-  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Partial<Job>>({
     dateApplied: new Date().toISOString().split('T')[0],
@@ -1955,20 +1968,12 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
     // Special validation for company step
     if (currentField === 'company' && !formData.company) {
-      toast({
-        title: "Required Field",
-        description: "Please select a company from the suggestions",
-        variant: "destructive",
-      });
+      toast.error("Please select a company from the suggestions");
       return;
     }
 
     if (!formData[currentField]) {
-      toast({
-        title: "Required Field",
-        description: `Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`,
-        variant: "destructive",
-      });
+      toast.error(`Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`);
       return;
     }
 
@@ -1981,11 +1986,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
   const handleSubmit = () => {
     if (!formData.company || !formData.position) {
-      toast({
-        title: "Error",
-        description: "Company name and position are required.",
-        variant: "destructive",
-      });
+      toast.error("Company name and position are required.");
       return;
     }
 
