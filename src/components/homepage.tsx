@@ -205,7 +205,9 @@ export default function Homepage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-white text-sm md:text-base font-medium flex items-center justify-center gap-2"
           >
-            <span className="hidden sm:inline">🎓</span>
+            <span className="hidden sm:inline">
+              <Sparkles className="w-4 h-4" />
+            </span>
             Students get 50% off with a valid .edu email!
             <Button 
               variant="link" 
@@ -409,7 +411,7 @@ export default function Homepage() {
               </h2>
               <div className="mt-6 flex items-center justify-center gap-2 max-w-2xl mx-auto mb-2">
                 <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
-                  <span className="hidden sm:inline">🎓</span>
+                  <span className="hidden sm:inline"><Sparkles className="w-4 h-4" /></span>
                   Students save 50% with .edu email verification
                 </span>
               </div>

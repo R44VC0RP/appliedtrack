@@ -7,7 +7,7 @@ import Pdf from '@/lib/pdf-helper';
 import { UTApi } from 'uploadthing/server';
 import { jsPDF } from 'jspdf';
 import { File } from '@web-std/file';
-import { JobModel } from '@/models/Job';
+import { JobModel, Job } from '@/models/Job';
 
 async function createCoverLetterPDF(coverLetterBody: string): Promise<Buffer> {
     const doc = new jsPDF();

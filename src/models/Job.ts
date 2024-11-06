@@ -1,5 +1,37 @@
 import mongoose from 'mongoose';
 
+export type Job = mongoose.Document & {
+  id: string,
+  userId: string,
+  company: string,
+  position: string,
+  status: string,
+  website: string,
+  resumeLink: string,
+  hunterData: object,
+  coverLetterLink: string,
+  coverLetter: {
+    url: string,
+    status: string,
+    dateGenerated: Date
+  },
+  jobDescription: string,
+  notes: string,
+  contactName: string,
+  contactEmail: string,
+  contactPhone: string,
+  interviewDate: Date,
+  salary: number,
+  location: string,
+  remoteType: string,
+  jobType: string,
+  dateCreated: Date,
+  dateUpdated: Date,
+  dateApplied: Date,
+  flag: string,
+  isArchived: boolean,
+};
+
 const JobSchema = new mongoose.Schema({
   id: String,
   userId: String,
