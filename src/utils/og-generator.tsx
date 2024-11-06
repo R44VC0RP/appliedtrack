@@ -55,15 +55,7 @@ export async function GenerateImage(params: {
               {params.description}
             </div>
           )}
-          <div style={{ 
-            fontSize: "24px", 
-            fontWeight: 600,
-            position: "absolute",
-            bottom: "40px",
-            color: "#6b7280"
-          }}>
-            {siteConfig.name}
-          </div>
+          
         </div>
       </div>
     ),
