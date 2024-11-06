@@ -9,7 +9,7 @@ import { jsPDF } from 'jspdf';
 import { File } from '@web-std/file';
 import { JobModel, Job } from '@/models/Job';
 import { Logger } from '@/lib/logger';
-import '@/components/fonts/EBGaramond-Medium-normal'
+// import '@/components/fonts/EBGaramond-Medium-normal'
 
 /**
  * Creates a PDF buffer from a cover letter body text
