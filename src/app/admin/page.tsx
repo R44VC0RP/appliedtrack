@@ -31,6 +31,7 @@ import {
     BarChart3,
     CreditCard
 } from 'lucide-react'
+import { ThemeControl } from '@/components/ui/themecontrol'
 import { StripeTestHelper } from '@/components/stripe-test-helper'
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -149,9 +150,12 @@ export default function AdminDashboard() {
 
                     <div className="flex-1 overflow-auto">
                         <div className="w-full">
-                            <div className="p-3 flex items-center justify-start gap-2 items-center">
-                                <SidebarTrigger />
-                                <p className="text-lg font-semibold">Hi {user?.firstName}!</p>
+                            <div className="p-3 flex items-center justify-between gap-2 items-center">
+                                <div className="flex items-center gap-2">
+                                    <SidebarTrigger />
+                                    <p className="text-lg font-semibold">Hi {user?.firstName}!</p>
+                                </div>
+                                <ThemeControl />
                             </div>
                             <hr className="border-border mb-4" />
                         </div>

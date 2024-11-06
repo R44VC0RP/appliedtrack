@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import { Filter, RotateCw, X, Copy, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -53,6 +53,84 @@ interface IPagination {
 
 const ALL_LEVELS = '_all_levels'
 const ALL_SERVICES = '_all_services'
+
+interface TimelineEvent {
+  timestamp: Date
+  level: 'info' | 'warning' | 'error'
+  count: number
+}
+
+function LogTimeline({ logs }: { logs: ILog[] }) {
+  const timelineData = useMemo(() => {
+    // Group logs by minute
+    const timeGroups = new Map<string, { info: number; warning: number; error: number }>()
+    
+    // Get the earliest and latest timestamps
+    const now = new Date()
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000) // Show last hour
+    
+    // Initialize empty minutes for the last hour
+    for (let d = new Date(oneHourAgo); d <= now; d.setMinutes(d.getMinutes() + 1)) {
+      timeGroups.set(format(d, 'yyyy-MM-dd HH:mm'), { info: 0, warning: 0, error: 0 })
+    }
+    
+    // Fill in actual log data
+    logs.forEach(log => {
+      const minute = format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm')
+      const current = timeGroups.get(minute) || { info: 0, warning: 0, error: 0 }
+      current[log.level]++
+      timeGroups.set(minute, current)
+    })
+
+    return Array.from(timeGroups.entries())
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+  }, [logs])
+
+  return (
+
+    <div className="h-12 border-b border-border bg-background px-1">  
+      <div className="flex h-full items-end space-x-[1px]">
+        {timelineData.map(([timestamp, counts]) => {
+          const total = counts.info + counts.warning + counts.error
+          const maxHeight = 12 // max height in pixels
+          
+          return (
+            <div key={timestamp} className="group relative flex-1 h-full flex items-end">
+              {/* Tooltip */}
+              {total > 0 && (
+                <div className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 transform rounded bg-popover/95 px-2 py-1 text-[10px] shadow-md group-hover:block z-50">
+                  <div className="font-medium">{format(new Date(timestamp), 'HH:mm:ss')}</div>
+                  <div className="space-y-0.5">
+                    {counts.error > 0 && <div className="text-destructive">Errors: {counts.error}</div>}
+                    {counts.warning > 0 && <div className="text-yellow-500">Warnings: {counts.warning}</div>}
+                    {counts.info > 0 && <div className="text-emerald-500">Info: {counts.info}</div>}
+                  </div>
+                </div>
+              )}
+              
+              {/* Bar */}
+              {total > 0 && (
+                <div 
+                  className={`w-full ${
+                    counts.error > 0 
+                      ? 'bg-destructive/90' 
+                      : counts.warning > 0 
+                      ? 'bg-yellow-500/90' 
+                      : 'bg-muted-foreground/30'
+                  }`}
+                  style={{ 
+                    height: `${Math.max((total / 5) * maxHeight, 2)}px`,
+                    minWidth: '2px'
+                  }}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export function LoggingDashboard() {
   const { toast } = useToast()
@@ -144,75 +222,19 @@ export function LoggingDashboard() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background w-full max-w-full p-6">
-      {/* Header */}
-      <div className="border-b border-border">
-        <div className="flex h-14 items-center px-4">
-          <div className="flex flex-1 items-center space-x-4">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={`${pagination.total} total logs found...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-[400px]"
-            />
-            <Select value={levelFilter || ALL_LEVELS} onValueChange={setLevelFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Filter by level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_LEVELS}>All levels</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={serviceFilter || ALL_SERVICES} onValueChange={setServiceFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by service" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_SERVICES}>All services</SelectItem>
-                {uniqueServices.map(service => (
-                  <SelectItem key={service} value={service}>{service}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={isLive ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIsLive(!isLive)}
-              className="relative"
-            >
-              {isLive && (
-                <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              )}
-              Live
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => fetchLogs()}
-              className={isLoading ? 'animate-spin' : ''}
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex h-screen flex-col bg-background w-full max-w-full">
+      <LogTimeline logs={logs} />
+      
       {/* Main content */}
       <div className="flex-1 overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="w-[200px]">Time</TableHead>
-              <TableHead className="w-[100px]">Level</TableHead>
-              <TableHead className="w-[150px]">Service</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Message</TableHead>
+        <Table className="relative w-full border-collapse">
+          <TableHeader className="sticky top-0 bg-background">
+            <TableRow className="border-b border-border hover:bg-transparent">
+              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Time</TableHead>
+              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Level</TableHead>
+              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Service</TableHead>
+              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Action</TableHead>
+              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Message</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -220,72 +242,75 @@ export function LoggingDashboard() {
               <Sheet key={log._id}>
                 <SheetTrigger asChild>
                   <TableRow
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedLog(log)}
+                    className="cursor-pointer border-0 hover:bg-muted/50 text-xs"
                   >
-                    <TableCell className="font-mono text-sm">
+                    <TableCell className="h-6 px-3 py-1 font-mono">
                       {format(new Date(log.timestamp), 'MMM dd HH:mm:ss.SSS')}
                     </TableCell>
-                    <TableCell className={getStatusColor(log.level)}>
+                    <TableCell className={`h-6 px-3 py-1 font-mono ${getStatusColor(log.level)}`}>
                       {log.level.toUpperCase()}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{log.service}</TableCell>
-                    <TableCell className="font-mono text-sm">{log.action}</TableCell>
-                    <TableCell className="font-mono text-sm max-w-md truncate">
+                    <TableCell className="h-6 px-3 py-1 font-mono">{log.service}</TableCell>
+                    <TableCell className="h-6 px-3 py-1 font-mono">{log.action}</TableCell>
+                    <TableCell className="h-6 px-3 py-1 font-mono max-w-md truncate">
                       {JSON.stringify(log.details)}
                     </TableCell>
                   </TableRow>
                 </SheetTrigger>
                 <SheetContent
                   side="right"
-                  className="w-[400px] border-l border-border"
+                  className="w-[400px] border-l border-border p-0"
                 >
-                  <SheetHeader>
-                    <SheetTitle>Log Details</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-4 space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Time</label>
-                      <div className="font-mono">
-                        {format(new Date(log.timestamp), 'PPpp')}
-                      </div>
+                  <div className="h-full overflow-auto">
+                    <div className="sticky top-0 border-b border-border bg-background p-4">
+                      <SheetHeader>
+                        <SheetTitle>Log Details</SheetTitle>
+                      </SheetHeader>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Level</label>
-                      <div className={`font-mono ${getStatusColor(log.level)}`}>
-                        {log.level.toUpperCase()}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Service</label>
-                      <div className="font-mono">{log.service}</div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Action</label>
-                      <div className="font-mono">{log.action}</div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">User ID</label>
-                      <div className="font-mono">{log.userId || '-'}</div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">IP Address</label>
-                      <div className="font-mono">{log.ip || '-'}</div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Details</label>
-                      <pre className="whitespace-pre-wrap font-mono text-sm">
-                        {JSON.stringify(log.details, null, 2)}
-                      </pre>
-                    </div>
-                    {log.metadata && (
+                    <div className="space-y-4 p-4">
                       <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Metadata</label>
-                        <pre className="whitespace-pre-wrap font-mono text-sm">
-                          {JSON.stringify(log.metadata, null, 2)}
+                        <label className="text-xs text-muted-foreground">Time</label>
+                        <div className="font-mono text-sm">
+                          {format(new Date(log.timestamp), 'PPpp')}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">Level</label>
+                        <div className={`font-mono text-sm ${getStatusColor(log.level)}`}>
+                          {log.level.toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">Service</label>
+                        <div className="font-mono text-sm">{log.service}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">Action</label>
+                        <div className="font-mono text-sm">{log.action}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">User ID</label>
+                        <div className="font-mono text-sm">{log.userId || '-'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">IP Address</label>
+                        <div className="font-mono text-sm">{log.ip || '-'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">Details</label>
+                        <pre className="whitespace-pre-wrap rounded bg-muted p-2 font-mono text-xs">
+                          {JSON.stringify(log.details, null, 2)}
                         </pre>
                       </div>
-                    )}
+                      {log.metadata && (
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">Metadata</label>
+                          <pre className="whitespace-pre-wrap rounded bg-muted p-2 font-mono text-xs">
+                            {JSON.stringify(log.metadata, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>

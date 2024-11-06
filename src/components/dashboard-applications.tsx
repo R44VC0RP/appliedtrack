@@ -140,135 +140,7 @@ interface HunterIoResult {
   position: string;
 }
 
-// Sample job data (expanded)
-// const initialJobs: Job[] = [
-//   {
-//     id: 1,
-//     company: 'TechNova Solutions',
-//     position: 'Senior Frontend Developer',
-//     status: 'Applied',
-//     website: 'https://technovasolutions.com',
-//     resumeLink: '/resumes/frontend_dev_resume.pdf',
-//     coverLetterLink: '/cover_letters/technova_cover_letter.pdf',
-//     jobDescription: 'TechNova is seeking an experienced frontend developer to lead our UI/UX team in creating innovative web applications...',
-//     notes: 'Applied through their careers portal. Emphasized experience with React and TypeScript.',
-//     contactName: 'Sarah Johnson',
-//     contactEmail: 'sjohnson@technovasolutions.com',
-//     contactPhone: '(555) 123-4567',
-//     interviewDate: '2023-07-15',
-//     lastUpdated: '2023-07-01',
-//     flag: 'no_response'
-//   },
-//   {
-//     id: 2,
-//     company: 'DataSphere Analytics',
-//     position: 'Data Engineer',
-//     status: 'Phone Screen',
-//     website: 'https://datasphereanaly.com',
-//     resumeLink: '/resumes/data_engineer_resume.pdf',
-//     coverLetterLink: '/cover_letters/datasphere_cover_letter.pdf',
-//     jobDescription: 'Join our data engineering team to build scalable data pipelines and optimize our big data infrastructure...',
-//     notes: 'Phone screen scheduled with the hiring manager. Prepare to discuss experience with Apache Spark and AWS.',
-//     contactName: 'Michael Chen',
-//     contactEmail: 'mchen@datasphereanaly.com',
-//     contactPhone: '(555) 987-6543',
-//     interviewDate: '2023-07-10',
-//     lastUpdated: '2023-07-05',
-//     flag: 'update'
-//   },
-//   {
-//     id: 3,
-//     company: 'GreenTech Innovations',
-//     position: 'Full Stack Developer',
-//     status: 'Interview',
-//     website: 'https://greentechinno.com',
-//     resumeLink: '/resumes/fullstack_dev_resume.pdf',
-//     coverLetterLink: '/cover_letters/greentech_cover_letter.pdf',
-//     jobDescription: 'GreenTech is looking for a versatile full stack developer to help build our next-generation sustainable energy management platform...',
-//     notes: 'Second round interview scheduled. Will involve a technical assessment and meeting with the team.',
-//     contactName: 'Emily Rodriguez',
-//     contactEmail: 'erodriguez@greentechinno.com',
-//     contactPhone: '(555) 246-8135',
-//     interviewDate: '2023-07-20',
-//     lastUpdated: '2023-07-12',
-//     flag: 'update'
-//   },
-//   {
-//     id: 4,
-//     company: 'CloudSecure Systems',
-//     position: 'DevOps Engineer',
-//     status: 'Applied',
-//     website: 'https://cloudsecuresys.com',
-//     resumeLink: '/resumes/devops_engineer_resume.pdf',
-//     coverLetterLink: '/cover_letters/cloudsecure_cover_letter.pdf',
-//     jobDescription: 'We are seeking a skilled DevOps engineer to enhance our cloud infrastructure and implement robust security measures...',
-//     notes: 'Submitted application online. Highlighted experience with Kubernetes and CI/CD pipelines.',
-//     contactName: 'Alex Thompson',
-//     contactEmail: 'athompson@cloudsecuresys.com',
-//     contactPhone: '(555) 369-2580',
-//     interviewDate: '',
-//     lastUpdated: '2023-07-08',
-//     flag: 'no_response'
-//   },
-//   {
-//     id: 5,
-//     company: 'QuantumAI Research',
-//     position: 'Machine Learning Engineer',
-//     status: 'Offer',
-//     website: 'https://quantu',
-//     resumeLink: '/path/to/resume5.pdf',
-//     coverLetterLink: '/path/to/coverletter5.pdf',
-//     jobDescription: 'Join our cutting-edge AI team...',
-//     notes: 'Received offer, negotiating salary',
-//     contactName: 'Eva Brown',
-//     contactEmail: 'eva@aiinnovations.com',
-//     contactPhone: '(333) 444-5555',
-//     interviewDate: '2023-06-05',
-//     lastUpdated: '2023-06-18',
-//     flag: 'update'
-//   },
-// ]
-
-
-
-// Placeholder function for hunter.io API call
-// const searchHunterIo = async (company: string): Promise<HunterIoResult[]> => {
-//   // This would be replaced with an actual API call to hunter.io
-//   await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-//   return [
-//     { name: 'John Smith', email: 'john.smith@' + company.toLowerCase() + '.com', position: 'HR Manager' },
-//     { name: 'Jane Doe', email: 'jane.doe@' + company.toLowerCase() + '.com', position: 'Talent Acquisition Specialist' },
-//     { name: 'Mike Johnson', email: 'mike.johnson@' + company.toLowerCase() + '.com', position: 'Department Head' },
-//   ];
-// };
-
-// Move getStatusColor function outside of the main component
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-    case 'Applied': return 'bg-blue-100 text-blue-800'
-    case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-    case 'Interview': return 'bg-purple-100 text-purple-800'
-    case 'Offer': return 'bg-green-100 text-green-800'
-    case 'Rejected': return 'bg-red-100 text-red-800'
-    case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-    default: return 'bg-gray-100 text-gray-800'
-  }
-}
-
-// Add getFlagIcon function
-const getFlagIcon = (flag: string) => {
-  switch (flag) {
-    case 'no_response':
-      return <AlertCircle className="w-5 h-5 text-yellow-500" />
-    case 'update':
-      return <Clock className="w-5 h-5 text-blue-500" />
-    default:
-      return null
-  }
-}
-
-// Add these types and interfaces
+// ============= Types & Interfaces =============
 type SortDirection = 'asc' | 'desc' | null;
 
 interface SortState {
@@ -284,7 +156,16 @@ interface ColumnDef {
   render?: (job: Job) => React.ReactNode;
 }
 
-// Add column definitions
+type AddJobStep = {
+  title: string;
+  field: keyof Job;
+  type: 'text' | 'url' | 'textarea' | 'resume-date' | 'clearbit' | 'job-title';
+  placeholder?: string;
+};
+
+type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
+
+// ============= Constants =============
 const columnDefs: ColumnDef[] = [
   { id: 'company', label: 'Company', required: true, sortable: true },
   { id: 'position', label: 'Position', sortable: true },
@@ -294,15 +175,6 @@ const columnDefs: ColumnDef[] = [
   // Add more columns as needed
 ];
 
-// Define types for the new AddJobStep
-type AddJobStep = {
-  title: string;
-  field: keyof Job;
-  type: 'text' | 'url' | 'textarea' | 'resume-date' | 'clearbit' | 'job-title';
-  placeholder?: string;
-};
-
-// Update the first step in addJobSteps array
 const addJobSteps: AddJobStep[] = [
   {
     title: "What company are you applying to?",
@@ -335,275 +207,6 @@ const addJobSteps: AddJobStep[] = [
   }
 ];
 
-// Replace the existing Dialog in the main component with this new SteppedAddJobModal
-function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (job: Job) => void;
-  resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
-}) {
-  const { toast } = useToast()
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<Partial<Job>>({
-    dateApplied: new Date().toISOString().split('T')[0],
-    status: 'Yet to Apply',
-    company: '',
-    position: '',
-    website: '',
-    jobDescription: '',
-    resumeLink: '',
-    userId: '',
-    dateUpdated: new Date().toISOString()
-  });
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
-
-  const handleNext = () => {
-    const currentField = addJobSteps[currentStep].field;
-
-    // Special validation for company step
-    if (currentField === 'company' && !formData.company) {
-      toast({
-        title: "Required Field",
-        description: "Please select a company from the suggestions",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData[currentField]) {
-      toast({
-        title: "Required Field",
-        description: `Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (currentStep < addJobSteps.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    } else {
-      handleSubmit();
-    }
-  };
-
-  const handleSubmit = () => {
-    if (!formData.company || !formData.position) {
-      toast({
-        title: "Error",
-        description: "Company name and position are required.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    onSubmit(formData as Job);
-    setCurrentStep(0);
-    setFormData({
-      dateApplied: new Date().toISOString().split('T')[0],
-      status: 'Yet to Apply',
-      company: '',
-      position: '',
-      website: '',
-      jobDescription: '',
-      resumeLink: '',
-      userId: '',
-      dateUpdated: new Date().toISOString()
-    });
-    onClose();
-  };
-
-  const currentStepConfig = addJobSteps[currentStep];
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`sm:max-w-md w-[45vw] ${currentStepConfig.type === 'clearbit' ? 'h-fit  ' : 'h-fit'} p-4 sm:p-6`} >
-        {currentStepConfig.type === 'clearbit' ? (
-          // Special layout for Clearbit step
-          <div className="flex flex-col h-full">
-            <DialogHeader className="space-y-3">
-              <DialogTitle className="text-xl sm:text-2xl">
-                {currentStepConfig.title}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="mt-4">
-              <ClearbitAutocomplete
-                placeholder={currentStepConfig.placeholder}
-                onCompanySelect={(company) => {
-                  console.log(company);
-                  setFormData(prev => ({
-                    ...prev,
-                    company: company.name,
-                    website: `https://${company.domain}`,
-                    dateUpdated: new Date().toISOString()
-                  }));
-                }}
-                onCustomInput={(companyName) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    company: companyName,
-                    website: '', // Clear website when custom input
-                    dateUpdated: new Date().toISOString()
-                  }));
-                }}
-                className="w-full p-2"
-              />
-            </div>
-
-            <div className="mt-auto pt-4">
-              {/* Progress indicators */}
-              <div className="flex gap-1 justify-center mb-4">
-                {addJobSteps.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`h-1 w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
-                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                      }`}
-                  />
-                ))}
-              </div>
-
-              {/* Navigation buttons */}
-              <div className="flex justify-between gap-2">
-                {currentStep > 0 ? (
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    className="w-1/2"
-                  >
-                    Back
-                  </Button>
-                ) : <div className="w-1/2" />}
-
-                <Button
-                  onClick={handleNext}
-                  className="w-1/2"
-                  disabled={!formData[currentStepConfig.field]}
-                >
-                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Original layout for other steps
-          <>
-            <DialogHeader className="space-y-3">
-              <DialogTitle className="text-xl sm:text-2xl">
-                {currentStepConfig.title}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="py-4">
-              {currentStepConfig.type === 'textarea' ? (
-                <Textarea
-                  placeholder={currentStepConfig.placeholder}
-                  value={formData[currentStepConfig.field] as string || ''}
-                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
-                  className="min-h-[150px] sm:min-h-[200px] w-full"
-                />
-              ) : currentStepConfig.type === 'resume-date' ? (
-                <div className="space-y-4 w-full">
-                  <div>
-                    <Label htmlFor="dateApplied" className="block mb-2">Date Applied *</Label>
-                    <Input
-                      id="dateApplied"
-                      type="date"
-                      value={formData.dateApplied || ''}
-                      onChange={(e) => setFormData({ ...formData, dateApplied: e.target.value })}
-                      required
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
-                    <Select
-                      value={formData.resumeLink}
-                      onValueChange={(value) => setFormData({ ...formData, resumeLink: value })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a resume" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[40vh]">
-                        {resumes.map((resume) => (
-                          <SelectItem key={resume.resumeId} value={resume.fileUrl}>
-                            {resume.fileName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              ) : (
-                <Input
-                  type={currentStepConfig.type}
-                  placeholder={currentStepConfig.placeholder}
-                  value={formData[currentStepConfig.field] as string || ''}
-                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
-                  className="w-full"
-                  autoFocus
-                />
-              )}
-            </div>
-
-            <div className="flex flex-col gap-4 mt-4">
-              {/* Progress indicators */}
-              <div className="flex gap-1 justify-center">
-                {addJobSteps.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`h-1 w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
-                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                      }`}
-                  />
-                ))}
-              </div>
-
-              {/* Navigation buttons */}
-              <div className="flex justify-between gap-2 mt-2">
-                {currentStep > 0 ? (
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    className="w-1/2"
-                  >
-                    Back
-                  </Button>
-                ) : <div className="w-1/2" />}
-
-                <Button
-                  onClick={handleNext}
-                  className="w-1/2"
-                  disabled={!formData[currentStepConfig.field]}
-                >
-                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Add this helper function at the top of the file
-const getInitialSortPreference = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('jobSortPreference') || 'newest';
-  }
-  return 'newest';
-};
-
-// Add this type definition at the top of the file
-type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
-
-// Add this constant with the categories
 const hunterCategories: { value: HunterCategory; label: string }[] = [
   { value: 'executive', label: 'Executive' },
   { value: 'it', label: 'IT' },
@@ -621,13 +224,84 @@ const hunterCategories: { value: HunterCategory; label: string }[] = [
   { value: 'operations', label: 'Operations' }
 ];
 
-// Add this helper function near the top
+// ============= Utils =============
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
+    case 'Applied': return 'bg-blue-100 text-blue-800'
+    case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
+    case 'Interview': return 'bg-purple-100 text-purple-800'
+    case 'Offer': return 'bg-green-100 text-green-800'
+    case 'Rejected': return 'bg-red-100 text-red-800'
+    case 'Accepted': return 'bg-emerald-100 text-emerald-800'
+    default: return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getFlagIcon = (flag: string) => {
+  switch (flag) {
+    case 'no_response':
+      return <AlertCircle className="w-5 h-5 text-yellow-500" />
+    case 'update':
+      return <Clock className="w-5 h-5 text-blue-500" />
+    default:
+      return null
+  }
+}
+
+const getInitialSortPreference = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('jobSortPreference') || 'newest';
+  }
+  return 'newest';
+};
+
 const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
   return window.innerWidth <= 640;
 };
 
-// Add this custom hook at the top of the file
+const generateCoverLetter = async (job: Job, setIsGenerating: (isGenerating: string) => void) => {
+  try {
+    const response = await fetch('/api/genai', {
+      method: 'POST',
+      body: JSON.stringify({ job }),
+    });
+
+    const data = await response.json();
+    console.log('data', data);
+    
+    if (data.success) {
+      setIsGenerating("ready");
+      const response_update = await fetch(`/api/jobs`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: job.id,
+          coverLetter: {
+            ...data.coverLetterData,
+            status: 'ready',
+            dateGenerated: new Date().toISOString()
+          }
+        }),
+      });
+      // update the local job with the cover letter data  
+      
+      
+
+      if (!response_update.ok) {
+        throw new Error('Failed to update job with cover letter');
+      }
+    }
+  } catch (error) {
+    console.error('Error generating cover letter:', error);
+    setIsGenerating("failed");
+  }
+};
+
+// ============= Custom Hooks =============
 function useClientMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -1364,25 +1038,25 @@ export function AppliedTrack() {
                   transition={{ duration: 0.3 }}
                 >
                   {filteredJobs.map((job) => (
-                    <motion.div
-                      key={job.id || `job-${job.company}-${job.position}`}
-                      layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <JobCard
-                        job={job}
-                        openJobDetails={openJobDetails}
-                        handleKeyDown={handleKeyDown}
-                        layoutMode={layoutMode}
-                        updateJobStatus={updateJobStatus}
-                        updateJobDetails={updateJobDetails}
-                        setActiveTab={setActiveTab}
-                      />
-                    </motion.div>
-                  ))}
+                  <motion.div
+                    key={job.id || `job-${job.company}-${job.position}`}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <JobCard
+                      job={job}
+                      openJobDetails={openJobDetails}
+                      handleKeyDown={handleKeyDown}
+                      layoutMode={layoutMode}
+                      updateJobStatus={updateJobStatus}
+                      updateJobDetails={updateJobDetails}
+                      setActiveTab={setActiveTab}
+                    />
+                  </motion.div>
+                ))}
                 </motion.div>
               ) : (
                 <motion.div
@@ -1453,7 +1127,272 @@ export function AppliedTrack() {
   )
 }
 
-// Update JobCard component
+// ============= Small Components =============
+const SignedOutCallback = () => {
+  useEffect(() => {
+    window.location.href = "/";
+  }, []);
+  return null;
+};
+
+function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [userDetails, setUserDetails] = useState({
+    about: '',
+  });
+  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
+  const [newResumeName, setNewResumeName] = useState('');
+
+  const handleUserDetailsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
+  };
+
+  const handleResumeUpload = useCallback((res: any) => {
+    const uploadedFile = res[0];
+    // console.log("Uploaded file:", uploadedFile);
+    const saveResume = async (uploadedFile: any) => {
+      try {
+        const response = await fetch('/api/resumes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl: uploadedFile.url,
+            fileId: uploadedFile.key,
+            resumeId: "RESUME_" + uploadedFile.key,
+            fileName: uploadedFile.name,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save resume');
+        }
+
+        const data = await response.json();
+        // console.log('Resume saved:', data);
+
+        // Update the resumes state immediately after successful upload
+        setResumes(prevResumes => [...prevResumes, {
+          resumeId: "RESUME_" + uploadedFile.key,
+          fileUrl: uploadedFile.url,
+          fileName: uploadedFile.name
+        }]);
+      } catch (error) {
+        console.error('Error saving resume:', error);
+      }
+    };
+
+    saveResume(uploadedFile);
+  }, []);
+
+  const fetchResumes = useCallback(async () => {
+    try {
+      const response = await fetch('/api/resumes');
+      if (response.ok) {
+        const data = await response.json();
+        setResumes(data);
+      }
+    } catch (error) {
+      console.error('Error fetching resumes:', error);
+    }
+  }, []);
+
+  const fetchUserDetails = useCallback(async () => {
+    try {
+      const response = await fetch('/api/user');
+      if (response.ok) {
+        const data = await response.json();
+        setUserDetails({ about: data.about });
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchResumes();
+    fetchUserDetails();
+
+  }, [fetchResumes, fetchUserDetails]);
+
+  const handleSaveChanges = async () => {
+    try {
+      const response = await fetch('/api/user', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userDetails),
+      });
+
+      if (response.ok) {
+        onClose();
+      } else {
+        console.error('Failed to update user details');
+      }
+    } catch (error) {
+      console.error('Error updating user details:', error);
+    }
+  };
+
+  const handleRemoveResume = async (resumeId: string) => {
+    try {
+      const response = await fetch(`/api/resumes?resumeId=${resumeId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchResumes();
+      } else {
+        console.error('Failed to remove resume');
+      }
+    } catch (error) {
+      console.error('Error removing resume:', error);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>User Settings</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="flex-grow">
+          <div className="p-4 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Personal Details</h3>
+              <p className="text-sm text-gray-500 mb-2">This is used to help generate more accurate cover letters and other documents.</p>
+              <div className="space-y-2">
+                <Textarea
+                  className="min-h-[100px]"
+                  name="about"
+                  placeholder="About Me"
+                  value={userDetails.about}
+                  onChange={handleUserDetailsChange}
+                />
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Resumes</h3>
+              <div className="space-y-2">
+                {resumes.map((resume) => (
+                  <div key={resume.resumeId} className="flex items-center space-x-2">
+                    <a
+                      href={resume.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {resume.fileName}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveResume(resume.resumeId)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <h2 className="text-lg font-semibold mb-2">Upload Resume</h2>
+                <div className="flex items-center justify-center border border-gray-300 p-4 rounded-md">
+                  <UploadButton
+                    endpoint="pdfUploader"
+                    onClientUploadComplete={handleResumeUpload}
+                    onUploadError={(error: Error) => {
+                      console.error(error);
+                      alert("Upload failed");
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+        <div className="p-4 flex justify-end">
+          <Button onClick={handleSaveChanges}>Save Changes</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const CoverLetterButton = ({ job }: { job: Job }) => {
+  const [isGenerating, setIsGenerating] = useState("not_started");
+  const [resumeUrl, setResumeUrl] = useState(job.resumeLink);
+
+  if (!job.coverLetter) {
+    return null;
+  }
+
+  switch (isGenerating) {
+    case 'generating':
+      return (
+        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Generating Cover Letter...
+        </Button>
+      );
+
+    case 'ready':
+      return (
+        <a
+          href={job.coverLetter.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center text-sm text-blue-600 hover:underline"
+        >
+          <Download className="w-4 h-4 mr-1" />
+          Download Cover Letter
+          <CheckCircle2 className="w-4 h-4 ml-1 text-green-500" />
+        </a>
+      );
+
+    case 'failed':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2 text-red-600"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateCoverLetter(job, setIsGenerating);
+          }}
+        >
+          <>
+            <AlertCircle className="h-4 w-4" />
+            Generation Failed - Retry
+          </>
+        </Button>
+      );
+
+    case 'not_started':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateCoverLetter(job, setIsGenerating);
+          }}
+        >
+
+          <>
+            <Sparkles className="h-4 w-4" />
+            Generate Cover Letter
+          </>
+
+        </Button>
+      );
+
+    default:
+      return null;
+  }
+};
+
+// ============= Card Components =============
 function JobCard({
   job,
   openJobDetails,
@@ -1984,16 +1923,264 @@ function JobCard({
   )
 }
 
-// New ViewDetailsModal component
-function ViewDetailsModal({
-  isOpen,
-  onClose,
-  job,
-  setSelectedJob,
-  setIsModalOpen,
-  updateJobDetails,
-  activeTab: initialActiveTab  // Add this prop
-}: {
+// ============= Modal Components =============
+function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (job: Job) => void;
+  resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
+}) {
+  const { toast } = useToast()
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<Partial<Job>>({
+    dateApplied: new Date().toISOString().split('T')[0],
+    status: 'Yet to Apply',
+    company: '',
+    position: '',
+    website: '',
+    jobDescription: '',
+    resumeLink: '',
+    userId: '',
+    dateUpdated: new Date().toISOString()
+  });
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleNext = () => {
+    const currentField = addJobSteps[currentStep].field;
+
+    // Special validation for company step
+    if (currentField === 'company' && !formData.company) {
+      toast({
+        title: "Required Field",
+        description: "Please select a company from the suggestions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData[currentField]) {
+      toast({
+        title: "Required Field",
+        description: `Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentStep < addJobSteps.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!formData.company || !formData.position) {
+      toast({
+        title: "Error",
+        description: "Company name and position are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onSubmit(formData as Job);
+    setCurrentStep(0);
+    setFormData({
+      dateApplied: new Date().toISOString().split('T')[0],
+      status: 'Yet to Apply',
+      company: '',
+      position: '',
+      website: '',
+      jobDescription: '',
+      resumeLink: '',
+      userId: '',
+      dateUpdated: new Date().toISOString()
+    });
+    onClose();
+  };
+
+  const currentStepConfig = addJobSteps[currentStep];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className={`sm:max-w-md w-[45vw] ${currentStepConfig.type === 'clearbit' ? 'h-fit  ' : 'h-fit'} p-4 sm:p-6`} >
+        {currentStepConfig.type === 'clearbit' ? (
+          // Special layout for Clearbit step
+          <div className="flex flex-col h-full">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl sm:text-2xl">
+                {currentStepConfig.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="mt-4">
+              <ClearbitAutocomplete
+                placeholder={currentStepConfig.placeholder}
+                onCompanySelect={(company) => {
+                  console.log(company);
+                  setFormData(prev => ({
+                    ...prev,
+                    company: company.name,
+                    website: `https://${company.domain}`,
+                    dateUpdated: new Date().toISOString()
+                  }));
+                }}
+                onCustomInput={(companyName) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    company: companyName,
+                    website: '', // Clear website when custom input
+                    dateUpdated: new Date().toISOString()
+                  }));
+                }}
+                className="w-full p-2"
+              />
+            </div>
+
+            <div className="mt-auto pt-4">
+              {/* Progress indicators */}
+              <div className="flex gap-1 justify-center mb-4">
+                {addJobSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
+                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                      }`}
+                  />
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex justify-between gap-2">
+                {currentStep > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="w-1/2"
+                  >
+                    Back
+                  </Button>
+                ) : <div className="w-1/2" />}
+
+                <Button
+                  onClick={handleNext}
+                  className="w-1/2"
+                  disabled={!formData[currentStepConfig.field]}
+                >
+                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Original layout for other steps
+          <>
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl sm:text-2xl">
+                {currentStepConfig.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="py-4">
+              {currentStepConfig.type === 'textarea' ? (
+                <Textarea
+                  placeholder={currentStepConfig.placeholder}
+                  value={formData[currentStepConfig.field] as string || ''}
+                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
+                  className="min-h-[150px] sm:min-h-[200px] w-full"
+                />
+              ) : currentStepConfig.type === 'resume-date' ? (
+                <div className="space-y-4 w-full">
+                  <div>
+                    <Label htmlFor="dateApplied" className="block mb-2">Date Applied *</Label>
+                    <Input
+                      id="dateApplied"
+                      type="date"
+                      value={formData.dateApplied || ''}
+                      onChange={(e) => setFormData({ ...formData, dateApplied: e.target.value })}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
+                    <Select
+                      value={formData.resumeLink}
+                      onValueChange={(value) => setFormData({ ...formData, resumeLink: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a resume" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[40vh]">
+                        {resumes.map((resume) => (
+                          <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                            {resume.fileName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <Input
+                  type={currentStepConfig.type}
+                  placeholder={currentStepConfig.placeholder}
+                  value={formData[currentStepConfig.field] as string || ''}
+                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
+                  className="w-full"
+                  autoFocus
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4 mt-4">
+              {/* Progress indicators */}
+              <div className="flex gap-1 justify-center">
+                {addJobSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
+                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                      }`}
+                  />
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex justify-between gap-2 mt-2">
+                {currentStep > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="w-1/2"
+                  >
+                    Back
+                  </Button>
+                ) : <div className="w-1/2" />}
+
+                <Button
+                  onClick={handleNext}
+                  className="w-1/2"
+                  disabled={!formData[currentStepConfig.field]}
+                >
+                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails, activeTab: initialActiveTab }: {
   isOpen: boolean;
   onClose: () => void;
   job: Job | null;
@@ -2292,311 +2479,4 @@ function ViewDetailsModal({
     </Dialog>
   )
 }
-
-// Add this component at the end of the file or in a separate file
-const SignedOutCallback = () => {
-  useEffect(() => {
-    window.location.href = "/";
-  }, []);
-  return null;
-};
-
-// Add this new component at the end of the file
-function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [userDetails, setUserDetails] = useState({
-    about: '',
-  });
-  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
-  const [newResumeName, setNewResumeName] = useState('');
-
-  const handleUserDetailsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setUserDetails({ ...userDetails, [e.target.name]: e.target.value });
-  };
-
-  const handleResumeUpload = useCallback((res: any) => {
-    const uploadedFile = res[0];
-    // console.log("Uploaded file:", uploadedFile);
-    const saveResume = async (uploadedFile: any) => {
-      try {
-        const response = await fetch('/api/resumes', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fileUrl: uploadedFile.url,
-            fileId: uploadedFile.key,
-            resumeId: "RESUME_" + uploadedFile.key,
-            fileName: uploadedFile.name,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save resume');
-        }
-
-        const data = await response.json();
-        // console.log('Resume saved:', data);
-
-        // Update the resumes state immediately after successful upload
-        setResumes(prevResumes => [...prevResumes, {
-          resumeId: "RESUME_" + uploadedFile.key,
-          fileUrl: uploadedFile.url,
-          fileName: uploadedFile.name
-        }]);
-      } catch (error) {
-        console.error('Error saving resume:', error);
-      }
-    };
-
-    saveResume(uploadedFile);
-  }, []);
-
-  const fetchResumes = useCallback(async () => {
-    try {
-      const response = await fetch('/api/resumes');
-      if (response.ok) {
-        const data = await response.json();
-        setResumes(data);
-      }
-    } catch (error) {
-      console.error('Error fetching resumes:', error);
-    }
-  }, []);
-
-  const fetchUserDetails = useCallback(async () => {
-    try {
-      const response = await fetch('/api/user');
-      if (response.ok) {
-        const data = await response.json();
-        setUserDetails({ about: data.about });
-      }
-    } catch (error) {
-      console.error('Error fetching user details:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchResumes();
-    fetchUserDetails();
-
-  }, [fetchResumes, fetchUserDetails]);
-
-  const handleSaveChanges = async () => {
-    try {
-      const response = await fetch('/api/user', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userDetails),
-      });
-
-      if (response.ok) {
-        onClose();
-      } else {
-        console.error('Failed to update user details');
-      }
-    } catch (error) {
-      console.error('Error updating user details:', error);
-    }
-  };
-
-  const handleRemoveResume = async (resumeId: string) => {
-    try {
-      const response = await fetch(`/api/resumes?resumeId=${resumeId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchResumes();
-      } else {
-        console.error('Failed to remove resume');
-      }
-    } catch (error) {
-      console.error('Error removing resume:', error);
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>User Settings</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="flex-grow">
-          <div className="p-4 space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Personal Details</h3>
-              <p className="text-sm text-gray-500 mb-2">This is used to help generate more accurate cover letters and other documents.</p>
-              <div className="space-y-2">
-                <Textarea
-                  className="min-h-[100px]"
-                  name="about"
-                  placeholder="About Me"
-                  value={userDetails.about}
-                  onChange={handleUserDetailsChange}
-                />
-              </div>
-            </div>
-            <Separator />
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Resumes</h3>
-              <div className="space-y-2">
-                {resumes.map((resume) => (
-                  <div key={resume.resumeId} className="flex items-center space-x-2">
-                    <a
-                      href={resume.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      {resume.fileName}
-                    </a>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveResume(resume.resumeId)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-                <h2 className="text-lg font-semibold mb-2">Upload Resume</h2>
-                <div className="flex items-center justify-center border border-gray-300 p-4 rounded-md">
-                  <UploadButton
-                    endpoint="pdfUploader"
-                    onClientUploadComplete={handleResumeUpload}
-                    onUploadError={(error: Error) => {
-                      console.error(error);
-                      alert("Upload failed");
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-        <div className="p-4 flex justify-end">
-          <Button onClick={handleSaveChanges}>Save Changes</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-const generateCoverLetter = async (job: Job, setIsGenerating: (isGenerating: string) => void) => {
-  try {
-    const response = await fetch('/api/genai', {
-      method: 'POST',
-      body: JSON.stringify({ job }),
-    });
-
-    const data = await response.json();
-    console.log('data', data);
-    
-    if (data.success) {
-      setIsGenerating("ready");
-      const response_update = await fetch(`/api/jobs`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: job.id,
-          coverLetter: {
-            ...data.coverLetterData,
-            status: 'ready',
-            dateGenerated: new Date().toISOString()
-          }
-        }),
-      });
-      // update the local job with the cover letter data  
-      
-      
-
-      if (!response_update.ok) {
-        throw new Error('Failed to update job with cover letter');
-      }
-    }
-  } catch (error) {
-    console.error('Error generating cover letter:', error);
-    setIsGenerating("failed");
-  }
-};
-
-// Replace the existing cover letter link with this new component:
-const CoverLetterButton = ({ job }: { job: Job }) => {
-  const [isGenerating, setIsGenerating] = useState("not_started");
-  const [resumeUrl, setResumeUrl] = useState(job.resumeLink);
-
-  if (!job.coverLetter) {
-    return null;
-  }
-
-  switch (isGenerating) {
-    case 'generating':
-      return (
-        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Generating Cover Letter...
-        </Button>
-      );
-
-    case 'ready':
-      return (
-        <a
-          href={job.coverLetter.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center text-sm text-blue-600 hover:underline"
-        >
-          <Download className="w-4 h-4 mr-1" />
-          Download Cover Letter
-          <CheckCircle2 className="w-4 h-4 ml-1 text-green-500" />
-        </a>
-      );
-
-    case 'failed':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 text-red-600"
-          onClick={() => {
-            setIsGenerating("generating");
-            generateCoverLetter(job, setIsGenerating);
-          }}
-        >
-          <>
-            <AlertCircle className="h-4 w-4" />
-            Generation Failed - Retry
-          </>
-        </Button>
-      );
-
-    case 'not_started':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-          onClick={() => {
-            setIsGenerating("generating");
-            generateCoverLetter(job, setIsGenerating);
-          }}
-        >
-
-          <>
-            <Sparkles className="h-4 w-4" />
-            Generate Cover Letter
-          </>
-
-        </Button>
-      );
-
-    default:
-      return null;
-  }
-};
 

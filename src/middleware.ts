@@ -1,6 +1,11 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { Logger } from "@/lib/logger";
 
-export default clerkMiddleware();
+export default clerkMiddleware(async (auth, req) => {
+  // Restrict admin routes to users with specific permissions
+})
+
+
 
 export const config = {
   matcher: [

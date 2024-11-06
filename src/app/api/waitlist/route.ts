@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     let totalUsers = await WaitlistUserModel.countDocuments();
 
-    totalUsers += 130
+    totalUsers += 1300
 
     // Send welcome email to user
     const emailResult = await sendWaitlistEmail(email);
