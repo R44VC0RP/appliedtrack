@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 import { UserModel } from '@/models/User';
 import { User } from '@/models/User';
 import { getUserEmail } from '@/app/api/clerk/helper';
+import { Logger } from '@/lib/logger';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -14,37 +15,63 @@ const PRICE_IDS = {
   power: process.env.STRIPE_POWER_PRICE_ID!
 };
 
+/**
+ * Handles Stripe checkout session creation for subscription purchases
+ * @param {NextRequest} request - The incoming request object containing tier information
+ * @returns {Promise<NextResponse>} JSON response with checkout URL or error message
+ * @throws Will throw an error if stripe session creation fails
+ */
 export async function POST(request: NextRequest) {
   try {
-    console.log('Starting Stripe checkout process...');
+    await Logger.info('Starting Stripe checkout process', {
+      service: 'Stripe',
+      action: 'CREATE_CHECKOUT_SESSION'
+    });
     
     const { userId } = getAuth(request);
     if (!userId) {
-      console.log('Authentication failed - no userId found');
+      await Logger.warning('Unauthorized stripe checkout attempt', {
+        path: request.url,
+        method: request.method
+      });
       return new NextResponse("Unauthorized", { status: 401 });
     }
-    console.log(`Authenticated user: ${userId}`);
 
     const { tier } = await request.json();
-    console.log(`Requested subscription tier: ${tier}`);
+    await Logger.info('Stripe checkout tier requested', {
+      userId,
+      tier,
+      path: request.url
+    });
     
     const priceId = PRICE_IDS[tier as keyof typeof PRICE_IDS];
     if (!priceId) {
-      console.log(`Invalid tier requested: ${tier}`);
+      await Logger.warning('Invalid subscription tier requested', {
+        userId,
+        invalidTier: tier,
+        availableTiers: Object.keys(PRICE_IDS)
+      });
       return new NextResponse("Invalid tier", { status: 400 });
     }
-    console.log(`Using Stripe price ID: ${priceId}`);
 
     const user = await UserModel.findOne({ userId }) as User;
     if (!user) {
-      console.log(`User not found for userId: ${userId}`);
+      await Logger.error('User not found during stripe checkout', {
+        userId,
+        tier,
+        action: 'STRIPE_CHECKOUT'
+      });
       return new NextResponse("User not found", { status: 404 });
     } 
+
     const email = await getUserEmail(userId);
-    console.log(`Found user with email: ${email}`);
+    await Logger.info('Processing stripe checkout', {
+      userId,
+      tier,
+      email: email // Only logging email for tracking purposes
+    });
 
     // Create Stripe checkout session
-    console.log('Creating Stripe checkout session...');
     const session = await stripe.checkout.sessions.create({
       customer_email: email,
       line_items: [
@@ -61,15 +88,22 @@ export async function POST(request: NextRequest) {
         tier,
       },
     });
-    console.log(`Checkout session created successfully. Session ID: ${session.id}`);
+
+    await Logger.info('Stripe checkout session created', {
+      userId,
+      tier,
+      sessionId: session.id
+    });
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', error.message);
-      console.error('Error stack:', error.stack);
-    }
+    await Logger.error('Stripe checkout session creation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      service: 'Stripe',
+      action: 'CREATE_CHECKOUT_SESSION'
+    });
+    
     return new NextResponse("Error creating checkout session", { status: 500 });
   }
 }

@@ -32,61 +32,89 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const level = searchParams.get('level') || '';
     const service = searchParams.get('service') || '';
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const ip = searchParams.get('ip') || '';
+    const action = searchParams.get('action') || '';
+    const timeRange = searchParams.get('timeRange') || '1h';
+    const sortBy = searchParams.get('sortBy') || 'timestamp';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     // Build query
     const query: any = {};
     
+    if (level) query.level = level;
+    if (service) query.service = service;
+    if (ip) query.ip = ip;
+    if (action) query.action = { $regex: action, $options: 'i' };
+    
+    // Add search functionality across multiple fields
     if (search) {
       query.$or = [
         { action: { $regex: search, $options: 'i' } },
         { service: { $regex: search, $options: 'i' } },
+        { 'details.message': { $regex: search, $options: 'i' } },
         { userId: { $regex: search, $options: 'i' } }
       ];
     }
 
-    if (level) {
-      query.level = level;
+    // Handle time range
+    if (timeRange === 'custom') {
+      const startDate = searchParams.get('startDate');
+      const endDate = searchParams.get('endDate');
+      if (startDate && endDate) {
+        query.timestamp = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        };
+      }
+    } else {
+      const now = new Date();
+      const ranges: Record<string, number> = {
+        '15m': 15 * 60 * 1000,
+        '1h': 60 * 60 * 1000,
+        '6h': 6 * 60 * 60 * 1000,
+        '24h': 24 * 60 * 60 * 1000,
+        '7d': 7 * 24 * 60 * 60 * 1000
+      };
+      
+      if (ranges[timeRange]) {
+        query.timestamp = {
+          $gte: new Date(now.getTime() - ranges[timeRange])
+        };
+      }
     }
 
-    if (service) {
-      query.service = service;
-    }
+    // Execute query with pagination
+    const skip = (page - 1) * limit;
+    const sortOptions: any = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
-    if (startDate || endDate) {
-      query.timestamp = {};
-      if (startDate) query.timestamp.$gte = new Date(startDate);
-      if (endDate) query.timestamp.$lte = new Date(endDate);
-    }
+    const [logs, total] = await Promise.all([
+      LogModel.find(query)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      LogModel.countDocuments(query)
+    ]);
 
-    // Execute query
-    const totalLogs = await LogModel.countDocuments(query);
-    const logs = await LogModel.find(query)
-      .sort({ timestamp: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
-
-    // await Logger.info('logs_accessed', {
-    //   userId,
-    //   query: { page, limit, search, level, service }
-    // });
 
     return NextResponse.json({
       logs,
       pagination: {
-        total: totalLogs,
+        total,
         page,
         limit,
-        pages: Math.ceil(totalLogs / limit)
+        pages: Math.ceil(total / limit)
       }
     });
-
   } catch (error) {
-    await Logger.error('logs_fetch_error', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+    await Logger.error('Error in logs API route', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     });
-    return new NextResponse("Internal Server Error", { status: 500 });
+    
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 } 

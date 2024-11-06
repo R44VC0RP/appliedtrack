@@ -3,8 +3,12 @@ import { getAuth } from '@clerk/nextjs/server';
 import { getUserQuota } from '@/utils/quota-manager';
 import { NextRequest } from 'next/server';
 import mongoose from 'mongoose';
+import { Logger } from '@/lib/logger';
 
-// Define the expected response type
+/**
+ * Response interface for user quota information
+ * @interface QuotaResponse
+ */
 interface QuotaResponse {
   jobs: {
     used: number;
@@ -24,21 +28,31 @@ interface QuotaResponse {
   resetDate: Date;
 }
 
+/**
+ * GET endpoint to retrieve user quota information
+ * @async
+ * @param {Request} request - The incoming HTTP request
+ * @returns {Promise<NextResponse>} JSON response containing quota information or error
+ */
 export async function GET(request: Request) {
   try {
     // Ensure DB connection
     if (mongoose.connection.readyState !== 1) {
+      await Logger.info('Establishing MongoDB connection for quota check', {
+        service: 'quota-check'
+      });
       await mongoose.connect(process.env.MONGODB_URI as string);
     }
 
     const { userId } = getAuth(request as NextRequest);
     if (!userId) {
+      await Logger.warning('Unauthorized quota access attempt', {
+        path: '/api/quota',
+        method: 'GET'
+      });
       return new NextResponse(
         JSON.stringify({ error: 'Unauthorized' }),
-        { 
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        }
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -64,10 +78,12 @@ export async function GET(request: Request) {
       resetDate: new Date(quota.resetDate),
     };
 
-    // Log the response for debugging
-    console.log('Quota response for user:', userId, validatedQuota);
+    // Replace console.log with Logger
+    await Logger.info('Quota retrieved successfully', {
+      userId,
+      quotaDetails: validatedQuota
+    });
 
-    // Verify all numbers are valid
     if (Object.values(validatedQuota).some(category => 
       category !== null && 
       typeof category === 'object' && 
@@ -75,25 +91,31 @@ export async function GET(request: Request) {
         typeof val === 'number' && (isNaN(val) || !isFinite(val))
       )
     )) {
+      await Logger.error('Invalid quota values detected', {
+        userId,
+        invalidQuota: validatedQuota
+      });
       throw new Error('Invalid quota values detected');
     }
 
     return new NextResponse(
       JSON.stringify(validatedQuota),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in quota route:', error);
+    await Logger.error('Error in quota route', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: getAuth(request as NextRequest)?.userId,
+      path: '/api/quota',
+      method: 'GET'
+    });
     
     return new NextResponse(
       JSON.stringify({ 
         error: 'Error processing request', 
         details: error instanceof Error ? error.message : 'Unknown error',
-        // Return a safe default quota in case of error
         fallbackQuota: {
           jobs: { used: 0, limit: 10, remaining: 10 },
           coverLetters: { used: 0, limit: 5, remaining: 5 },
@@ -101,10 +123,7 @@ export async function GET(request: Request) {
           resetDate: new Date(new Date().setMonth(new Date().getMonth() + 1))
         }
       }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 } 

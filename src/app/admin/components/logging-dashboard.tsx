@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import { Filter, RotateCw, X, Copy, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { useDebounce } from '@/hooks/use-debounce'
+import { useInView } from 'react-intersection-observer';
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,6 +61,20 @@ interface TimelineEvent {
   count: number
 }
 
+interface FilterState {
+  level: string
+  service: string
+  startDate: Date | null
+  endDate: Date | null
+  userId: string
+  ip: string
+  timeRange: '15m' | '1h' | '6h' | '24h' | '7d' | 'custom'
+  search: string
+  action: string
+  sortBy: 'timestamp' | 'level' | 'service' | 'action'
+  sortOrder: 'asc' | 'desc'
+}
+
 function LogTimeline({ logs }: { logs: ILog[] }) {
   const timelineData = useMemo(() => {
     // Group logs by minute
@@ -83,7 +98,7 @@ function LogTimeline({ logs }: { logs: ILog[] }) {
     })
 
     return Array.from(timeGroups.entries())
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+      .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
   }, [logs])
 
   return (
@@ -113,10 +128,10 @@ function LogTimeline({ logs }: { logs: ILog[] }) {
                 <div 
                   className={`w-full ${
                     counts.error > 0 
-                      ? 'bg-destructive/90' 
+                      ? 'bg-red-500/90' 
                       : counts.warning > 0 
                       ? 'bg-yellow-500/90' 
-                      : 'bg-muted-foreground/30'
+                      : 'bg-green-500/90'
                   }`}
                   style={{ 
                     height: `${Math.max((total / 5) * maxHeight, 2)}px`,
@@ -132,45 +147,163 @@ function LogTimeline({ logs }: { logs: ILog[] }) {
   )
 }
 
+interface FilterPanelProps {
+  filters: FilterState;
+  onFilterChange: (filters: FilterState) => void;
+  services: string[];
+  onRefresh: () => void;
+  isLive: boolean;
+  onLiveToggle: (live: boolean) => void;
+  totalLogs: number;
+}
+
+function FilterPanel({
+  filters,
+  onFilterChange,
+  services,
+  onRefresh,
+  isLive,
+  onLiveToggle,
+  totalLogs
+}: FilterPanelProps) {
+  return (
+    <div className="border-b border-border bg-background p-4">
+      <div className="flex items-center justify-between space-x-4">
+        <div className="flex flex-1 items-center space-x-4">
+          {/* Time Range Selector */}
+          <Select
+            value={filters.timeRange}
+            onValueChange={(value) => 
+              onFilterChange({ ...filters, timeRange: value as FilterState['timeRange'] })
+            }
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Time Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="15m">Last 15 min</SelectItem>
+              <SelectItem value="1h">Last hour</SelectItem>
+              <SelectItem value="6h">Last 6 hours</SelectItem>
+              <SelectItem value="24h">Last 24 hours</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Level Filter */}
+          <Select
+            value={filters.level}
+            onValueChange={(value) => onFilterChange({ ...filters, level: value })}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Log Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_LEVELS}>All Levels</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
+              <SelectItem value="warning">Warning</SelectItem>
+              <SelectItem value="error">Error</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Search Input */}
+          <Input
+            placeholder="Search logs..."
+            className="max-w-sm"
+            value={filters.search}
+            onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+          />
+          <div className="text-xs text-muted-foreground">
+            {totalLogs} logs total
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onLiveToggle(!isLive)}
+          >
+            {isLive ? "Stop Live" : "Go Live"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+          >
+            <RotateCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function LoggingDashboard() {
   const { toast } = useToast()
+  const [filters, setFilters] = useState<FilterState>({
+    level: ALL_LEVELS,
+    service: ALL_SERVICES,
+    startDate: null,
+    endDate: null,
+    userId: '',
+    ip: '',
+    timeRange: '1h',
+    search: '',
+    action: '',
+    sortBy: 'timestamp',
+    sortOrder: 'desc'
+  })
   const [logs, setLogs] = useState<ILog[]>([])
-  const [search, setSearch] = useState('')
   const [isLive, setIsLive] = useState(true)
-  const [selectedLog, setSelectedLog] = useState<ILog | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [pagination, setPagination] = useState<IPagination>({
     total: 0,
     page: 1,
     limit: 50,
     pages: 0
   })
-  const [levelFilter, setLevelFilter] = useState<string>('')
-  const [serviceFilter, setServiceFilter] = useState<string>('')
-  const [initialLoading, setInitialLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(true);
+  const { ref: loadMoreRef, inView } = useInView();
 
-  const debouncedSearch = useDebounce(search, 500)
+  const debouncedFilters = useDebounce(filters, 500)
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (loadMore: boolean = false) => {
     try {
       if (initialLoading) {
         setIsLoading(true)
       }
       
+      const currentPage = loadMore ? pagination.page + 1 : 1;
+      
       const queryParams = new URLSearchParams({
-        page: pagination.page.toString(),
+        page: currentPage.toString(),
         limit: pagination.limit.toString(),
-        search: debouncedSearch,
-        level: levelFilter === ALL_LEVELS ? '' : levelFilter,
-        service: serviceFilter === ALL_SERVICES ? '' : serviceFilter
+        search: debouncedFilters.search,
+        level: debouncedFilters.level === ALL_LEVELS ? '' : debouncedFilters.level,
+        service: debouncedFilters.service === ALL_SERVICES ? '' : debouncedFilters.service,
+        userId: debouncedFilters.userId,
+        ip: debouncedFilters.ip,
+        action: debouncedFilters.action,
+        timeRange: debouncedFilters.timeRange,
+        sortBy: debouncedFilters.sortBy,
+        sortOrder: debouncedFilters.sortOrder
       })
+
+      // Add date range if custom timeRange is selected
+      if (debouncedFilters.timeRange === 'custom' && debouncedFilters.startDate && debouncedFilters.endDate) {
+        queryParams.append('startDate', debouncedFilters.startDate.toISOString())
+        queryParams.append('endDate', debouncedFilters.endDate.toISOString())
+      }
 
       const response = await fetch(`/api/admin/logs?${queryParams}`)
       if (!response.ok) throw new Error('Failed to fetch logs')
 
       const data = await response.json()
-      setLogs(data.logs)
+      setLogs(prev => loadMore ? [...prev, ...data.logs] : data.logs)
       setPagination(data.pagination)
+      setHasMore(currentPage < data.pagination.pages)
     } catch (error) {
       toast({
         title: "Error",
@@ -181,7 +314,7 @@ export function LoggingDashboard() {
       setIsLoading(false)
       setInitialLoading(false)
     }
-  }, [pagination.page, pagination.limit, debouncedSearch, levelFilter, serviceFilter, initialLoading])
+  }, [pagination.page, pagination.limit, debouncedFilters, initialLoading])
 
   useEffect(() => {
     fetchLogs()
@@ -193,6 +326,12 @@ export function LoggingDashboard() {
       return () => clearInterval(interval)
     }
   }, [fetchLogs, isLive])
+
+  useEffect(() => {
+    if (inView && hasMore && !isLoading && !isLive) {
+      fetchLogs(true);
+    }
+  }, [inView, hasMore, isLoading, isLive]);
 
   const getStatusColor = (level: string) => {
     switch (level) {
@@ -222,101 +361,130 @@ export function LoggingDashboard() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background w-full max-w-full">
+    <div className="flex flex-col bg-background w-full h-[calc(100vh-150px)]">
+      <FilterPanel
+        filters={filters}
+        onFilterChange={setFilters}
+        services={uniqueServices}
+        onRefresh={() => fetchLogs(false)}
+        isLive={isLive}
+        onLiveToggle={setIsLive}
+        totalLogs={pagination.total}
+      />
       <LogTimeline logs={logs} />
       
-      {/* Main content */}
-      <div className="flex-1 overflow-auto">
-        <Table className="relative w-full border-collapse">
-          <TableHeader className="sticky top-0 bg-background">
-            <TableRow className="border-b border-border hover:bg-transparent">
-              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Time</TableHead>
-              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Level</TableHead>
-              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Service</TableHead>
-              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Action</TableHead>
-              <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Message</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logs.map((log) => (
-              <Sheet key={log._id}>
-                <SheetTrigger asChild>
-                  <TableRow
-                    className="cursor-pointer border-0 hover:bg-muted/50 text-xs"
+      {/* Main content with fixed height and scrolling */}
+      <div className="flex-1 min-h-0">
+        <div className="h-full overflow-auto">
+          <Table className="relative w-full border-collapse">
+            <TableHeader className="sticky top-0 bg-background z-10">
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Time</TableHead>
+                <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Level</TableHead>
+                <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Service</TableHead>
+                <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Action</TableHead>
+                <TableHead className="h-8 px-3 text-xs font-medium text-muted-foreground">Message</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log) => (
+                <Sheet key={log._id}>
+                  <SheetTrigger asChild>
+                    <TableRow
+                      className="cursor-pointer border-0 hover:bg-muted/50 text-xs"
+                    >
+                      <TableCell className="h-6 px-3 py-1 font-mono">
+                        {format(new Date(log.timestamp), 'MMM dd HH:mm:ss.SSS')}
+                      </TableCell>
+                      <TableCell className={`h-6 px-3 py-1 font-mono ${getStatusColor(log.level)}`}>
+                        {log.level.toUpperCase()}
+                      </TableCell>
+                      <TableCell className="h-6 px-3 py-1 font-mono">{log.service}</TableCell>
+                      <TableCell className="h-6 px-3 py-1 font-mono">{log.action}</TableCell>
+                      <TableCell className="h-6 px-3 py-1 font-mono max-w-md truncate">
+                        {JSON.stringify(log.details)}
+                      </TableCell>
+                    </TableRow>
+                  </SheetTrigger>
+                  <SheetContent
+                    side="right"
+                    className="w-[400px] border-l border-border p-0"
                   >
-                    <TableCell className="h-6 px-3 py-1 font-mono">
-                      {format(new Date(log.timestamp), 'MMM dd HH:mm:ss.SSS')}
-                    </TableCell>
-                    <TableCell className={`h-6 px-3 py-1 font-mono ${getStatusColor(log.level)}`}>
-                      {log.level.toUpperCase()}
-                    </TableCell>
-                    <TableCell className="h-6 px-3 py-1 font-mono">{log.service}</TableCell>
-                    <TableCell className="h-6 px-3 py-1 font-mono">{log.action}</TableCell>
-                    <TableCell className="h-6 px-3 py-1 font-mono max-w-md truncate">
-                      {JSON.stringify(log.details)}
-                    </TableCell>
-                  </TableRow>
-                </SheetTrigger>
-                <SheetContent
-                  side="right"
-                  className="w-[400px] border-l border-border p-0"
-                >
-                  <div className="h-full overflow-auto">
-                    <div className="sticky top-0 border-b border-border bg-background p-4">
-                      <SheetHeader>
-                        <SheetTitle>Log Details</SheetTitle>
-                      </SheetHeader>
-                    </div>
-                    <div className="space-y-4 p-4">
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">Time</label>
-                        <div className="font-mono text-sm">
-                          {format(new Date(log.timestamp), 'PPpp')}
-                        </div>
+                    <div className="h-full overflow-auto">
+                      <div className="sticky top-0 border-b border-border bg-background p-4">
+                        <SheetHeader>
+                          <SheetTitle>Log Details</SheetTitle>
+                        </SheetHeader>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">Level</label>
-                        <div className={`font-mono text-sm ${getStatusColor(log.level)}`}>
-                          {log.level.toUpperCase()}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">Service</label>
-                        <div className="font-mono text-sm">{log.service}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">Action</label>
-                        <div className="font-mono text-sm">{log.action}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">User ID</label>
-                        <div className="font-mono text-sm">{log.userId || '-'}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">IP Address</label>
-                        <div className="font-mono text-sm">{log.ip || '-'}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">Details</label>
-                        <pre className="whitespace-pre-wrap rounded bg-muted p-2 font-mono text-xs">
-                          {JSON.stringify(log.details, null, 2)}
-                        </pre>
-                      </div>
-                      {log.metadata && (
+                      <div className="space-y-4 p-4">
                         <div className="space-y-2">
-                          <label className="text-xs text-muted-foreground">Metadata</label>
+                          <label className="text-xs text-muted-foreground">Time</label>
+                          <div className="font-mono text-sm">
+                            {format(new Date(log.timestamp), 'PPpp')}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">Level</label>
+                          <div className={`font-mono text-sm ${getStatusColor(log.level)}`}>
+                            {log.level.toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">Service</label>
+                          <div className="font-mono text-sm">{log.service}</div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">Action</label>
+                          <div className="font-mono text-sm">{log.action}</div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">User ID</label>
+                          <div className="font-mono text-sm">{log.userId || '-'}</div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">IP Address</label>
+                          <div className="font-mono text-sm">{log.ip || '-'}</div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground">Details</label>
                           <pre className="whitespace-pre-wrap rounded bg-muted p-2 font-mono text-xs">
-                            {JSON.stringify(log.metadata, null, 2)}
+                            {JSON.stringify(log.details, null, 2)}
                           </pre>
                         </div>
-                      )}
+                        {log.metadata && (
+                          <div className="space-y-2">
+                            <label className="text-xs text-muted-foreground">Metadata</label>
+                            <pre className="whitespace-pre-wrap rounded bg-muted p-2 font-mono text-xs">
+                              {JSON.stringify(log.metadata, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            ))}
-          </TableBody>
-        </Table>
+                  </SheetContent>
+                </Sheet>
+              ))}
+              
+              {/* Load more trigger */}
+              {!isLive && (
+                <TableRow ref={loadMoreRef}>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <RotateCw className="h-4 w-4 animate-spin" />
+                        <span>Loading more...</span>
+                      </div>
+                    ) : hasMore ? (
+                      <span className="text-muted-foreground">Scroll to load more</span>
+                    ) : (
+                      <span className="text-muted-foreground">No more logs</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

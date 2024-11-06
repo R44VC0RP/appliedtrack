@@ -1,19 +1,28 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { Logger } from "@/lib/logger";
+import { EdgeLogger } from "@/lib/edge-logger";
 
 export default clerkMiddleware(async (auth, req) => {
-  // Restrict admin routes to users with specific permissions
-})
+  // Log the request without blocking
+  const ignoreRoutes = ['/api/log', '/api/auth', '/api/admin/logs'];
 
+  for (const route of ignoreRoutes) {
+    if (req.url.includes(route)) {
+      return;
+    }
+  }
 
+  // EdgeLogger.info('clerkMiddleware', {
+  //   url: req.url,
+  //   method: req.method,
+  //   auth: auth.userId ? { userId: auth.userId } : { status: 'unauthorized' }
+  // });
+});
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
+    '/((?!.+\\.[\\w]+$|_next).*)',
+    '/',
     '/(api|trpc)(.*)',
-    // Handle /profile and its sub-routes
-    '/profile(.*)'
-  ],
+    '/api/log'
+  ]
 };

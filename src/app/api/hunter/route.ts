@@ -4,18 +4,28 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import mongoose from 'mongoose';
 import { incrementQuota, getUserQuota } from '@/utils/quota-manager';
+import { Logger } from '@/lib/logger';
 
 const departments = ['executive', 'it', 'finance', 'management', 'sales', 'legal', 'support', 'hr', 'marketing', 'communication', 'education', 'design', 'health', 'operations'];
 
-// Ensure connection is established
+/**
+ * Establishes connection to MongoDB if not already connected
+ * @throws {Error} If connection fails
+ */
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGODB_URI as string);
-      console.log('MongoDB connected successfully');
+      await Logger.info('MongoDB connection established', {
+        service: 'hunter-api',
+        connectionState: mongoose.connection.readyState
+      });
     }
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    await Logger.error('MongoDB connection failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      service: 'hunter-api'
+    });
     throw new Error('Failed to connect to database');
   }
 };
@@ -29,10 +39,20 @@ function isValidDomain(domain: string): boolean {
 
 // department: [executive, it, finance, management, sales, legal, support, hr, marketing, communication, education, design, health, operations]
 
+/**
+ * Searches for email addresses associated with a domain using Hunter.io API
+ * @param domain - The domain to search
+ * @param amount - Number of results to return (1-30)
+ * @param department - Optional array of departments to filter by
+ * @returns Promise containing email data and total results
+ * @throws {Error} If API request fails or parameters are invalid
+ */
 async function hunterDomainSearch(domain: string, amount: number = 5, department: string[] = []) {
-
   if (department.length > 0 && !department.every(dep => departments.includes(dep))) {
-    console.error('Invalid department:', department);
+    await Logger.warning('Invalid department specified in Hunter search', {
+      domain,
+      invalidDepartments: department.filter(dep => !departments.includes(dep))
+    });
     throw new Error('Invalid department');
   }
 
@@ -45,6 +65,12 @@ async function hunterDomainSearch(domain: string, amount: number = 5, department
   let allEmails: any[] = [];
 
   try {
+    await Logger.info('Hunter domain search initiated', {
+      domain,
+      amount,
+      department
+    });
+    
     // First request to get total results
     const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${amount}`;
     console.log('Initial URL:', initialUrl);
@@ -58,15 +84,33 @@ async function hunterDomainSearch(domain: string, amount: number = 5, department
     // Sanitize all emails
     
 
+    await Logger.info('Hunter domain search completed', {
+      domain,
+      totalResults,
+      resultsReturned: amount
+    });
+
     return { data: dataResponse, total_results: totalResults };
   } catch (error) {
-    console.error('Error fetching from Hunter:', error);
+    await Logger.error('Hunter API request failed', {
+      domain,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw error;
   }
 }
 
+/**
+ * Searches for email address by name and domain using Hunter.io API
+ * @param domain - The domain to search
+ * @param firstName - First name of the person
+ * @param lastName - Last name of the person
+ * @param amount - Number of results to return (1-30)
+ * @returns Promise containing email finder results
+ * @throws {Error} If API request fails or parameters are invalid
+ */
 async function hunterEmailNameSearch(domain: string, firstName: string, lastName: string, amount: number = 5) {
-
   if (amount < 1 || amount > 30) {
     console.error('Invalid amount:', amount);
     throw new Error('Invalid amount');
@@ -81,12 +125,27 @@ async function hunterEmailNameSearch(domain: string, firstName: string, lastName
   }
   const dataResponse = await initialResponse.json();
 
-  return dataResponse;
+  await Logger.info('Hunter email-name search completed', {
+    domain,
+    firstName,
+    lastName,
+    found: !!dataResponse.data?.email
+  });
 
+  return dataResponse;
 }
 
+/**
+ * GET handler for Hunter.io API endpoints
+ * Supports domain search and email-name search operations
+ */
 export async function GET(request: NextRequest) {
   try {
+    await Logger.info('Hunter API request received', {
+      url: request.url,
+      method: request.method
+    });
+    
     await connectDB(); // Ensure DB connection is established
 
     const { userId } = getAuth(request);
@@ -142,14 +201,16 @@ export async function GET(request: NextRequest) {
         limit = url.searchParams.get('limit') || '5';
 
         hunterData = await hunterEmailNameSearch(domain, firstName, lastName, parseInt(limit));
+        await Logger.info('Hunter API request completed', {
+          action,
+          domain,
+          userId
+        });
         // Increment quota after successful API call
         await incrementQuota(userId, 'emails');
         break;
     }
 
-
-
-    // Fetch from Hunter.io
     
 
     return NextResponse.json({
@@ -158,9 +219,15 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error in hunter route:', error);
+    await Logger.error('Hunter API request failed', {
+      url: request.url,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: getAuth(request).userId
+    });
+    
     return new NextResponse(
-      JSON.stringify({ error: 'Error processing request', details: error.message || 'Unknown error' }),
+      JSON.stringify({ error: 'Error processing request', details: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500 }
     );
   }
