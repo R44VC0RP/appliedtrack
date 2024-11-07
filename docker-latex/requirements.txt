@@ -1,5 +1,2 @@
-fastapi
-uvicorn
-pydantic
-python-multipart
-formattex
+flask
+python-dotenv
