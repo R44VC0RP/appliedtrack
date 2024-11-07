@@ -7,6 +7,7 @@ import tempfile
 from typing import Optional
 import logging
 import uvicorn
+import formattex
 
 # Configure logging
 logging.basicConfig(
@@ -62,6 +63,28 @@ def preprocess_latex_content(content: str) -> str:
     
     return '\n'.join(processed_lines)
 
+def format_latex(content: str) -> str:
+    """Format LaTeX content using formattex."""
+    try:
+        # Create a temporary file for formatting
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.tex', delete=False) as temp_file:
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        # Format the content using formattex
+        formattex.format_file(temp_file_path)
+        
+        # Read the formatted content
+        with open(temp_file_path, 'r') as f:
+            formatted_content = f.read()
+            
+        # Clean up
+        os.unlink(temp_file_path)
+        return formatted_content
+    except Exception as e:
+        logger.warning(f"LaTeX formatting failed: {str(e)}")
+        return content  # Return original content if formatting fails
+
 @app.get("/")
 async def root():
     logger.info("Root endpoint called")
@@ -71,8 +94,11 @@ async def root():
 async def convert_latex_to_pdf(request: LatexRequest):
     logger.info("Starting LaTeX to PDF conversion")
     
-    # Preprocess the LaTeX content
-    processed_content = preprocess_latex_content(request.latex_content)
+    # First format the LaTeX content
+    formatted_content = format_latex(request.latex_content)
+    
+    # Then preprocess the formatted content
+    processed_content = preprocess_latex_content(formatted_content)
     logger.debug(f"Processed LaTeX content length: {len(processed_content)}")
     
     try:
