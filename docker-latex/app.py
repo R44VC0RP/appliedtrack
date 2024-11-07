@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_file
 import os
 import subprocess
 import uuid
+import base64
 
 app = Flask(__name__)
 
@@ -16,7 +17,8 @@ os.makedirs(PDF_DIR, exist_ok=True)
 def convert_latex():
     try:
         # Get LaTeX content from request
-        latex_content = request.json.get('latex')
+        data = request.get_json()
+        latex_content = data.get('latex_content')
         if not latex_content:
             return jsonify({'error': 'No LaTeX content provided'}), 400
 
@@ -40,12 +42,13 @@ def convert_latex():
                 'details': result.stderr
             }), 500
 
-        # Move PDF to output directory
+        # Read the generated PDF and convert to base64
         pdf_path = os.path.join(PDF_DIR, f"{filename}.pdf")
-        
+        with open(pdf_path, 'rb') as pdf_file:
+            pdf_content = base64.b64encode(pdf_file.read()).decode('utf-8')
+
         return jsonify({
-            'message': 'PDF generated successfully',
-            'filename': f"{filename}.pdf"
+            'pdf_content': pdf_content
         })
 
     except Exception as e:
