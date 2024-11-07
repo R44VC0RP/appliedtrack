@@ -6,6 +6,7 @@ import os
 import tempfile
 from typing import Optional
 import logging
+import uvicorn
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +34,34 @@ class LatexRequest(BaseModel):
     latex_content: str
     output_filename: Optional[str] = None
 
+def preprocess_latex_content(content: str) -> str:
+    """Preprocess LaTeX content to escape special characters and fix common issues."""
+    replacements = {
+        '&': '\\&',  # Escape ampersand
+        '%': '\\%',  # Escape percent
+        '_': '\\_',  # Escape underscore
+        '#': '\\#',  # Escape hash
+        '~': '\\~{}',  # Escape tilde
+        '^': '\\^{}',  # Escape caret
+    }
+    
+    # Only replace & characters that aren't already escaped
+    lines = content.split('\n')
+    processed_lines = []
+    for line in lines:
+        # Skip replacement in verbatim environments or already escaped sequences
+        if '\\begin{verbatim}' in line or '\\end{verbatim}' in line:
+            processed_lines.append(line)
+            continue
+            
+        for char, replacement in replacements.items():
+            # Don't replace if it's already escaped
+            if f'\\{char}' not in line:
+                line = line.replace(char, replacement)
+        processed_lines.append(line)
+    
+    return '\n'.join(processed_lines)
+
 @app.get("/")
 async def root():
     logger.info("Root endpoint called")
@@ -41,7 +70,10 @@ async def root():
 @app.post("/convert")
 async def convert_latex_to_pdf(request: LatexRequest):
     logger.info("Starting LaTeX to PDF conversion")
-    logger.debug(f"Received LaTeX content length: {len(request.latex_content)}")
+    
+    # Preprocess the LaTeX content
+    processed_content = preprocess_latex_content(request.latex_content)
+    logger.debug(f"Processed LaTeX content length: {len(processed_content)}")
     
     try:
         # Create temporary directory
@@ -53,7 +85,7 @@ async def convert_latex_to_pdf(request: LatexRequest):
             logger.info(f"Writing LaTeX content to: {tex_path}")
             
             with open(tex_path, "w") as f:
-                f.write(request.latex_content)
+                f.write(processed_content)
             logger.debug("LaTeX content written to file successfully")
             
             # Print the content of the tex file for debugging
@@ -120,6 +152,6 @@ async def convert_latex_to_pdf(request: LatexRequest):
         )
 
 if __name__ == "__main__":
-    import uvicorn
+    
     logger.info("Starting LaTeX to PDF conversion service")
     uvicorn.run(app, host="0.0.0.0", port=8000)
