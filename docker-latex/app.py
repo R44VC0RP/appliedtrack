@@ -99,10 +99,11 @@ async def convert_latex_to_pdf(request: LatexRequest):
     
     try:
         # First format the LaTeX content
-        formatted_content = format_latex(request.latex_content)
+        # formatted_content = format_latex(request.latex_content)
         
         # Then preprocess the formatted content
-        processed_content = preprocess_latex_content(formatted_content)
+        # processed_content = preprocess_latex_content(formatted_content)
+        processed_content = request.latex_content
         logger.debug(f"Processed LaTeX content length: {len(processed_content)}")
         
         with tempfile.TemporaryDirectory() as temp_dir:
