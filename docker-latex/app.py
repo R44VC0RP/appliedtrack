@@ -72,11 +72,14 @@ def format_latex(content: str) -> str:
             temp_file_path = temp_file.name
 
         # Format the content using formattex
-        formattex.format_file(temp_file_path)
-        
-        # Read the formatted content
-        with open(temp_file_path, 'r') as f:
-            formatted_content = f.read()
+        # Check the correct method name from formattex documentation
+        if hasattr(formattex, 'format_string'):
+            formatted_content = formattex.format_string(content)
+        elif hasattr(formattex, 'format_tex'):
+            formatted_content = formattex.format_tex(content)
+        else:
+            logger.warning("No suitable formatting method found in formattex")
+            return content
             
         # Clean up
         os.unlink(temp_file_path)
