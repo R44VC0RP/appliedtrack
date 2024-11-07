@@ -1,0 +1,71 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    margin=1in
+}
+
+\title{Sample Document for Testing}
+\author{Ryan's LaTeX Converter}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction \& Overview}
+This is a test document with special characters like \& and \% and \_ to check formatting.
+
+\section{Features \& Capabilities}
+Here are some features:
+\begin{itemize}
+    \item Testing \& symbols
+    \item Testing \% comments
+    \item Testing \_ underscores
+    \item Testing \textasciitilde{} tildes
+\end{itemize}
+
+\subsection{Code Sample}
+Here's a verbatim block:
+\begin{verbatim}
+def hello_world():
+    print("Hello & World!")
+    # This is a comment with % and &
+\end{verbatim}
+
+\section{Tables}
+\begin{tabular}{|l|c|r|}
+    \hline
+    Left & Center & Right \\
+    \hline
+    1 & 2 & 3 \\
+    a & b & c \\
+    \hline
+\end{tabular}
+
+\section{Math \& Equations}
+Here's some math:
+\begin{equation*}
+    E = mc^{2} \quad \text{and} \quad F = ma
+\end{equation*}
+
+\section{Special Characters}
+Testing special characters:
+\begin{itemize}
+    \item Ampersand: \&
+    \item Percent: \%
+    \item Underscore: \_
+    \item Hash: \#
+    \item Tilde: \textasciitilde{}
+    \item Caret: \textasciicircum{}
+\end{itemize}
+
+\section{Hyperlinks}
+Here's a test link: \href{https://example.com}{Example Website}
+
+\end{document}

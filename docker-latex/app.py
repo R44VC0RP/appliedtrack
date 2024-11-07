@@ -112,10 +112,10 @@ async def convert_latex_to_pdf(request: LatexRequest):
             with open(tex_path, "w", encoding='utf-8') as f:
                 f.write(processed_content)
             
-            # Run pdflatex twice to resolve references
+            # Run pdftex twice to resolve references
             for _ in range(2):
                 process = subprocess.run(
-                    ["pdflatex", "-interaction=nonstopmode", "-output-directory", temp_dir, tex_path],
+                    ["pdftex", "-interaction=nonstopmode", "-output-directory", temp_dir, tex_path],
                     capture_output=True,
                     text=True
                 )
