@@ -102,7 +102,9 @@ export async function GET(request: NextRequest) {
       tier: user.tier,
       subscriptionDetails,
       role: user.role,
-      onBoardingComplete: user.onBoardingComplete
+      onBoardingComplete: user.onBoardingComplete,
+      about: user.about
+
     });
   } catch (error) {
     await Logger.error('Error fetching user data', {

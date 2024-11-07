@@ -45,6 +45,76 @@ async function createCoverLetterPDF(coverLetterBody: string): Promise<Buffer> {
 }
 
 /**
+ * Generates an AI rating for a job application
+ * @param job - The job application data
+ * @returns Promise containing the generated AI rating and notes
+ */
+export async function createAIRating(job: Job) {
+    const user = await getUser(job.userId);
+    const jobData = await getJob(job.id);
+
+    if (!user || !jobData) {
+        await Logger.warning('User or job not found during AI rating', {
+            userId: job.userId,
+            jobId: job.id
+        });
+        return { success: false, error: 'User or job not found' };
+    }
+
+    // Extract text from resume PDF
+    const resumeText = await Pdf.getPDFText(job.resumeLink);
+    await Logger.info('Resume text extracted successfully', {
+        jobId: job.id,
+        resumeLength: resumeText.length
+    });
+
+    const prompt_to_create_ai_rating = `
+        You are a master AI resume rating system. You are given a resume and a job description. You need to rate the resume on a scale of 1 to 100 based on how well it matches the job description.
+
+        Resume Rating Instructions:
+
+        You are going to rate ${user.name}'s resume for ${job.company}.
+
+        Here is ${user.name}'s resume: ${resumeText}
+
+        And here is ${job.company}'s job description: ${job.jobDescription}
+
+        Please rate the resume on a scale of 1 to 100 based on how well it matches the job description.
+
+        Please include your rating and notes in the response.
+
+        RULES:
+
+        1. DO NOT BE BIASED BY THE COMPANY NAME. Rate the resume based on how well it matches the job description, not the company name.
+        2. DO NOT DISCRIMINATE BASED ON THE USER'S AGE, RACE, GENDER, NATIONALITY, DISABILITY, GENETIC INFORMATION, SEXUAL ORIENTATION, RELIGION, OR ANY OTHER STATUS PROTECTED BY LAW.
+        3. DO NOT SAY THE RESUME IS "AMAZING" OR "PERFECT" OR ANY OTHER WORDS THAT WOULD BE CONSIDERED TO BE EXAGGERATED.
+        4. BE CONSTRUCTIVE AND HELPFUL, IF YOU NOTICE THAT A USER COULD IMPROVE THEIR RESUME, TELL THEM HOW TO DO SO.
+        5. IN YOUR NOTES, TELL THE USER WHAT THEY DID WELL AND WHAT THEY COULD IMPROVE ON.
+        6. IN YOUR NOTES BE CONCISE AND TO THE POINT. DO NOT WRITE MORE THAN 250 WORDS.
+        7. USE HTML TAGS IN YOUR NOTES TO FORMAT THE TEXT. ONLY USE THESE TAGS: <p>, <span>, <br>, <b>, <i>, <u>.
+        8. DO NOT ADDRESS THE USER AS THEIR NAME, JUST REFER TO THEM AS "YOU".
+    `
+
+    await Logger.info('AI resume rating prompt', {
+        jobId: job.id,
+        promptLength: prompt_to_create_ai_rating.length
+    });
+
+    // Generate cover letter using GPT
+    const { object } = await generateObject({
+        model: openai('gpt-4o-mini'),
+        schema: z.object({
+            ai_rating: z.object({
+                rating: z.number(),
+                notes: z.string(),
+            }),
+        }),
+        prompt: prompt_to_create_ai_rating,
+    });
+    return { success: true, aiRating: object.ai_rating.rating, aiNotes: object.ai_rating.notes };
+}
+
+/**
  * Generates a cover letter for a job application using AI and creates a PDF
  * @param job - The job application data
  * @returns Promise containing the generated cover letter data and PDF URL
@@ -114,7 +184,7 @@ async function createCoverLetter(job: Job) {
 
         // Generate cover letter using GPT
         const { object } = await generateObject({
-            model: openai('gpt-4-turbo'),
+            model: openai('gpt-4o-mini'),
             schema: z.object({
                 cover_letter: z.object({
                     name_of_company: z.string(),
@@ -180,19 +250,37 @@ export async function POST(req: Request) {
     try {
         
 
-        const { job } = await req.json();
-        await Logger.info('Cover letter generation request received', {
-            jobId: job.id,
-            company: job.company
-        });
-        const result = await createCoverLetter(job);
-        
-        await Logger.info('Cover letter generation completed', {
-            jobId: job.id,
-            success: result.success
-        });
+        const { job, action } = await req.json();
 
-        return Response.json({ success: true, data: result });
+        switch (action) {
+            case 'cover-letter':
+                await Logger.info('Cover letter generation request received', {
+                    jobId: job.id,
+                    company: job.company
+                });
+                const result = await createCoverLetter(job);
+                
+                await Logger.info('Cover letter generation completed', {
+                    jobId: job.id,
+                    success: result.success
+                });
+
+                return Response.json({ success: true, data: result });
+            case 'ai-rating':
+                await Logger.info('AI rating request received', {
+                    jobId: job.id,
+                    company: job.company
+                });
+                const aiRatingResult = await createAIRating(job);
+                await Logger.info('AI rating completed', {
+                    jobId: job.id,
+                    success: aiRatingResult.success
+                });
+                await JobModel.updateOne({ id: job.id }, { $set: { aiRating: aiRatingResult.aiRating, aiNotes: aiRatingResult.aiNotes, aiRated: true } });
+                return Response.json({ success: true, data: aiRatingResult });
+            default:
+                return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });
+        }
     } catch (error) {
         await Logger.error('Error in POST /api/genai', {
             error: error instanceof Error ? error.message : 'Unknown error',

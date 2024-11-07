@@ -30,6 +30,9 @@ export type Job = mongoose.Document & {
   dateApplied: Date,
   flag: string,
   isArchived: boolean,
+  aiRated: boolean,
+  aiNotes: string,
+  aiRating: number,
 };
 
 const JobSchema = new mongoose.Schema({
@@ -62,6 +65,9 @@ const JobSchema = new mongoose.Schema({
   dateApplied: Date,
   flag: String,
   isArchived: Boolean,
+  aiRated: Boolean,
+  aiNotes: String,
+  aiRating: Number,
 });
 
 export const JobModel = mongoose.models.Job || mongoose.model('Job', JobSchema);

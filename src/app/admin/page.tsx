@@ -41,6 +41,7 @@ import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
 import AiPlayground from './components/aiplayground'
 import { LoggingDashboard } from './components/logging-dashboard'
+import LatexGenerator from './components/latexgen'
 
 interface NavItem {
     title: string;
@@ -83,6 +84,11 @@ const navItems: NavItem[] = [
         title: "Logging",
         icon: FileText,
         component: LoggingDashboard,
+    },
+    {
+        title: "LaTeX Generator",
+        icon: FileText,
+        component: LatexGenerator,
     },
     {
         title: "Settings",

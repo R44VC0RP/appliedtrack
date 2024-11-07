@@ -6,7 +6,8 @@ import mongoose from 'mongoose';
 import { User, UserModel } from '@/models/User';
 import { JobModel } from '@/models/Job';
 import { Logger } from '@/lib/logger';
-
+import { createAIRating } from '../genai/route';
+import { fetchTierLimits } from '../tiers/route';
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI as string);
 
@@ -51,13 +52,16 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getOrCreateUser(userId);
 
-    let limit = 10; // Default limit for free tier
+    const tierLimits = await fetchTierLimits();
+
+    console.log('new tierLimits', tierLimits)
+
+    let limit = tierLimits.tierLimits?.free?.jobs || 10; // Default limit for free tier
     if (user.tier === 'pro') {
-      limit = 50;
+      limit = tierLimits.tierLimits?.pro?.jobs || 50;
     } else if (user.tier === 'power') {
-      limit = 0; // No limit
+      limit = tierLimits.tierLimits?.power?.jobs || 0; // No limit
     }
-    
     const jobs = await JobModel.find({ userId })
       .limit(limit)
       .lean()
@@ -119,6 +123,9 @@ export async function POST(request: NextRequest) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
+    // Check if the user has reached the limit for their tier
+    const tierLimits = await fetchTierLimits();
+
     const job = new JobModel({
       ...jobData,
       userId,
@@ -134,6 +141,42 @@ export async function POST(request: NextRequest) {
     });
     
     const savedJob = await job.save();
+
+    // Start AI rating process in background
+    // Promise.resolve().then(async () => {
+    //   try {
+    //     const aiRatingResult = await createAIRating(savedJob);
+    //     if (aiRatingResult.success) {
+    //       await JobModel.updateOne(
+    //         { id: savedJob.id },
+    //         {
+    //           $set: {
+    //             aiRating: aiRatingResult.aiRating,
+    //             aiNotes: aiRatingResult.aiNotes,
+    //             aiRated: true,
+    //             dateUpdated: new Date()
+    //           }
+    //         }
+    //       );
+    //       await Logger.info('Background AI rating completed successfully', {
+    //         jobId: savedJob.id,
+    //         rating: aiRatingResult.aiRating
+    //       });
+    //     } else {
+    //       await Logger.warning('Background AI rating failed', {
+    //         jobId: savedJob.id,
+    //         error: aiRatingResult.error
+    //       });
+    //     }
+    //   } catch (error) {
+    //     await Logger.error('Error in background AI rating process', {
+    //       jobId: savedJob.id,
+    //       error: error instanceof Error ? error.message : 'Unknown error',
+    //       stack: error instanceof Error ? error.stack : undefined
+    //     });
+    //   }
+    // });
+
     await Logger.info('Job created successfully', {
       userId,
       jobId: job.id,

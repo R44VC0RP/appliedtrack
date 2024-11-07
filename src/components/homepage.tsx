@@ -24,6 +24,13 @@ import jobTrackDashboard from '@/app/images/jobTrackDashboard.png'
 import emailLookup from '@/app/images/emailLookup.png'
 import resumeManagement from '@/app/images/resumeManagement.png'
 
+// Define the interface for pricing tier
+interface PricingTier {
+  name: string;
+  price: string;
+  features: string[];
+}
+
 export default function Homepage() {
   const [refItem, setRefItem] = useState('')
   const [email, setEmail] = useState('')
@@ -73,40 +80,52 @@ export default function Homepage() {
     },
   ]
 
-  const pricingTiers = [
-    { 
-      name: "Basic", 
-      price: 'Free', 
-      features: [
-        'Up to 15 job applications',
-        'Unlimited resumes',
-        'Up to 5 personalized cover letters/month',
-        '5 email domain lookups/month'
-      ] 
-    },
-    { 
-      name: 'Pro', 
-      price: '$10', 
-      features: [
-        '100 applications',
-        'Unlimited resumes',
-        'Up to 25 personalized cover letters/month',
-        '25 email lookups/month',
-        'Priority support'
-      ] 
-    },
-    { 
-      name: 'Power', 
-      price: '$30', 
-      features: [
-        'Unlimited applications',
-        'Unlimited resumes',
-        'Unlimited cover letters',
-        '50 email lookups',
-      ]
-    },
-  ]
+  const [tiers, setTiers] = useState([])
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
 
+  useEffect(() => {
+    const fetchTiers = async () => {
+      const response = await fetch('/api/tiers')
+      const data = await response.json()
+      console.log('data', data)
+      setPricingTiers([{ 
+            name: "Basic", 
+            price: 'Free', 
+            features: [
+              `Up to ${data.free?.jobs || 15} job applications`,
+              'Unlimited resumes',
+              `Up to ${data.free?.coverLetters || 5} personalized cover letters/month`, 
+              `${data.free?.contactEmails || 5} email domain lookups/month`
+            ] 
+          },
+          { 
+            name: 'Pro', 
+            price: '$10', 
+            features: [
+              `Up to ${data.pro?.jobs || 100} job applications`,
+              'Unlimited resumes', 
+              `Up to ${data.pro?.coverLetters || 25} personalized cover letters/month`,
+              `${data.pro?.contactEmails || 25} email domain lookups/month`,
+              'Priority support'
+            ] 
+          },
+          { 
+            name: 'Power', 
+            price: '$30', 
+            features: [
+              'Unlimited applications',
+              'Unlimited resumes',
+              'Unlimited cover letters',
+              `${data.power?.contactEmails || 50} email domain lookups/month`
+            ]
+          }
+        ]
+      )
+    }
+    fetchTiers()
+  }, [])
+
+  
   const stats = [
     { number: '78%', label: 'Job Seekers Miss Opportunities' },
     { number: '100,000+', label: 'Internal Company Contacts' },
@@ -251,16 +270,26 @@ export default function Homepage() {
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
                     Supercharged
                   </span>
+                  
                 </h1>
+                
 
                 <p className="mx-auto max-w-[800px] text-gray-200 md:text-xl mt-6 leading-relaxed">
-                  Never miss another opportunity. Join thousands of job seekers who are{' '}
-                  <span className="font-semibold text-yellow-300">landing interviews 3x faster</span>{' '}
-                  with our intelligent application tracking system.
+                  Never miss another opportunity. Join to get a better view on your job search{' '}
+                  <span className="font-semibold text-yellow-300">and land interviews 3x faster</span>{' '}
+                  with our intelligent application management system.
+
                 </p>
+                {/* <p className="text-gray-200 md:text-xl mt-6 leading-relaxed">
+                    Join our waitlist today for a chance to <span className="font-semibold text-yellow-300">win a $50 Amazon gift card!</span> Don't miss out on this exclusive opportunity!
+                  </p> */}
+
+                {/* Monetary Incentive */}
+
+                
 
                 {/* Stats Section */}
-                <motion.div 
+                {/* <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.5 }}
@@ -278,7 +307,7 @@ export default function Homepage() {
                       <span className="text-sm text-gray-300">{stat.label}</span>
                     </motion.div>
                   ))}
-                </motion.div>
+                </motion.div> */}
 
                 <div className="flex items-center justify-center space-x-6 mt-8">
                   {[
@@ -333,6 +362,25 @@ export default function Homepage() {
                   <span className="flex h-2 w-2 bg-green-400 rounded-full animate-pulse" />
                   {dailySignups} people joined today - Limited spots available
                 </p>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <a 
+                  href="https://www.producthunt.com/posts/appliedtrack?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-appliedtrack" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <img 
+                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=587730&theme=neutral" 
+                    alt="AppliedTrack - Have peace of mind in your job hunt. | Product Hunt" 
+                    width="250" 
+                    height="54" 
+                    style={{ width: '250px', height: '54px' }} 
+                  />
+                </a>
               </motion.div>
             </div>
           </div>
