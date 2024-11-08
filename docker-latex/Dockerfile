@@ -12,6 +12,7 @@ RUN apt-get update -q && \
         jq \
         qpdf \
         python3-pygments \
+        python3-pip \
         wget \
         vim-tiny && \
     rm -rf /var/lib/apt/lists/*
