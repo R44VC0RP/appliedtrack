@@ -1,71 +1,64 @@
-\documentclass{article}
-\usepackage[utf8]{inputenc}
-\usepackage{geometry}
-\usepackage{hyperref}
+\documentclass[10pt]{article}
 \usepackage{enumitem}
-\usepackage{amsmath}
+\usepackage[a4paper,margin=0.75in]{geometry}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
 
-\geometry{
-    a4paper,
-    margin=1in
-}
-
-\title{Sample Document for Testing}
-\author{Ryan's LaTeX Converter}
-\date{\today}
+\usepackage{hyperref} % For clickable links
 
 \begin{document}
 
-\maketitle
+%-------------------- Header --------------------
+\begin{center}
+    {\LARGE \textbf{Ryan Vogel}}\\
+    \vspace{0.5em}
+    Email: \href{mailto:ryan@example.com}{ryan@example.com} | Phone: (123) 456-7890 | \href{https://linkedin.com/in/ryanvogel}{LinkedIn} | Jacksonville, FL
+\end{center}
 
-\section{Introduction \& Overview}
-This is a test document with special characters like \& and \% and \_ to check formatting.
+%-------------------- Education --------------------
+\section*{Education}
+\textbf{University of North Florida (UNF)} \hfill Jacksonville, FL\\
+Bachelor of Arts in Graphic Design \hfill Expected: May 2025\\
+Relevant Coursework: Branding, Packaging Design, Visual Communication
 
-\section{Features \& Capabilities}
-Here are some features:
-\begin{itemize}
-    \item Testing \& symbols
-    \item Testing \% comments
-    \item Testing \_ underscores
-    \item Testing \textasciitilde{} tildes
+%-------------------- Experience --------------------
+\section*{Experience}
+\textbf{City of Neptune Beach} \hfill Neptune Beach, FL\\
+Social Media Manager \hfill Jan 2023 - Present
+\begin{itemize}[leftmargin=0.15in]
+    \item Manage social media content, increasing engagement by 25\% within the first six months.
+    \item Develop marketing campaigns that align with the city's initiatives, enhancing community outreach.
 \end{itemize}
 
-\subsection{Code Sample}
-Here's a verbatim block:
-\begin{verbatim}
-def hello_world():
-    print("Hello & World!")
-    # This is a comment with % and &
-\end{verbatim}
-
-\section{Tables}
-\begin{tabular}{|l|c|r|}
-    \hline
-    Left & Center & Right \\
-    \hline
-    1 & 2 & 3 \\
-    a & b & c \\
-    \hline
-\end{tabular}
-
-\section{Math \& Equations}
-Here's some math:
-\begin{equation*}
-    E = mc^{2} \quad \text{and} \quad F = ma
-\end{equation*}
-
-\section{Special Characters}
-Testing special characters:
-\begin{itemize}
-    \item Ampersand: \&
-    \item Percent: \%
-    \item Underscore: \_
-    \item Hash: \#
-    \item Tilde: \textasciitilde{}
-    \item Caret: \textasciicircum{}
+\textbf{Mandarin 3D} \hfill Jacksonville, FL\\
+Founder \hfill June 2022 - Present
+\begin{itemize}[leftmargin=0.15in]
+    \item Operate a successful 3D printing business, servicing over 150 custom print requests.
+    \item Design and manage the website \href{https://mandarin3d.com}{mandarin3d.com}, showcasing a portfolio of completed projects.
 \end{itemize}
 
-\section{Hyperlinks}
-Here's a test link: \href{https://example.com}{Example Website}
+%-------------------- Skills --------------------
+\section*{Skills}
+\textbf{Technical:} Adobe Creative Suite (Illustrator, Photoshop, InDesign), 3D Modeling Software, React, MongoDB, SQL\\
+\textbf{Programming:} HTML, CSS, JavaScript, Python\\
+\textbf{Other:} Graphic Design, Project Management, Social Media Marketing
+
+%-------------------- Projects --------------------
+\section*{Projects}
+\textbf{AppliedTrack Web App} \hfill Ongoing
+\begin{itemize}[leftmargin=0.15in]
+    \item Developing a job application tracking tool with features like Hunter.io integration for email discovery.
+    \item Implemented an intuitive UI/UX to streamline the job application management process.
+\end{itemize}
+
+\textbf{Michael Bierut Research Video} \hfill Nov 2024
+\begin{itemize}[leftmargin=0.15in]
+    \item Created a 6-minute video detailing the history and works of designer Michael Bierut, emphasizing his influence on modern design.
+\end{itemize}
+
+%-------------------- Activities & Leadership --------------------
+\section*{Activities & Leadership}
+\textbf{Graphic Design Club, UNF} \hfill Member \\
+\textbf{UNF News Program} \hfill Editor-in-Chief Applicant
 
 \end{document}
