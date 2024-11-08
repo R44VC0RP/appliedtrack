@@ -1,64 +1,75 @@
-\documentclass[10pt]{article}
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{hyperref}
+\usepackage{fontawesome}
 \usepackage{enumitem}
-\usepackage[a4paper,margin=0.75in]{geometry}
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{1em}
 
-\usepackage{hyperref} % For clickable links
+% Custom commands
+\newcommand{\cvheader}[1]{\textbf{\Large #1}}
+\newcommand{\cvsubheader}[1]{\textbf{\large #1}}
+\newcommand{\daterange}[1]{\hfill \textit{#1}}
 
 \begin{document}
 
-%-------------------- Header --------------------
 \begin{center}
-    {\LARGE \textbf{Ryan Vogel}}\\
-    \vspace{0.5em}
-    Email: \href{mailto:ryan@example.com}{ryan@example.com} | Phone: (123) 456-7890 | \href{https://linkedin.com/in/ryanvogel}{LinkedIn} | Jacksonville, FL
+    \cvheader{John Doe} \\
+    \vspace{0.1cm}
+    \faEnvelope\ email@example.com $|$ 
+    \faPhone\ (555) 123-4567 $|$ 
+    \faGithub\ github.com/johndoe $|$ 
+    \faLinkedin\ linkedin.com/in/johndoe
 \end{center}
 
-%-------------------- Education --------------------
-\section*{Education}
-\textbf{University of North Florida (UNF)} \hfill Jacksonville, FL\\
-Bachelor of Arts in Graphic Design \hfill Expected: May 2025\\
-Relevant Coursework: Branding, Packaging Design, Visual Communication
+\vspace{0.3cm}
+\hrule
+\vspace{0.3cm}
 
-%-------------------- Experience --------------------
-\section*{Experience}
-\textbf{City of Neptune Beach} \hfill Neptune Beach, FL\\
-Social Media Manager \hfill Jan 2023 - Present
-\begin{itemize}[leftmargin=0.15in]
-    \item Manage social media content, increasing engagement by 25\% within the first six months.
-    \item Develop marketing campaigns that align with the city's initiatives, enhancing community outreach.
+\cvsubheader{EDUCATION}
+\vspace{0.2cm}
+\textbf{Bachelor of Science in Computer Science} \daterange{2018 - 2022}\\
+University of Technology\\
+GPA: 3.8/4.0
+
+\vspace{0.3cm}
+\cvsubheader{EXPERIENCE}
+\vspace{0.2cm}
+\textbf{Software Engineer} at Tech Company \daterange{Jan 2022 - Present}
+\begin{itemize}[leftmargin=*]
+    \item Developed and maintained full-stack web applications using React and Node.js
+    \item Improved application performance by 40\% through code optimization
+    \item Led a team of 3 developers in implementing new features
 \end{itemize}
 
-\textbf{Mandarin 3D} \hfill Jacksonville, FL\\
-Founder \hfill June 2022 - Present
-\begin{itemize}[leftmargin=0.15in]
-    \item Operate a successful 3D printing business, servicing over 150 custom print requests.
-    \item Design and manage the website \href{https://mandarin3d.com}{mandarin3d.com}, showcasing a portfolio of completed projects.
+\textbf{Software Development Intern} at Startup Inc. \daterange{May 2021 - Aug 2021}
+\begin{itemize}[leftmargin=*]
+    \item Built RESTful APIs using Express.js and MongoDB
+    \item Implemented user authentication system using JWT
+    \item Collaborated with UI/UX team to improve user experience
 \end{itemize}
 
-%-------------------- Skills --------------------
-\section*{Skills}
-\textbf{Technical:} Adobe Creative Suite (Illustrator, Photoshop, InDesign), 3D Modeling Software, React, MongoDB, SQL\\
-\textbf{Programming:} HTML, CSS, JavaScript, Python\\
-\textbf{Other:} Graphic Design, Project Management, Social Media Marketing
+\vspace{0.3cm}
+\cvsubheader{SKILLS}
+\vspace{0.2cm}
+\textbf{Languages:} JavaScript, TypeScript, Python, Java, SQL\\
+\textbf{Technologies:} React, Node.js, Express, MongoDB, Git, Docker\\
+\textbf{Tools:} VS Code, Jira, Figma, AWS
 
-%-------------------- Projects --------------------
-\section*{Projects}
-\textbf{AppliedTrack Web App} \hfill Ongoing
-\begin{itemize}[leftmargin=0.15in]
-    \item Developing a job application tracking tool with features like Hunter.io integration for email discovery.
-    \item Implemented an intuitive UI/UX to streamline the job application management process.
+\vspace{0.3cm}
+\cvsubheader{PROJECTS}
+\vspace{0.2cm}
+\textbf{E-commerce Platform} \daterange{2022}
+\begin{itemize}[leftmargin=*]
+    \item Built a full-stack e-commerce platform using MERN stack
+    \item Implemented secure payment processing with Stripe
+    \item Deployed on AWS using Docker containers
 \end{itemize}
 
-\textbf{Michael Bierut Research Video} \hfill Nov 2024
-\begin{itemize}[leftmargin=0.15in]
-    \item Created a 6-minute video detailing the history and works of designer Michael Bierut, emphasizing his influence on modern design.
+\textbf{Task Management App} \daterange{2021}
+\begin{itemize}[leftmargin=*]
+    \item Developed a React Native mobile app for task management
+    \item Integrated with Firebase for real-time updates
+    \item Implemented push notifications and offline support
 \end{itemize}
-
-%-------------------- Activities & Leadership --------------------
-\section*{Activities & Leadership}
-\textbf{Graphic Design Club, UNF} \hfill Member \\
-\textbf{UNF News Program} \hfill Editor-in-Chief Applicant
 
 \end{document}
