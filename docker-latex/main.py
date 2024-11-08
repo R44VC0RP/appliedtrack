@@ -2,7 +2,7 @@ import subprocess
 import sys
 from fastapi import FastAPI, HTTPException
 import uvicorn
-
+from fastapi.responses import FileResponse
 app = FastAPI()
 
 def run_latex():
@@ -43,6 +43,10 @@ async def root():
 @app.post("/compile")
 async def compile_latex():
     return run_latex()
+
+@app.get("/download")
+async def download_pdf():
+    return FileResponse("test.pdf")
 
 if __name__ == "__main__":
     # Run LaTeX initially
