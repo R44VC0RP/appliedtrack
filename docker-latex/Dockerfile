@@ -14,6 +14,8 @@ RUN apt-get update -q && \
         python3-pygments \
         wget \
         vim-tiny && \
+        python3-pip && \
+        python3-venv && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /texlive
@@ -29,8 +31,6 @@ WORKDIR /data
 COPY main.py .
 
 COPY test.tex .
-
-RUN pip3 install --no-cache-dir uvicorn
 
 CMD ["python3", "main.py"]
 
