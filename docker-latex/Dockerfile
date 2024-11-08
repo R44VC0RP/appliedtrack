@@ -1,8 +1,7 @@
 FROM mingc/latex:latest
 
 # Install Python and pip
-RUN apt-get update -q && \
-    apt-get install -y -qq --no-install-recommends \
+RUN apt-get install -y -qq --no-install-recommends \
         python3 \
         python3-pip && \
     rm -rf /var/lib/apt/lists/*
