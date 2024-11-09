@@ -3,7 +3,8 @@ import { Logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
-    const { latex } = await request.json();
+    const body = await request.json();
+    const latex = body.latex;
 
     if (!latex || typeof latex !== 'string') {
       return Response.json({ error: 'Invalid LaTeX input' }, { status: 400 });

@@ -6,8 +6,7 @@ import mongoose from 'mongoose';
 import { User, UserModel } from '@/models/User';
 import { JobModel } from '@/models/Job';
 import { Logger } from '@/lib/logger';
-import { createAIRating } from '../genai/route';
-import { fetchTierLimits } from '../tiers/route';
+import { fetchTierLimits } from '@/lib/tierlimits';
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI as string);
 
@@ -142,40 +141,7 @@ export async function POST(request: NextRequest) {
     
     const savedJob = await job.save();
 
-    // Start AI rating process in background
-    // Promise.resolve().then(async () => {
-    //   try {
-    //     const aiRatingResult = await createAIRating(savedJob);
-    //     if (aiRatingResult.success) {
-    //       await JobModel.updateOne(
-    //         { id: savedJob.id },
-    //         {
-    //           $set: {
-    //             aiRating: aiRatingResult.aiRating,
-    //             aiNotes: aiRatingResult.aiNotes,
-    //             aiRated: true,
-    //             dateUpdated: new Date()
-    //           }
-    //         }
-    //       );
-    //       await Logger.info('Background AI rating completed successfully', {
-    //         jobId: savedJob.id,
-    //         rating: aiRatingResult.aiRating
-    //       });
-    //     } else {
-    //       await Logger.warning('Background AI rating failed', {
-    //         jobId: savedJob.id,
-    //         error: aiRatingResult.error
-    //       });
-    //     }
-    //   } catch (error) {
-    //     await Logger.error('Error in background AI rating process', {
-    //       jobId: savedJob.id,
-    //       error: error instanceof Error ? error.message : 'Unknown error',
-    //       stack: error instanceof Error ? error.stack : undefined
-    //     });
-    //   }
-    // });
+    
 
     await Logger.info('Job created successfully', {
       userId,

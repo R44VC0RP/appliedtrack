@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { SubscriptionButton } from '@/components/ui/subscription-button'
 // import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock, FileUp, BarChart2, Target, Quote } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock, FileUp, BarChart2, Target, Quote, Zap } from 'lucide-react'
 import { Header } from '@/components/header'
 import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
 import { useToast } from "@/hooks/use-toast"
@@ -350,7 +350,7 @@ export default function Homepage() {
                   >
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
-                        <span className="animate-spin">⚡</span> 
+                        <span className="animate-spin"><Zap className="w-4 h-4" /></span> 
                         Joining...
                       </div>
                     ) : (

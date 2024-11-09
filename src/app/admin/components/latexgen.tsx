@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { FaSpinner } from 'react-icons/fa';
 
+
 export default function LatexGenerator() {
   const [latex, setLatex] = useState('');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -14,6 +15,11 @@ export default function LatexGenerator() {
 
   const handleGenerate = async () => {
     try {
+      if (!latex.trim()) {
+        setError('Please enter LaTeX content');
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
 
@@ -22,7 +28,7 @@ export default function LatexGenerator() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ latex }),
+        body: JSON.stringify({ latex: latex.trim() }),
       });
 
       const data = await response.json();
@@ -34,6 +40,10 @@ export default function LatexGenerator() {
       setPdfUrl(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    //   await Logger.error('Frontend LaTeX generation error', {
+    //     error: err instanceof Error ? err.message : 'Unknown error',
+    //     stack: err instanceof Error ? err.stack : undefined
+    //   });
     } finally {
       setIsLoading(false);
     }

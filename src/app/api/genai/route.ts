@@ -49,7 +49,7 @@ async function createCoverLetterPDF(coverLetterBody: string): Promise<Buffer> {
  * @param job - The job application data
  * @returns Promise containing the generated AI rating and notes
  */
-export async function createAIRating(job: Job) {
+async function createAIRating(job: Job) {
     const user = await getUser(job.userId);
     const jobData = await getJob(job.id);
 

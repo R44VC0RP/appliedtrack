@@ -32,23 +32,37 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(`LaTeX conversion failed: ${error.detail}`);
+            const errorData = await response.json();
+            throw new Error(`LaTeX conversion failed: ${errorData.detail || 'Unknown error'}`);
         }
 
         const data = await response.json();
         
-        // Convert base64 PDF content to Buffer
+        if (!data.pdf_content) {
+            throw new Error('No PDF content received from conversion service');
+        }
+
+        // data.pdf_content is already base64 encoded from the server
         const pdfBuffer = Buffer.from(data.pdf_content, 'base64');
+
+        // Create a temporary file name with timestamp and random string for uniqueness
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(7);
+        const fileName = `latex-${timestamp}-${randomString}.pdf`;
 
         // Create a Blob-like object that matches FileEsque interface
         const pdfFile: FileEsque = {
-            name: `latex-${Date.now()}.pdf`,
+            name: fileName,
             [Symbol.toStringTag]: 'Blob',
-            stream: () => new ReadableStream(),
+            stream: () => new ReadableStream({
+                start(controller) {
+                    controller.enqueue(pdfBuffer);
+                    controller.close();
+                }
+            }),
             text: () => Promise.resolve(''),
-            arrayBuffer: () => Promise.resolve(pdfBuffer),
-            slice: () => new Blob(),
+            arrayBuffer: async () => pdfBuffer,
+            slice: () => new Blob([pdfBuffer], { type: 'application/pdf' }),
             size: pdfBuffer.length,
             type: 'application/pdf'
         };
@@ -66,7 +80,8 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
 
         await Logger.info('LaTeX successfully converted and uploaded', {
             fileKey,
-            fileName: uploadResponse[0].data?.name
+            fileName: uploadResponse[0].data?.name,
+            fileSize: pdfBuffer.length
         });
 
         return fileKey;
@@ -75,9 +90,10 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
         await Logger.error('Failed to convert LaTeX to PDF', {
             error: error instanceof Error ? error.message : 'Unknown error',
             stack: error instanceof Error ? error.stack : undefined,
-            service: 'FastAPI LaTeX Service'
+            service: 'FastAPI LaTeX Service',
+            latexLength: latexBody.length
         });
 
-        throw new Error('Failed to convert LaTeX to PDF');
+        throw error instanceof Error ? error : new Error('Failed to convert LaTeX to PDF');
     }
 }
