@@ -15,6 +15,7 @@ import { SignedOut, SignedIn, useUser } from '@clerk/nextjs'
 import { useToast } from "@/hooks/use-toast"
 import { FaRocket, FaChartLine, FaBrain } from 'react-icons/fa'
 import { Sparkles } from 'lucide-react'
+import dynamic from 'next/dynamic'
 
 // import jobTrackrLogo from '@/app/logos/logo.png'
 
@@ -24,12 +25,18 @@ import jobTrackDashboard from '@/app/images/jobTrackDashboard.png'
 import emailLookup from '@/app/images/emailLookup.png'
 import resumeManagement from '@/app/images/resumeManagement.png'
 
-// Define the interface for pricing tier
-interface PricingTier {
-  name: string;
-  price: string;
-  features: string[];
-}
+const PricingSection = dynamic(() => import('./homepage-components/PricingSection'), {
+  loading: () => (
+    <div className="w-full py-24 bg-gray-50 dark:bg-gray-900">
+      <div className="container mx-auto px-4 text-center">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-64 mx-auto mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-96 mx-auto"></div>
+        </div>
+      </div>
+    </div>
+  )
+})
 
 export default function Homepage() {
   const [refItem, setRefItem] = useState('')
@@ -80,57 +87,8 @@ export default function Homepage() {
     },
   ]
 
-  const [tiers, setTiers] = useState([])
-  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
-
-  useEffect(() => {
-    const fetchTiers = async () => {
-      const response = await fetch('/api/tiers')
-      const data = await response.json()
-      console.log('data', data)
-      setPricingTiers([{ 
-            name: "Basic", 
-            price: 'Free', 
-            features: [
-              `Up to ${data.free?.jobs || 15} job applications`,
-              'Unlimited resumes',
-              `Up to ${data.free?.coverLetters || 5} personalized cover letters/month`, 
-              `${data.free?.contactEmails || 5} email domain lookups/month`
-            ] 
-          },
-          { 
-            name: 'Pro', 
-            price: '$10', 
-            features: [
-              `Up to ${data.pro?.jobs || 100} job applications`,
-              'Unlimited resumes', 
-              `Up to ${data.pro?.coverLetters || 25} personalized cover letters/month`,
-              `${data.pro?.contactEmails || 25} email domain lookups/month`,
-              'Priority support'
-            ] 
-          },
-          { 
-            name: 'Power', 
-            price: '$30', 
-            features: [
-              'Unlimited applications',
-              'Unlimited resumes',
-              'Unlimited cover letters',
-              `${data.power?.contactEmails || 50} email domain lookups/month`
-            ]
-          }
-        ]
-      )
-    }
-    fetchTiers()
-  }, [])
-
   
-  const stats = [
-    { number: '78%', label: 'Job Seekers Miss Opportunities' },
-    { number: '100,000+', label: 'Internal Company Contacts' },
-    { number: '65%', label: 'Applications Lost on Average for other platforms' },
-  ]
+
 
   const handleWaitlistSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -252,12 +210,12 @@ export default function Homepage() {
 
           <div className="container relative mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
-              <motion.div
+              {/* <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
                 className="space-y-2"
-              >
+              > */}
                 <div className="flex items-center justify-center space-x-2 mb-6">
                   <span className="px-4 py-1.5 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
@@ -310,24 +268,37 @@ export default function Homepage() {
                 </motion.div> */}
 
                 <div className="flex items-center justify-center space-x-6 mt-8">
-                  {[
-                    { icon: FaRocket, text: "Free Forever Plan" },
-                    { icon: FaChartLine, text: "No Credit Card" },
-                    { icon: FaBrain, text: "AI-Powered Tools" },
-                  ].map((item, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + index * 0.1 }}
-                      className="flex items-center space-x-2 text-gray-200"
-                    >
-                      <item.icon className="w-4 h-4 text-yellow-400" />
-                      <span>{item.text}</span>
-                    </motion.div>
-                  ))}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex items-center space-x-2 text-gray-200"
+                  >
+                    <FaRocket className="w-4 h-4 text-yellow-400" />
+                    <span>Free Forever Plan</span>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center space-x-2 text-gray-200"
+                  >
+                    <FaChartLine className="w-4 h-4 text-yellow-400" />
+                    <span>No Credit Card</span>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="flex items-center space-x-2 text-gray-200"
+                  >
+                    <FaBrain className="w-4 h-4 text-yellow-400" />
+                    <span>AI-Powered Tools</span>
+                  </motion.div>
                 </div>
-              </motion.div>
+              {/* </motion.div> */}
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -552,90 +523,8 @@ export default function Homepage() {
             </motion.div>
           </div>
         </section>
-        <section id="pricing" className="w-full py-24 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
-          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent dark:from-gray-900 dark:to-transparent" />
-          
-          <div className="container relative mx-auto px-4 md:px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="text-center mb-16"
-            >
-              <span className="px-4 py-1.5 text-sm bg-primary/10 text-primary dark:bg-primary/20 rounded-full font-medium inline-block mb-4">
-                Simple Pricing
-              </span>
-              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
-                Choose the Right Plan for You
-              </h2>
-              <div className="mt-6 flex items-center justify-center gap-2 max-w-2xl mx-auto mb-2">
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
-                  <span className="hidden sm:inline"><Sparkles className="w-4 h-4" /></span>
-                  Students save 50% with .edu email verification
-                </span>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
-                Start free and upgrade as you grow. No hidden fees, no surprises.
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {pricingTiers.map((tier, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="relative"
-                >
-                  {tier.name === 'Pro' && (
-                    <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                      <span className="px-3 py-1 text-sm bg-gradient-to-r from-primary to-primary/80 text-white rounded-full font-medium">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-                  
-                  <Card className={`h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 ${
-                    tier.name === 'Pro' ? 'border-primary shadow-lg scale-105' : ''
-                  }`}>
-                    <CardHeader>
-                      <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
-                      <CardDescription className="flex items-baseline mt-4">
-                        <span className="text-4xl font-bold">{tier.price}</span>
-                        {tier.price !== 'Free' && (
-                          <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
-                        )}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <ul className="space-y-4">
-                        {tier.features.map((feature, featureIndex) => (
-                          <li key={featureIndex} className="flex items-center space-x-3">
-                            <CheckCircle2 className="w-5 h-5 text-primary" />
-                            <span className="dark:text-gray-300">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {tier.price !== 'Free' && (
-                        <SignedIn>
-                        <SubscriptionButton 
-                          tier={tier.name.toLowerCase()} 
-                          price={tier.price} 
-                        />
-                        </SignedIn>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <PricingSection />
+        
         <section id="about" className="w-full py-12 md:py-24 lg:py-32 bg-white dark:bg-gray-950">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -657,43 +546,71 @@ export default function Homepage() {
                   </p>
                   
                   <div className="space-y-3">
-                    {[
-                      {
-                        title: "Smart Organization",
-                        description: "Track every application, document, and follow-up in one place with our intuitive dashboard."
-                      },
-                      {
-                        title: "AI-Powered Insights",
-                        description: "Get personalized suggestions for follow-ups and networking opportunities based on your application history."
-                      },
-                      {
-                        title: "Document Management",
-                        description: "Store and version-control your resumes and cover letters, knowing exactly which version you used for each application."
-                      }
-                    ].map((item, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 10 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex gap-3"
-                      >
-                        <div className="flex-shrink-0">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-                            <CheckCircle2 className="w-5 h-5 text-primary" />
-                          </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.1 }}
+                      className="flex gap-3"
+                    >
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5 text-primary" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                            {item.title}
-                          </h3>
-                          <p className="text-gray-600 dark:text-gray-400">
-                            {item.description}
-                          </p>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                          Smart Organization
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Track every application, document, and follow-up in one place with our intuitive dashboard.
+                        </p>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2 }}
+                      className="flex gap-3"
+                    >
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5 text-primary" />
                         </div>
-                      </motion.div>
-                    ))}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                          AI-Powered Insights
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Get personalized suggestions for follow-ups and networking opportunities based on your application history.
+                        </p>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.3 }}
+                      className="flex gap-3"
+                    >
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5 text-primary" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                          Document Management
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Store and version-control your resumes and cover letters, knowing exactly which version you used for each application.
+                        </p>
+                      </div>
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>
@@ -712,7 +629,7 @@ export default function Homepage() {
                       src={jobTrackDashboard}
                       alt="AppliedTrack Dashboard"
                       className="w-full"
-                      priority
+                      loading="lazy"
                     />
                   </div>
                   
@@ -729,6 +646,7 @@ export default function Homepage() {
                         src={emailLookup}
                         alt="Email Discovery Feature"
                         className="w-full"
+                        loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
                         <span className="text-white text-sm p-3 font-medium">
@@ -748,6 +666,7 @@ export default function Homepage() {
                         src={resumeManagement}
                         alt="Resume Management"
                         className="w-full"
+                        loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
                         <span className="text-white text-sm p-3 font-medium">
@@ -790,17 +709,25 @@ export default function Homepage() {
               transition={{ delay: 0.5 }}
               className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 max-w-5xl mx-auto"
             >
-              {[
-                { number: "98%", label: "User Satisfaction" },
-                { number: "3x", label: "Faster Applications" },
-                { number: "24/7", label: "Support Available" },
-                { number: "100K+", label: "Applications Tracked" }
-              ].map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-2">{stat.number}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</div>
-                </div>
-              ))}
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">98%</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">User Satisfaction</div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">3x</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Faster Applications</div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">24/7</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Support Available</div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-2">100K+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Applications Tracked</div>
+              </div>
             </motion.div>
           </div>
         </section>
@@ -823,48 +750,68 @@ export default function Homepage() {
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-              {[
-                {
-                  step: "1",
-                  title: "Import Applications",
-                  description: "Easily import job applications by filling out 3 fields manually. We'll automatically organize everything for you.",
-                  icon: FileUp
-                },
-                {
-                  step: "2",
-                  title: "Track Progress",
-                  description: "Monitor application statuses, upcoming interviews, and follow-ups all in one dashboard.",
-                  icon: BarChart2
-                },
-                {
-                  step: "3",
-                  title: "Land Interviews",
-                  description: "Get reminded when to follow up and use our AI tools to increase your response rates.",
-                  icon: Target
-                }
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.2 }}
-                  className="relative"
-                >
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
-                      {item.step}
-                    </div>
-                    <div className="relative">
-                      <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
-                        <item.icon className="w-6 h-6 text-primary" />
-                      </div>
-                      <h3 className="text-xl font-semibold mb-2 dark:text-white">{item.title}</h3>
-                      <p className="text-gray-600 dark:text-gray-400">{item.description}</p>
-                    </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="relative"
+              >
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
+                    1
                   </div>
-                </motion.div>
-              ))}
+                  <div className="relative">
+                    <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
+                      <FileUp className="w-6 h-6 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2 dark:text-white">Import Applications</h3>
+                    <p className="text-gray-600 dark:text-gray-400">Easily import job applications by filling out 3 fields manually. We'll automatically organize everything for you.</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4 }}
+                className="relative"
+              >
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
+                    2
+                  </div>
+                  <div className="relative">
+                    <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
+                      <BarChart2 className="w-6 h-6 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2 dark:text-white">Track Progress</h3>
+                    <p className="text-gray-600 dark:text-gray-400">Monitor application statuses, upcoming interviews, and follow-ups all in one dashboard.</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.6 }}
+                className="relative"
+              >
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
+                    3
+                  </div>
+                  <div className="relative">
+                    <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
+                      <Target className="w-6 h-6 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2 dark:text-white">Land Interviews</h3>
+                    <p className="text-gray-600 dark:text-gray-400">Get reminded when to follow up and use our AI tools to increase your response rates.</p>
+                  </div>
+                </div>
+              </motion.div>
             </div>
 
             {/* Success Stories */}
