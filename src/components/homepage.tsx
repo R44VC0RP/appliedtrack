@@ -42,9 +42,8 @@ export default function Homepage() {
   const [refItem, setRefItem] = useState('')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState('')
   const [dailySignups, setDailySignups] = useState(0)
-  const { user } = useUser()
+
   const { toast } = useToast()
   const isDev = true // Toggle for development/launch mode
 
@@ -93,7 +92,6 @@ export default function Homepage() {
   const handleWaitlistSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    setError('')
 
     try {
       if (!email) {
@@ -177,11 +175,6 @@ export default function Homepage() {
       {/* Add Student Discount Banner */}
       <div className="w-full bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-blue-800">
         <div className="container mx-auto px-4 py-2 text-center">
-          <motion.p 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-white text-sm md:text-base font-medium flex items-center justify-center gap-2"
-          >
             <span className="hidden sm:inline">
               <Sparkles className="w-4 h-4" />
             </span>
@@ -197,7 +190,6 @@ export default function Homepage() {
               Learn more
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
-          </motion.p>
         </div>
       </div>
       <main className="flex-1">
@@ -238,40 +230,12 @@ export default function Homepage() {
                   with our intelligent application management system.
 
                 </p>
-                {/* <p className="text-gray-200 md:text-xl mt-6 leading-relaxed">
-                    Join our waitlist today for a chance to <span className="font-semibold text-yellow-300">win a $50 Amazon gift card!</span> Don't miss out on this exclusive opportunity!
-                  </p> */}
-
-                {/* Monetary Incentive */}
-
-                
-
-                {/* Stats Section */}
-                {/* <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.5 }}
-                  className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12 max-w-3xl mx-auto"
-                >
-                  {stats.map((stat, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.3 + index * 0.1 }}
-                      className="flex flex-col items-center p-4 rounded-lg bg-white/10 backdrop-blur-sm"
-                    >
-                      <span className="text-3xl font-bold text-white">{stat.number}</span>
-                      <span className="text-sm text-gray-300">{stat.label}</span>
-                    </motion.div>
-                  ))}
-                </motion.div> */}
 
                 <div className="flex items-center justify-center space-x-6 mt-8">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 }}
+                    transition={{ delay: 0 }}
                     className="flex items-center space-x-2 text-gray-200"
                   >
                     <FaRocket className="w-4 h-4 text-yellow-400" />
@@ -281,7 +245,7 @@ export default function Homepage() {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
+                    transition={{ delay: 0.2 }}
                     className="flex items-center space-x-2 text-gray-200"
                   >
                     <FaChartLine className="w-4 h-4 text-yellow-400" />
@@ -291,7 +255,7 @@ export default function Homepage() {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.6 }}
+                    transition={{ delay: 0.4 }}
                     className="flex items-center space-x-2 text-gray-200"
                   >
                     <FaBrain className="w-4 h-4 text-yellow-400" />
