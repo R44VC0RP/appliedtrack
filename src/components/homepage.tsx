@@ -385,7 +385,7 @@ export default function Homepage() {
             </div>
           </div>
         </section>
-        <section id="features" className="w-full py-24 bg-white dark:bg-gray-950 relative overflow-hidden">
+        <section id="features" className="w-full py-24 bg-white dark:bg-gray-900 relative overflow-hidden">
           {/* Background decoration */}
           <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
@@ -436,6 +436,120 @@ export default function Homepage() {
                 </motion.div>
               ))}
             </div>
+          </div>
+        </section>
+        <section className="w-full py-24 bg-white dark:bg-gray-900 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 w-1/2 h-[500px] bg-gradient-to-r from-primary/20 to-transparent blur-3xl" />
+          <div className="absolute top-1/2 -translate-y-1/2 right-0 w-1/2 h-[500px] bg-gradient-to-l from-primary/20 to-transparent blur-3xl" />
+
+          <div className="container relative mx-auto px-4 md:px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                How{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+                  AppliedTrack
+                </span>{' '}
+                Works
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                Your intelligent job application assistant that streamlines every step of your job search
+              </p>
+            </motion.div>
+
+            <div className="relative">
+              {/* Connection line */}
+              <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/0 via-primary/50 to-primary/0 hidden md:block" />
+
+              {/* Steps */}
+              {[
+                {
+                  title: "Initial Setup",
+                  description: "When you join, you upload your base resume and share your professional background in a short bio. Our AI learns your style and characteristics to fine tune it for you.",
+                  image: "/setup-illustration.png"
+                },
+                {
+                  title: "Job Discovery & Analysis",
+                  description: "Before you apply, add the company name, job title and the job description. (LinkedIn & Indeed Integration Coming Soon), from this we'll analyze your match score to help you prioritize applications.",
+                  image: "/analysis-illustration.png"
+                },
+                {
+                  title: "Personalized Documents",
+                  description: "Once you have added a job, we'll generate a tailored resume and cover letter that matches the job requirements while maintaining your professional voice.",
+                  image: "/documents-illustration.png"
+                },
+                {
+                  title: "Application Tracking",
+                  description: "We provide a dashboard to track your application statuses, receive follow-up reminders.",
+                  image: "/tracking-illustration.png"
+                },
+                {
+                  title: "Smart Networking",
+                  description: "We provide a list of internal contacts for follow-ups based on your job history. You can search based on company name, location, and industry.",
+                  image: "/networking-illustration.png"
+                }
+              ].map((step, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.2 }}
+                  className={`relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center mb-16 ${
+                    index % 2 === 0 ? 'md:text-right' : 'md:text-left md:flex-row-reverse'
+                  }`}
+                >
+                  <div className={`space-y-4 ${index % 2 === 0 ? 'md:order-1' : 'md:order-2'}`}>
+                    <div className={`inline-flex items-center ${index % 2 === 0 ? 'md:justify-end' : 'md:justify-start'}`}>
+                      <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div className={`p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg ${
+                      index % 2 === 0 ? 'md:mr-4' : 'md:ml-4'
+                    }`}>
+                      <h3 className="text-xl font-bold mb-2 dark:text-white">{step.title}</h3>
+                      <p className="text-gray-600 dark:text-gray-400">{step.description}</p>
+                    </div>
+                  </div>
+                  
+                  <div className={`relative ${index % 2 === 0 ? 'md:order-2' : 'md:order-1'}`}>
+                    <div className="bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl p-4">
+                      <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        {/* Replace with actual feature preview images */}
+                        <div className="text-primary/40">Feature Preview</div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Final CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mt-16"
+            >
+              <Button 
+                size="lg"
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => {
+                  const element = document.getElementById('pricing');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Get Started Now
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </motion.div>
           </div>
         </section>
         <section id="pricing" className="w-full py-24 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
