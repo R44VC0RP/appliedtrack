@@ -271,6 +271,43 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
+const generateResume = async (
+  job: Job,
+  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>
+) => {
+  try {
+    const response = await fetch('/api/genai', {
+      method: 'POST',
+      body: JSON.stringify({ job, action: 'resume' }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Update job with generated resume
+      const response_update = await fetch(`/api/jobs`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: job.id,
+          resumeLink: data.data.pdfUrl,
+          dateUpdated: new Date().toISOString()
+        }),
+      });
+
+      if (!response_update.ok) {
+        throw new Error('Failed to update job with resume');
+      }
+
+      setIsGenerating("ready");
+    }
+  } catch (error) {
+    console.error('Error generating resume:', error);
+    setIsGenerating("failed");
+  }
+};
 
 
 const generateCoverLetter = async (
@@ -1261,11 +1298,77 @@ const SignedOutCallback = () => {
   return null;
 };
 
+const ResumeButton = ({ job }: { job: Job }) => {
+  const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
+    job.generatedResume?.status || "not_started"
+  );
 
+  
+
+  switch (isGenerating) {
+    case 'generating':
+      return (
+        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Generating Resume...
+        </Button>
+      );
+
+    case 'ready':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
+          onClick={() => {
+            window.open(job.generatedResume?.url, '_blank');
+          }}
+        >
+          <Download className="w-4 h-4" />
+          <span>Download Resume</span>
+          <CheckCircle2 className="w-4 h-4 text-green-500" />
+        </Button>
+      );
+
+    case 'failed':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2 text-red-600"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateResume(job, setIsGenerating);
+          }}
+        >
+          <AlertCircle className="h-4 w-4" />
+          Generation Failed - Retry
+        </Button>
+      );
+
+    
+
+    
+    default:
+      return (
+      <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateResume(job, setIsGenerating);
+          }}
+        >
+          <Sparkles className="h-4 w-4" />
+          Generate Resume
+        </Button>
+      );
+  }
+};
 
 const CoverLetterButton = ({ job }: { job: Job }) => {
   const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
-  const [resumeUrl, setResumeUrl] = useState(job.resumeLink);
   const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
 
   // if (job.coverLetter?.status === 'ready') {
@@ -1291,31 +1394,8 @@ const CoverLetterButton = ({ job }: { job: Job }) => {
           variant="outline"
           size="sm"
           className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
-          onClick={async () => {
-            try {
-              // Fetch the PDF file
-              const response = await fetch(coverLetterUrl || '');
-              const blob = await response.blob();
-
-              // Create a temporary URL for the blob
-              const url = window.URL.createObjectURL(blob);
-
-              // Create a temporary anchor element
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `${job.company.replace(/\s+/g, '_')}_coverletter.pdf`;
-
-              // Append to document, click, and cleanup
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-
-              // Revoke the temporary URL
-              window.URL.revokeObjectURL(url);
-            } catch (error) {
-              console.error('Error downloading cover letter:', error);
-              toast.error("Failed to download the cover letter. Please try again.")
-            }
+          onClick={() => {
+            window.open(job.coverLetter?.url, '_blank');
           }}
         >
           <Download className="w-4 h-4" />
@@ -1751,6 +1831,7 @@ function JobCard({
                 Resume
               </a> */}
               <CoverLetterButton job={job} />
+              <ResumeButton job={job} />
 
             </div>
 

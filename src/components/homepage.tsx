@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input"
 import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock, FileUp, BarChart2, Target, Quote, Zap } from 'lucide-react'
 import { Header } from '@/components/header'
 
-import { useToast } from "@/hooks/use-toast"
 import { FaRocket, FaChartLine, FaBrain } from 'react-icons/fa'
 import { Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import { toast } from "sonner"
 
 // import jobTrackrLogo from '@/app/logos/logo.png'
 
@@ -30,6 +30,11 @@ const PricingSection = dynamic(() => import('./homepage-components/PricingSectio
 
 const ParticlesBackground = dynamic(() => import('./homepage-components/ParticlesBackground'), {
   loading: () => null,
+  ssr: false
+})
+
+const DemoVideo = dynamic(() => import('./homepage-components/DemoVideo'), {
+  loading: () => <LoadingDemoVideo />,
   ssr: false
 })
 
@@ -81,8 +86,6 @@ export default function Homepage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const DAILY_SIGNUPS = 35 // Average number, no need for random generation
 
-  const { toast } = useToast()
-
   const handleWaitlistSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -117,16 +120,13 @@ export default function Homepage() {
       const data = await response.json()
       setEmail('')
       
-      toast({
-        title: "Success!",
-        description: `You're number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`,
+      toast.success("Success!", {
+        description: `You're number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`
       })
 
     } catch (err: any) {
-      toast({
-        title: "Notice",
-        description: err.message,
-        variant: err.message.includes('already on our waitlist') ? "default" : "destructive"
+      toast.error(err.message.includes('already on our waitlist') ? "Notice" : "Error", {
+        description: err.message
       })
     } finally {
       setIsSubmitting(false)
@@ -162,7 +162,7 @@ export default function Homepage() {
 
       <main className="flex-1">
         {/* Hero Section with proper centering */}
-        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900/80 overflow-hidden">
+        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950/80 overflow-hidden">
           <Suspense fallback={null}>
             <ParticlesBackground />
           </Suspense>
@@ -210,8 +210,8 @@ export default function Homepage() {
             {/* Waitlist Form */}
             <div className="w-full max-w-md mt-8">
               <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleWaitlistSignup}>
-                <Input
-                  className="flex-1 bg-white/90 text-primary placeholder:text-gray-500"
+              <Input
+                  className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
                   placeholder="Enter your email"
                   type="email"
                   value={email}
@@ -253,7 +253,7 @@ export default function Homepage() {
         </section>
 
         {/* Features Section with proper grid */}
-        <section className="w-full py-24 bg-white dark:bg-gray-900">
+        <section className="w-full py-24 bg-white dark:bg-gray-950">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
@@ -269,7 +269,7 @@ export default function Homepage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
               {/* Smart Application Tracking */}
-              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
@@ -285,7 +285,7 @@ export default function Homepage() {
               </Card>
 
               {/* Email Discovery */}
-              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
@@ -301,7 +301,7 @@ export default function Homepage() {
               </Card>
 
               {/* Resume Management */}
-              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
@@ -317,7 +317,7 @@ export default function Homepage() {
               </Card>
 
               {/* Cover Letter Generator */}
-              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
                   <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
@@ -333,7 +333,7 @@ export default function Homepage() {
               </Card>
 
               {/* Follow-up Reminders */}
-              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
                   <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
@@ -349,7 +349,7 @@ export default function Homepage() {
               </Card>
 
               {/* ATS Review */}
-              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
                   <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
@@ -367,13 +367,36 @@ export default function Homepage() {
           </div>
         </section>
 
+        {/* Demo Section */}
+        <section className="w-full py-24 bg-gray-50 dark:bg-gray-950">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                See AppliedTrack in{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+                  Action
+                </span>
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                Watch how AppliedTrack streamlines your job search process from start to finish.
+              </p>
+            </div>
+
+            <div className="max-w-4xl mx-auto">
+              <div className="relative aspect-video rounded-xl overflow-hidden shadow-xl">
+                <DemoVideo />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Pricing Section */}
         <Suspense fallback={<LoadingPricingSection />}>
           <PricingSection />
         </Suspense>
 
         {/* Footer */}
-        <footer className="w-full py-6 border-t dark:border-gray-800">
+        <footer className="w-full py-6 border-t dark:border-gray-700">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between">
             <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 AppliedTrack. All rights reserved.</p>
             <nav className="flex gap-4 sm:gap-6 mt-4 sm:mt-0">
@@ -400,18 +423,24 @@ export default function Homepage() {
 // Keep LoadingPricingSection component
 function LoadingPricingSection() {
   return (
-    <div className="w-full py-24 bg-gray-50 dark:bg-gray-900">
+    <div className="w-full py-24 bg-gray-50 dark:bg-gray-950">
       <div className="container mx-auto px-4 text-center">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-64 mx-auto" />
-          <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-96 mx-auto" />
+          <div className="h-8 bg-gray-200 dark:bg-gray-900 rounded w-64 mx-auto" />
+          <div className="h-4 bg-gray-200 dark:bg-gray-900 rounded w-96 mx-auto" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-96 bg-gray-200 dark:bg-gray-800 rounded" />
+              <div key={i} className="h-96 bg-gray-200 dark:bg-gray-900 rounded" />
             ))}
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+function LoadingDemoVideo() {
+  return (
+    <div className="absolute inset-0 w-full h-full bg-gray-200 dark:bg-gray-900 animate-pulse rounded-xl" />
   )
 }

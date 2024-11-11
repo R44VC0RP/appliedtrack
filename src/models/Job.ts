@@ -20,6 +20,11 @@ export interface IJob {
   status: JobStatus;
   website: string;
   resumeLink: string;
+  generatedResume?: {
+    url: string;
+    status: 'generating' | 'ready' | 'failed' | 'not_started';
+    dateGenerated?: string;
+  };
   jobDescription: string;
   dateApplied: string;
   coverLetterLink?: string;
