@@ -13,5 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Run the application
-CMD ["python", "app.py"]
+# Make sure the script is executable
+RUN chmod +x app.py
+
+# Set Python to run in unbuffered mode
+ENV PYTHONUNBUFFERED=1
+
+# Run the application with explicit python path
+CMD [ "python", "app.py" ]
