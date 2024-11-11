@@ -292,12 +292,9 @@ export default function Homepage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (
-                <motion.div
+                <div
                   key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800 overflow-hidden"
                 >
                   <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800 overflow-hidden">
                     <CardHeader>
@@ -313,7 +310,7 @@ export default function Homepage() {
                       <p className="dark:text-gray-400">{feature.description}</p>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>
@@ -325,12 +322,7 @@ export default function Homepage() {
           <div className="absolute top-1/2 -translate-y-1/2 right-0 w-1/2 h-[500px] bg-gradient-to-l from-primary/20 to-transparent blur-3xl" />
 
           <div className="container relative mx-auto px-4 md:px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
+            <div className="text-center mb-16">
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                 How{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
@@ -341,7 +333,7 @@ export default function Homepage() {
               <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                 Your intelligent job application assistant that streamlines every step of your job search
               </p>
-            </motion.div>
+            </div>
 
             <div className="relative">
               {/* Connection line */}
@@ -375,12 +367,8 @@ export default function Homepage() {
                   image: "/networking-illustration.png"
                 }
               ].map((step, index) => (
-                <motion.div
+                <div
                   key={index}
-                  initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.2 }}
                   className={`relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center mb-16 ${
                     index % 2 === 0 ? 'md:text-right' : 'md:text-left md:flex-row-reverse'
                   }`}
@@ -407,15 +395,12 @@ export default function Homepage() {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
 
             {/* Final CTA */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+            <div
               className="text-center mt-16"
             >
               <Button 
@@ -429,7 +414,7 @@ export default function Homepage() {
                 Get Started Now
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
-            </motion.div>
+            </div>
           </div>
         </section>
         <PricingSection />
@@ -437,11 +422,8 @@ export default function Homepage() {
         <section id="about" className="w-full py-12 md:py-24 lg:py-32 bg-white dark:bg-gray-950">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
+              <div
+                className="text-center mb-16"
               >
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                   Your Complete Job Search{' '}
@@ -455,11 +437,7 @@ export default function Homepage() {
                   </p>
                   
                   <div className="space-y-3">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.1 }}
+                    <div
                       className="flex gap-3"
                     >
                       <div className="flex-shrink-0">
@@ -475,13 +453,9 @@ export default function Homepage() {
                           Track every application, document, and follow-up in one place with our intuitive dashboard.
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
 
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.2 }}
+                    <div
                       className="flex gap-3"
                     >
                       <div className="flex-shrink-0">
@@ -497,13 +471,9 @@ export default function Homepage() {
                           Get personalized suggestions for follow-ups and networking opportunities based on your application history.
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
 
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.3 }}
+                    <div
                       className="flex gap-3"
                     >
                       <div className="flex-shrink-0">
@@ -519,17 +489,13 @@ export default function Homepage() {
                           Store and version-control your resumes and cover letters, knowing exactly which version you used for each application.
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
               <div className="space-y-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5 }}
+                <div
                   className="relative"
                 >
                   {/* Main Dashboard View */}
@@ -544,11 +510,7 @@ export default function Homepage() {
                   
                   {/* Feature Previews */}
                   <div className="grid grid-cols-2 gap-4 mt-4">
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.2 }}
+                    <div
                       className="relative rounded-lg overflow-hidden shadow-lg"
                     >
                       <Image
@@ -562,13 +524,9 @@ export default function Homepage() {
                           Email Discovery
                         </span>
                       </div>
-                    </motion.div>
+                    </div>
                     
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: 0.3 }}
+                    <div
                       className="relative rounded-lg overflow-hidden shadow-lg"
                     >
                       <Image
@@ -582,16 +540,12 @@ export default function Homepage() {
                           Resume Management
                         </span>
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
-                </motion.div>
+                </div>
 
                 {/* User Testimonial */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.4 }}
+                <div
                   className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 shadow-lg"
                 >
                   <div className="flex items-center gap-4 mb-4">
@@ -606,16 +560,12 @@ export default function Homepage() {
                   <blockquote className="text-gray-600 dark:text-gray-400 italic">
                     "AppliedTrack helped me land my dream job by keeping me organized and on top of my follow-ups. The email discovery feature was a game-changer for networking."
                   </blockquote>
-                </motion.div>
+                </div>
               </div>
             </div>
 
             {/* Stats Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.5 }}
+            <div
               className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 max-w-5xl mx-auto"
             >
               <div className="text-center">
@@ -637,99 +587,66 @@ export default function Homepage() {
                 <div className="text-3xl font-bold text-primary mb-2">100K+</div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">Applications Tracked</div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </section>
         <section className="w-full py-24 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
           <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
           
           <div className="container mx-auto px-4 md:px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
+            <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-4 dark:text-white">
                 How AppliedTrack{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
                   Streamlines Your Job Search
                 </span>
               </h2>
-            </motion.div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="relative"
-              >
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
-                    1
-                  </div>
-                  <div className="relative">
-                    <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
-                      <FileUp className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2 dark:text-white">Import Applications</h3>
-                    <p className="text-gray-600 dark:text-gray-400">Easily import job applications by filling out 3 fields manually. We'll automatically organize everything for you.</p>
-                  </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
+                  1
                 </div>
-              </motion.div>
+                <div className="relative">
+                  <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
+                    <FileUp className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 dark:text-white">Import Applications</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Easily import job applications by filling out 3 fields manually. We'll automatically organize everything for you.</p>
+                </div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4 }}
-                className="relative"
-              >
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
-                    2
-                  </div>
-                  <div className="relative">
-                    <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
-                      <BarChart2 className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2 dark:text-white">Track Progress</h3>
-                    <p className="text-gray-600 dark:text-gray-400">Monitor application statuses, upcoming interviews, and follow-ups all in one dashboard.</p>
-                  </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
+                  2
                 </div>
-              </motion.div>
+                <div className="relative">
+                  <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
+                    <BarChart2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 dark:text-white">Track Progress</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Monitor application statuses, upcoming interviews, and follow-ups all in one dashboard.</p>
+                </div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.6 }}
-                className="relative"
-              >
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
-                    3
-                  </div>
-                  <div className="relative">
-                    <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
-                      <Target className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2 dark:text-white">Land Interviews</h3>
-                    <p className="text-gray-600 dark:text-gray-400">Get reminded when to follow up and use our AI tools to increase your response rates.</p>
-                  </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 h-full shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 text-5xl font-bold text-gray-100 dark:text-gray-700">
+                  3
                 </div>
-              </motion.div>
+                <div className="relative">
+                  <div className="mb-4 inline-block p-3 bg-primary/10 rounded-lg">
+                    <Target className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 dark:text-white">Land Interviews</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Get reminded when to follow up and use our AI tools to increase your response rates.</p>
+                </div>
+              </div>
             </div>
 
             {/* Success Stories */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mt-24">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-              >
+              <div>
                 <h3 className="text-2xl font-bold mb-6 dark:text-white">Success Stories</h3>
                 <div className="space-y-6">
                   {[
@@ -744,12 +661,8 @@ export default function Homepage() {
                       company: "Fortune 500 Company"
                     }
                   ].map((testimonial, index) => (
-                    <motion.div
+                    <div
                       key={index}
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: index * 0.2 }}
                       className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"
                     >
                       <div className="flex gap-4">
@@ -764,16 +677,13 @@ export default function Homepage() {
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
 
               {/* Feature Comparison */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
+              <div
                 className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl"
               >
                 <h3 className="text-2xl font-bold mb-6 dark:text-white">Why Choose AppliedTrack?</h3>
@@ -812,14 +722,11 @@ export default function Homepage() {
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             </div>
 
             {/* Final CTA */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+            <div
               className="text-center mt-24 max-w-3xl mx-auto"
             >
               <h3 className="text-2xl font-bold mb-4 dark:text-white">
@@ -846,7 +753,7 @@ export default function Homepage() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
                 No credit card required. Free forever plan available.
               </p>
-            </motion.div>
+            </div>
           </div>
         </section>
       </main>
