@@ -1,12 +1,8 @@
-import { NextResponse } from 'next/server';
-import { ConfigModel } from '@/models/Config';
-import { fetchTierLimits } from '@/lib/tierlimits';
-import { Logger } from '@/lib/logger';
+"use server"
 
-interface TierResponse {
-  tierLimits?: Record<string, any>;
-  error?: string;
-}
+import { NextResponse } from 'next/server';
+import { fetchTierLimits } from '@/lib/tierlimits';
+
 
 export async function GET() {
   const response = await fetchTierLimits();

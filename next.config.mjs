@@ -7,26 +7,45 @@ const nextConfig = {
         minimumCacheTTL: 60,
     },
     experimental: {
-        optimizeCss: true,
         optimizePackageImports: ['lucide-react', 'react-icons'],
     },
     webpack: (config, { isServer }) => {
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                punycode: false,
+            };
+        }
+
         config.resolve.alias.canvas = false;
         
-        config.optimization.minimizer.forEach((minimizer) => {
+        config.optimization.minimizer = config.optimization.minimizer.map((minimizer) => {
             if (minimizer.constructor.name === 'TerserPlugin') {
                 minimizer.options.terserOptions = {
                     ...minimizer.options.terserOptions,
                     output: {
                         ...minimizer.options.terserOptions.output,
+                        comments: false,
                         ascii_only: true
                     }
                 };
             }
+            return minimizer;
         });
         
         return config;
     },
 };
+
+if (process.env.NODE_ENV === 'production') {
+    nextConfig.experimental = {
+        ...nextConfig.experimental,
+        optimizeCss: {
+            cssModules: true,
+            minify: true,
+            inlineThreshold: 4096,
+        },
+    };
+}
 
 export default nextConfig;

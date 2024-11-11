@@ -832,7 +832,7 @@ export function AppliedTrack() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl text-center">
-              Welcome to AppliedTrack! 🎉
+            Welcome to AppliedTrack! {'\u{1F389}'}
             </DialogTitle>
             <DialogDescription className="text-center">
               Your job search journey starts here. Let's help you land your dream job!
