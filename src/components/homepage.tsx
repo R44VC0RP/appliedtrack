@@ -38,6 +38,14 @@ const PricingSection = dynamic(() => import('./homepage-components/PricingSectio
   )
 })
 
+const ParticlesBackground = dynamic(
+  () => import('./homepage-components/ParticlesBackground'),
+  {
+    loading: () => null, // No loading state needed as it's a background effect
+    ssr: false // Disable server-side rendering for particles
+  }
+);
+
 export default function Homepage() {
   const [refItem, setRefItem] = useState('')
   const [email, setEmail] = useState('')
@@ -172,108 +180,58 @@ export default function Homepage() {
   return (
     <div className="flex flex-col min-h-screen dark:bg-gray-950">
       <Header />
-      {/* Add Student Discount Banner */}
-      <div className="w-full bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-blue-800">
-        <div className="container mx-auto px-4 py-2 text-center">
-            <span className="hidden sm:inline">
-              <Sparkles className="w-4 h-4" />
-            </span>
-            Students get 50% off with a valid .edu email!
-            <Button 
-              variant="link" 
-              className="text-white hover:text-blue-100 pl-1 underline-offset-4 h-auto p-0"
-              onClick={() => {
-                const element = document.getElementById('pricing');
-                element?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              Learn more
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-        </div>
-      </div>
+      
+
       <main className="flex-1">
-        <section className="relative w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900/80 overflow-hidden">
-          {/* Abstract Background Shapes */}
-          <div className="absolute inset-0 overflow-hidden opacity-30">
-            <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-3xl" />
-            <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/20 to-transparent rounded-full blur-3xl" />
-          </div>
+        <section className="relative w-full py-8 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900/80 overflow-hidden">
+          <ParticlesBackground />
 
           <div className="container relative mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
-              {/* <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="space-y-2"
-              > */}
-                <div className="flex items-center justify-center space-x-2 mb-6">
-                  <span className="px-4 py-1.5 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    Beta Access Coming Soon
-                  </span>
+              {/* Simplified mobile header */}
+              <div className="flex items-center justify-center space-x-2 mb-4 md:mb-6">
+                <span className="px-3 py-1 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
+                  <span className="hidden md:inline">Beta Access</span>
+                  <span className="md:hidden">Beta Soon</span>
+                </span>
+              </div>
+
+              <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-7xl font-bold tracking-tighter text-white">
+                Your Job Search,{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
+                  Supercharged
+                </span>
+              </h1>
+
+              <p className="mx-auto max-w-[800px] text-base md:text-xl text-gray-200 mt-4 md:mt-6 leading-relaxed">
+                Never miss another opportunity. Land interviews{' '}
+                <span className="font-semibold text-yellow-300">3x faster</span>{' '}
+                with our intelligent system.
+              </p>
+
+              {/* Mobile-optimized feature list */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6 mt-6 md:mt-8">
+                <div className="flex items-center space-x-2 text-gray-200 text-sm md:text-base">
+                  <FaRocket className="w-3 h-3 md:w-4 md:h-4 text-yellow-400" />
+                  <span>Free Forever Plan</span>
                 </div>
-
-                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl/none text-white">
-                  Your Job Search,{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
-                    Supercharged
-                  </span>
-                  
-                </h1>
-                
-
-                <p className="mx-auto max-w-[800px] text-gray-200 md:text-xl mt-6 leading-relaxed">
-                  Never miss another opportunity. Join to get a better view on your job search{' '}
-                  <span className="font-semibold text-yellow-300">and land interviews 3x faster</span>{' '}
-                  with our intelligent application management system.
-
-                </p>
-
-                <div className="flex items-center justify-center space-x-6 mt-8">
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0 }}
-                    className="flex items-center space-x-2 text-gray-200"
-                  >
-                    <FaRocket className="w-4 h-4 text-yellow-400" />
-                    <span>Free Forever Plan</span>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex items-center space-x-2 text-gray-200"
-                  >
-                    <FaChartLine className="w-4 h-4 text-yellow-400" />
-                    <span>No Credit Card</span>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="flex items-center space-x-2 text-gray-200"
-                  >
-                    <FaBrain className="w-4 h-4 text-yellow-400" />
-                    <span>AI-Powered Tools</span>
-                  </motion.div>
+                <div className="hidden md:flex items-center space-x-2 text-gray-200">
+                  <FaChartLine className="w-4 h-4 text-yellow-400" />
+                  <span>No Credit Card</span>
                 </div>
-              {/* </motion.div> */}
+                <div className="hidden md:flex items-center space-x-2 text-gray-200">
+                  <FaBrain className="w-4 h-4 text-yellow-400" />
+                  <span>AI-Powered Tools</span>
+                </div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="w-full max-w-md space-y-2 mt-8"
-              >
-                <form className="flex space-x-2" onSubmit={handleWaitlistSignup}>
+              {/* Mobile-optimized waitlist form */}
+              <div className="w-full max-w-md space-y-2 mt-6 md:mt-8">
+                <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleWaitlistSignup}>
                   <Input
                     className="max-w-lg flex-1 bg-white/90 text-primary placeholder:text-gray-500"
-                    placeholder="Enter your email for early access"
+                    placeholder="Enter your email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -281,7 +239,7 @@ export default function Homepage() {
                   <Button 
                     type="submit" 
                     variant="secondary"
-                    className="bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold transition-all duration-200"
+                    className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
@@ -293,30 +251,23 @@ export default function Homepage() {
                     )}
                   </Button>
                 </form>
-                <p className="text-sm text-gray-300 flex items-center justify-center gap-2">
+                <p className="text-xs md:text-sm text-gray-300 flex items-center justify-center gap-2">
                   <span className="flex h-2 w-2 bg-green-400 rounded-full animate-pulse" />
-                  {dailySignups} people joined today - Limited spots available
+                  {dailySignups} people joined today
                 </p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <a 
-                  href="https://www.producthunt.com/posts/appliedtrack?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-appliedtrack" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
+              </div>
+
+              {/* Product Hunt badge - Hidden on smaller screens */}
+              <div className="hidden md:block">
+                <a href="https://www.producthunt.com/posts/appliedtrack">
                   <img 
                     src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=587730&theme=neutral" 
-                    alt="AppliedTrack - Have peace of mind in your job hunt. | Product Hunt" 
+                    alt="AppliedTrack on Product Hunt" 
                     width="250" 
                     height="54" 
-                    style={{ width: '250px', height: '54px' }} 
                   />
                 </a>
-              </motion.div>
+              </div>
             </div>
           </div>
         </section>
@@ -327,13 +278,7 @@ export default function Homepage() {
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
 
           <div className="container relative mx-auto px-4 md:px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="text-center mb-16"
-            >
+            
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                 Features that Make the{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
@@ -343,7 +288,7 @@ export default function Homepage() {
               <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
                 Everything you need to streamline your job search and increase your chances of landing the perfect role.
               </p>
-            </motion.div>
+            
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (

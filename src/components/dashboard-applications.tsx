@@ -29,7 +29,6 @@ import { format } from 'date-fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Header } from '@/components/header'
 import {
-  SignedIn,
   SignedOut
 } from '@clerk/nextjs'
 import { useAuth } from '@clerk/nextjs';
@@ -59,6 +58,9 @@ import { OnboardingModal } from '@/components/onboarding-modal';
 import { auth } from '@clerk/nextjs/server';
 import { userInfo } from 'os';
 
+// Model Imports
+import { IJob as Job } from '@/models/Job';
+import { JobStatus } from '@/models/Job';
 import { toast } from "sonner"
 
 function useWindowSize() {
@@ -84,90 +86,60 @@ function useWindowSize() {
   return size;
 }
 
-// Define types for Hunter.io email data
-interface HunterEmail {
-  value: string;
-  type: string;
-  confidence: number;
-  sources: Array<{
-    uri: string | null;
-    [key: string]: any;
-  }>;
-  first_name?: string;
-  last_name?: string;
-  position?: string;
-  seniority?: string;
-  department?: string;
-  linkedin?: string;
-  twitter?: string;
-  phone_number?: string;
-  verification?: {
-    date: string;
-    status: string;
-  };
-}
-
 // Job status options
-const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
-
+// const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
+const jobStatuses = Object.values(JobStatus);
 // Define types for job data
-interface Job {
-  id?: string;
-  userId: string;
-  company: string;
-  position: string;
-  status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted' | 'Archived';
-  website: string;
-  resumeLink: string;
-  jobDescription: string;
-  dateApplied: string;
-  // Add other fields as needed, but keep them optional
-  coverLetterLink?: string;
-  notes?: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  interviewDate?: string;
-  salary?: number;
-  location?: string;
-  remoteType?: 'On-site' | 'Remote' | 'Hybrid';
-  jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
-  dateCreated?: string;
-  dateUpdated?: string;
-  flag?: 'no_response' | 'update' | string;
-  hunterData?: {
-    domain: string;
-    pattern?: string;
-    organization?: string;
-    emails?: HunterEmail[];
-    dateUpdated?: string;
-    meta?: {
-      results: number;
-      limit: number;
-      offset: number;
-      params: {
-        domain: string;
-        [key: string]: any;
-      };
-    };
-  };
-  isArchived?: boolean;
-  coverLetter?: {
-    url: string;
-    status: 'generating' | 'ready' | 'failed' | 'not_started';
-    dateGenerated?: string;
-  };
-  aiRated: boolean,
-  aiNotes: string,
-  aiRating: number,
-}
-
-// Define types for Hunter.io search results
-interface HunterIoResult {
-  name: string;
-  email: string;
-  position: string;
-}
+// interface Job {
+//   id?: string;
+//   userId: string;
+//   company: string;
+//   position: string;
+//   status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted' | 'Archived';
+//   website: string;
+//   resumeLink: string;
+//   jobDescription: string;
+//   dateApplied: string;
+//   // Add other fields as needed, but keep them optional
+//   coverLetterLink?: string;
+//   notes?: string;
+//   contactName?: string;
+//   contactEmail?: string;
+//   contactPhone?: string;
+//   interviewDate?: string;
+//   salary?: number;
+//   location?: string;
+//   remoteType?: 'On-site' | 'Remote' | 'Hybrid';
+//   jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+//   dateCreated?: string;
+//   dateUpdated?: string;
+//   flag?: 'no_response' | 'update' | string;
+//   hunterData?: {
+//     domain: string;
+//     pattern?: string;
+//     organization?: string;
+//     emails?: HunterEmail[];
+//     dateUpdated?: string;
+//     meta?: {
+//       results: number;
+//       limit: number;
+//       offset: number;
+//       params: {
+//         domain: string;
+//         [key: string]: any;
+//       };
+//     };
+//   };
+//   isArchived?: boolean;
+//   coverLetter?: {
+//     url: string;
+//     status: 'generating' | 'ready' | 'failed' | 'not_started';
+//     dateGenerated?: string;
+//   };
+//   aiRated: boolean,
+//   aiNotes: string,
+//   aiRating: number,
+// }
 
 // ============= Types & Interfaces =============
 type SortDirection = 'asc' | 'desc' | null;
@@ -192,6 +164,7 @@ type AddJobStep = {
   placeholder?: string;
 };
 
+// Hunter.io categories for the hunter.io search
 type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
 
 // ============= Constants =============
@@ -504,7 +477,7 @@ export function AppliedTrack() {
           userId: userId || '',
           company: '',
           position: '',
-          status: 'Yet to Apply',
+          status: JobStatus.YET_TO_APPLY,
           website: '',
           resumeLink: '',
           coverLetterLink: '',
@@ -904,7 +877,6 @@ export function AppliedTrack() {
       <SignedOut>
         <SignedOutCallback />
       </SignedOut>
-      <SignedIn>
         <div className="container mx-auto p-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
             <div className="relative w-full sm:w-64">
@@ -1275,7 +1247,6 @@ export function AppliedTrack() {
 
           
         </div>
-      </SignedIn>
     </>
   )
 }
@@ -1572,29 +1543,18 @@ function JobCard({
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-semibold text-lg">{job.company}</h3>
-              <p className="text-sm text-gray-600">{job.position}</p>
-              <Badge variant="outline" className="text-xs">
-                {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-600">{job.position}</p>
+                <Badge variant="outline" className="text-xs">
+                  {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                </Badge>
+              </div>
+              
             </div>
-            <Select
-              value={job.status}
-              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-            >
-              <SelectTrigger className={`w-[130px] ${getStatusColor(job.status)}`}>
-                <SelectValue>{job.status}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {jobStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-col gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -1613,6 +1573,22 @@ function JobCard({
               <FileText className="w-4 h-4" />
               Quick Note
             </Button>
+            <Select
+              value={job.status}
+              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
+              
+            >
+              <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
+                <SelectValue>{job.status}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {jobStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {showQuickNote && (
@@ -1683,16 +1659,13 @@ function JobCard({
                 <TooltipTrigger asChild>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <span className="inline-block"> {/* Use span instead of div for inline elements */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="hover:bg-red-100 hover:text-red-600 transition-colors"
-
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
-                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -1733,10 +1706,24 @@ function JobCard({
           <div className={layoutMode === 'list' ? 'w-[70%] pr-4' : 'w-full'}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4" id="job-details-section">
               <div>
-                <h3 className="text-xl font-semibold">{job.position}</h3>
-                <Badge variant="outline" className="text-sm">
-                  <Sparkles className="w-4 h-4 mr-1" />{job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-semibold">{job.position}</h3>
+                  <Badge 
+                    variant="outline" 
+                    className={`text-sm ${
+                      job.aiRating 
+                        ? job.aiRating >= 80
+                          ? 'bg-green-100 text-green-800'
+                          : job.aiRating >= 60
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-red-100 text-red-800'
+                        : ''
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                  </Badge>
+                </div>
                 <p className="text-sm text-gray-500">
                   Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
                 </p>
@@ -1833,32 +1820,7 @@ function JobCard({
                 </Button>
               </div>
             </div>
-            {/* <div className="mt-4">
-              <h4 className="font-semibold mb-2">Application Progress</h4>
-              <div className="flex items-center space-x-1 ">
-                {jobStatuses.map((status, index) => {
-                  const isCompleted = jobStatuses.indexOf(job.status) >= index;
-                  const isCurrent = job.status === status;
-                  return (
-                    <div key={status} className="flex items-center">
-                      {index > 0 && <div className="h-0.5 w-2 bg-gray-300"></div>}
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs
-                          ${isCompleted
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-200 text-gray-600'
-                          } ${isCurrent ? 'ring-2 ring-blue-300' : ''}`}
-                      >
-                        {isCompleted ? (index + 1) : ''}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div> */}
-
-
-            {/* this is a comment */}
+            
           </div>
           {layoutMode === 'list' && (
             <div className="w-[30%] pl-4 border-l" id="hunter-section">
@@ -1990,7 +1952,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Partial<Job>>({
     dateApplied: new Date().toISOString().split('T')[0],
-    status: 'Yet to Apply',
+    status: JobStatus.YET_TO_APPLY,
     company: '',
     position: '',
     website: '',
@@ -2037,7 +1999,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
     setCurrentStep(0);
     setFormData({
       dateApplied: new Date().toISOString().split('T')[0],
-      status: 'Yet to Apply',
+      status: JobStatus.YET_TO_APPLY,
       company: '',
       position: '',
       website: '',
