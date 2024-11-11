@@ -1,16 +1,7 @@
+"use server"
+
 import { NextResponse } from 'next/server';
-import { ConfigModel } from '@/models/Config';
 import { fetchTierLimits } from '@/lib/tierlimits';
-import { Logger } from '@/lib/logger';
-
-// Cache duration in seconds (24 hours)
-const CACHE_MAX_AGE = 86400;
-
-interface TierResponse {
-  tierLimits?: Record<string, any>;
-  error?: string;
-}
-
 
 
 export async function GET() {
@@ -25,8 +16,7 @@ export async function GET() {
 
   return NextResponse.json(response.tierLimits, {
     headers: {
-      'Cache-Control': `public, s-maxage=${CACHE_MAX_AGE}, stale-while-revalidate`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
   });
 }

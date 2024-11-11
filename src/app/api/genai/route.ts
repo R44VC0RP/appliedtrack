@@ -9,40 +9,20 @@ import { jsPDF } from 'jspdf';
 import { File } from '@web-std/file';
 import { JobModel, Job } from '@/models/Job';
 import { Logger } from '@/lib/logger';
+import { latexToPdfUrl } from '@/lib/latex-to-pdf';
 // import '@/components/fonts/EBGaramond-Medium-normal'
 
-/**
- * Creates a PDF buffer from a cover letter body text
- * @param coverLetterBody - The text content of the cover letter
- * @returns Promise<Buffer> - PDF document as a buffer
- */
-async function createCoverLetterPDF(coverLetterBody: string): Promise<Buffer> {
-    try {
-        const doc = new jsPDF();
-        
-        // Configure PDF settings
-        doc.setFontSize(14);
-        doc.setFont('EB Garamond');
-        
-        // Split text into lines to handle word wrapping
-        const splitText = doc.splitTextToSize(coverLetterBody, 180); // 180 is the max width
-        doc.text(splitText, 15, 15); // Start at x:15, y:15
-        
-        // Convert to Buffer
-        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-        await Logger.info('Cover letter PDF created successfully', {
-            contentLength: coverLetterBody.length,
-            bufferSize: pdfBuffer.length
-        });
-        return pdfBuffer;
-    } catch (error) {
-        await Logger.error('Failed to create cover letter PDF', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : undefined
-        });
-        throw error;
-    }
-}
+// Import templates.
+import coverLetterTemplate from '@/app/api/genai/templates/cover_letter_template';
+import resumeTemplate from '@/app/api/genai/templates/resume_template';
+
+
+const latexGenerationRules = `
+Avoid Using Special Characters: Ensure there are no unescaped special characters (like $, %, #, _, &, ^, ~, and \) outside of math mode or within text that isn’t supposed to be interpreted as code. For example, if you need to use one of these characters in regular text, escape it with a backslash (e.g., \&).
+Explicitly Check for Math Delimiters: Ensure that every $ you use has a matching closing $, and similarly for \[...\] and \( ... \).
+Document Structure Review: Keep your code organized and use comments to mark different sections clearly, making it easier to debug issues in the future.
+Avoid using any packages that are not supported by texlive. Do not use any packages that are not supported by texlive. Do not use any weird characters or symbols.
+`
 
 /**
  * Generates an AI rating for a job application
@@ -148,6 +128,7 @@ async function createCoverLetter(job: Job) {
         });
 
         const prompt_to_create_cover_letter = `
+
             You are a master cover letter generator. You are given a resume and a job description. You need to generate a cover letter for the job.
 
             Cover Letter Instructions:
@@ -162,7 +143,7 @@ async function createCoverLetter(job: Job) {
 
             Purposeful Conclusion: End with a brief summary of why you're a good fit and express interest in discussing further.
 
-            Concise Formatting: Aim for 300-400 words. Use clear paragraphs, an easy-to-read font, and close formally (e.g., "Yours sincerely").
+            Concise Formatting: Aim for 100-200 words. Use clear paragraphs, an easy-to-read font, and close formally (e.g., "Yours sincerely").
 
             You are going to write a cover letter for ${job.company} as ${user.name}.
 
@@ -172,9 +153,11 @@ async function createCoverLetter(job: Job) {
 
             Generate a professional cover letter for ${job.company} that is tailored to the job description and the user's resume and personal statement. 
 
-            Please address it to the hiring manager of ${job.company}.
+            Please address it to the hiring manager of ${job.company}. Do not include the company address in the letter.
 
-            Please include the greeting and closing of the letter in the body param.
+            If you do not have information for a field, do not include it. NEVER MAKE UP INFORMATION. ALWAYS REFERENCE THE USER'S RESUME AND PERSONAL STATEMENT. NEVER ADD STUFF LIKE [Company Address] [City, State, Zip] OR ANYTHING LIKE THAT.
+
+            For generation of the cover letter, please use LaTeX. You are going to use the following template: ${coverLetterTemplate}. DO NOT CHANGE THE FORMAT OF THE TEMPLATE. JUST ADD AND REPLACE THE NEEDED DETAILS. IF YOU DO NOT HAVE INFORMATION FOR A CERTAIN FIELD, LEAVE IT BLANK.
         `
 
         await Logger.info('Cover letter generation prompt', {
@@ -187,9 +170,7 @@ async function createCoverLetter(job: Job) {
             model: openai('gpt-4o-mini'),
             schema: z.object({
                 cover_letter: z.object({
-                    name_of_company: z.string(),
-                    name_of_applicant: z.string(),
-                    body: z.string(),
+                    latex_body: z.string(),
                 }),
             }),
             prompt: prompt_to_create_cover_letter,
@@ -197,39 +178,23 @@ async function createCoverLetter(job: Job) {
 
         await Logger.info('Cover letter generated successfully', {
             jobId: job.id,
-            company: object.cover_letter.name_of_company
+            company: job.company,
+            coverLetterLength: object.cover_letter.latex_body.length,
+            coverLetter: object.cover_letter.latex_body
         });
 
         // Generate PDF
-        const pdfBuffer = await createCoverLetterPDF(object.cover_letter.body);
-
-        // Convert Buffer to File using @web-std/file
-        const pdfFile = new File(
-            [new Uint8Array(pdfBuffer as Buffer)],
-            `cover-letter-${job.id}.pdf`,
-            { type: 'application/pdf' }
-        );
-
-        // Upload to UploadThing
-        const uploadResponse = await utapi.uploadFiles([pdfFile]);
-
-        if (!uploadResponse[0].data) {
-            await Logger.error('Failed to upload cover letter to storage', {
-                jobId: job.id,
-                fileName: pdfFile.name
-            });
-            throw new Error('Failed to upload cover letter');
-        }
+        const coverLetterPdfUrl = await latexToPdfUrl(object.cover_letter.latex_body);
 
         await Logger.info('Cover letter uploaded successfully', {
             jobId: job.id,
-            fileUrl: uploadResponse[0].data.url
+            fileUrl: coverLetterPdfUrl
         });
 
         return {
             success: true,
             coverLetterData: object.cover_letter,
-            pdfUrl: uploadResponse[0].data?.url
+            pdfUrl: coverLetterPdfUrl
         };
     } catch (error) {
         await Logger.error('Error in createCoverLetter', {
@@ -242,13 +207,114 @@ async function createCoverLetter(job: Job) {
 }
 
 /**
+ * Generates a resume for a job application using AI
+ * @param job - The job application data
+ * @returns Promise containing the generated resume data and PDF URL
+ */
+async function createResume(job: Job) {
+    try {
+        await Logger.info('Starting resume generation', {
+            jobId: job.id,
+            company: job.company,
+            userId: job.userId
+        });
+
+        const user = await getUser(job.userId);
+        const jobData = await getJob(job.id);
+
+        if (!user || !jobData) {
+            await Logger.warning('User or job not found during resume generation', {
+                userId: job.userId,
+                jobId: job.id
+            });
+            return { success: false, error: 'User or job not found' };
+        }
+
+        // Extract text from resume PDF
+        const resumeText = await Pdf.getPDFText(job.resumeLink);
+        await Logger.info('Resume text extracted successfully', {
+            jobId: job.id,
+            resumeLength: resumeText.length
+        });
+
+        const prompt_to_create_resume = `
+
+            You are a master resume generator. You are going to create a resume for ${user.name} applying to ${job.company} for the position of ${job.position}.
+
+            Resume Instructions:
+            - Keep it concise and professional
+            - Highlight relevant skills and experience for this specific role
+            - Use action verbs and quantifiable achievements
+            - Ensure proper formatting and organization
+            - Include contact information, work history, education, and skills
+            - Tailor content to match job requirements
+            
+            Here is ${user.name}'s personal statement: ${user.about}
+
+            Here is ${user.name}'s resume: ${resumeText}
+
+            If you do not have information for a field, do not include it. NEVER MAKE UP INFORMATION. ALWAYS REFERENCE THE USER'S RESUME AND PERSONAL STATEMENT. NEVER ADD STUFF LIKE [Company Address] [City, State, Zip] OR ANYTHING LIKE THAT.
+
+            Please generate a professional resume using LaTeX following these rules: ${latexGenerationRules} | STRICTLY FOLLOW THESE RULES.
+        `;
+
+        await Logger.info('Resume generation prompt created', {
+            jobId: job.id,
+            promptLength: prompt_to_create_resume.length
+        });
+
+        // Generate resume using GPT
+        const { object } = await generateObject({
+            model: openai('gpt-4o-mini'),
+            schema: z.object({
+                resume: z.object({
+                    latex_body: z.string(),
+                }),
+            }),
+            prompt: prompt_to_create_resume,
+        });
+
+        await Logger.info('Resume generated successfully', {
+            jobId: job.id,
+            company: job.company,
+            resumeLength: object.resume.latex_body.length,
+            resume_type: typeof object.resume.latex_body
+
+        });
+
+        // Generate PDF
+        const resumePdfUrl = await latexToPdfUrl(object.resume.latex_body);
+
+        await Logger.info('Resume uploaded successfully', {
+            jobId: job.id,
+            fileUrl: resumePdfUrl
+        });
+
+        return {
+            success: true,
+            resumeData: object.resume,
+            pdfUrl: resumePdfUrl
+        };
+
+    } catch (error) {
+        await Logger.error('Error in createResume', {
+            jobId: job.id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined
+        });
+        throw error;
+    }
+}
+
+
+/**
  * API route handler for cover letter generation
  * @param req - The incoming request object
  * @returns Response with the generated cover letter data or error
  */
 export async function POST(req: Request) {
     try {
-        
+
 
         const { job, action } = await req.json();
 
@@ -259,7 +325,7 @@ export async function POST(req: Request) {
                     company: job.company
                 });
                 const result = await createCoverLetter(job);
-                
+
                 await Logger.info('Cover letter generation completed', {
                     jobId: job.id,
                     success: result.success
@@ -278,6 +344,17 @@ export async function POST(req: Request) {
                 });
                 await JobModel.updateOne({ id: job.id }, { $set: { aiRating: aiRatingResult.aiRating, aiNotes: aiRatingResult.aiNotes, aiRated: true } });
                 return Response.json({ success: true, data: aiRatingResult });
+            case 'resume':
+                await Logger.info('Resume generation request received', {
+                    jobId: job.id,
+                    company: job.company
+                });
+                const resumeResult = await createResume(job);
+                await Logger.info('Resume generation completed', {
+                    jobId: job.id,
+                    success: resumeResult.success
+                });
+                return Response.json({ success: true, data: resumeResult });
             default:
                 return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });
         }
@@ -288,7 +365,7 @@ export async function POST(req: Request) {
             path: '/api/genai',
             method: 'POST'
         });
-        
+
         return Response.json(
             { success: false, error: 'Failed to generate cover letter' },
             { status: 500 }

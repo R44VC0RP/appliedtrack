@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 // import logo from '@/app/logos/logo.png'
 import hunterLogo from '@/app/logos/hunter.png'
+import ReactConfetti from 'react-confetti';
 import { UploadButton } from "@/utils/uploadthing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +29,6 @@ import { format } from 'date-fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Header } from '@/components/header'
 import {
-  SignedIn,
   SignedOut
 } from '@clerk/nextjs'
 import { useAuth } from '@clerk/nextjs';
@@ -58,93 +58,88 @@ import { OnboardingModal } from '@/components/onboarding-modal';
 import { auth } from '@clerk/nextjs/server';
 import { userInfo } from 'os';
 
+// Model Imports
+import { IJob as Job } from '@/models/Job';
+import { JobStatus } from '@/models/Job';
 import { toast } from "sonner"
 
+function useWindowSize() {
+  const [size, setSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
 
-// Define types for Hunter.io email data
-interface HunterEmail {
-  value: string;
-  type: string;
-  confidence: number;
-  sources: Array<{
-    uri: string | null;
-    [key: string]: any;
-  }>;
-  first_name?: string;
-  last_name?: string;
-  position?: string;
-  seniority?: string;
-  department?: string;
-  linkedin?: string;
-  twitter?: string;
-  phone_number?: string;
-  verification?: {
-    date: string;
-    status: string;
-  };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      setSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return size;
 }
 
 // Job status options
-const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
-
+// const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
+const jobStatuses = Object.values(JobStatus);
 // Define types for job data
-interface Job {
-  id?: string;
-  userId: string;
-  company: string;
-  position: string;
-  status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted' | 'Archived';
-  website: string;
-  resumeLink: string;
-  jobDescription: string;
-  dateApplied: string;
-  // Add other fields as needed, but keep them optional
-  coverLetterLink?: string;
-  notes?: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  interviewDate?: string;
-  salary?: number;
-  location?: string;
-  remoteType?: 'On-site' | 'Remote' | 'Hybrid';
-  jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
-  dateCreated?: string;
-  dateUpdated?: string;
-  flag?: 'no_response' | 'update' | string;
-  hunterData?: {
-    domain: string;
-    pattern?: string;
-    organization?: string;
-    emails?: HunterEmail[];
-    dateUpdated?: string;
-    meta?: {
-      results: number;
-      limit: number;
-      offset: number;
-      params: {
-        domain: string;
-        [key: string]: any;
-      };
-    };
-  };
-  isArchived?: boolean;
-  coverLetter?: {
-    url: string;
-    status: 'generating' | 'ready' | 'failed' | 'not_started';
-    dateGenerated?: string;
-  };
-  aiRated: boolean,
-  aiNotes: string,
-  aiRating: number,
-}
-
-// Define types for Hunter.io search results
-interface HunterIoResult {
-  name: string;
-  email: string;
-  position: string;
-}
+// interface Job {
+//   id?: string;
+//   userId: string;
+//   company: string;
+//   position: string;
+//   status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted' | 'Archived';
+//   website: string;
+//   resumeLink: string;
+//   jobDescription: string;
+//   dateApplied: string;
+//   // Add other fields as needed, but keep them optional
+//   coverLetterLink?: string;
+//   notes?: string;
+//   contactName?: string;
+//   contactEmail?: string;
+//   contactPhone?: string;
+//   interviewDate?: string;
+//   salary?: number;
+//   location?: string;
+//   remoteType?: 'On-site' | 'Remote' | 'Hybrid';
+//   jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+//   dateCreated?: string;
+//   dateUpdated?: string;
+//   flag?: 'no_response' | 'update' | string;
+//   hunterData?: {
+//     domain: string;
+//     pattern?: string;
+//     organization?: string;
+//     emails?: HunterEmail[];
+//     dateUpdated?: string;
+//     meta?: {
+//       results: number;
+//       limit: number;
+//       offset: number;
+//       params: {
+//         domain: string;
+//         [key: string]: any;
+//       };
+//     };
+//   };
+//   isArchived?: boolean;
+//   coverLetter?: {
+//     url: string;
+//     status: 'generating' | 'ready' | 'failed' | 'not_started';
+//     dateGenerated?: string;
+//   };
+//   aiRated: boolean,
+//   aiNotes: string,
+//   aiRating: number,
+// }
 
 // ============= Types & Interfaces =============
 type SortDirection = 'asc' | 'desc' | null;
@@ -169,6 +164,7 @@ type AddJobStep = {
   placeholder?: string;
 };
 
+// Hunter.io categories for the hunter.io search
 type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
 
 // ============= Constants =============
@@ -275,6 +271,43 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
+const generateResume = async (
+  job: Job,
+  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>
+) => {
+  try {
+    const response = await fetch('/api/genai', {
+      method: 'POST',
+      body: JSON.stringify({ job, action: 'resume' }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Update job with generated resume
+      const response_update = await fetch(`/api/jobs`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: job.id,
+          resumeLink: data.data.pdfUrl,
+          dateUpdated: new Date().toISOString()
+        }),
+      });
+
+      if (!response_update.ok) {
+        throw new Error('Failed to update job with resume');
+      }
+
+      setIsGenerating("ready");
+    }
+  } catch (error) {
+    console.error('Error generating resume:', error);
+    setIsGenerating("failed");
+  }
+};
 
 
 const generateCoverLetter = async (
@@ -367,6 +400,9 @@ export function AppliedTrack() {
   const [sortBy, setSortBy] = useState('newest');
   const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const { width, height } = useWindowSize();
 
   // Move the useEffect to the top level of the component
   useEffect(() => {
@@ -478,7 +514,7 @@ export function AppliedTrack() {
           userId: userId || '',
           company: '',
           position: '',
-          status: 'Yet to Apply',
+          status: JobStatus.YET_TO_APPLY,
           website: '',
           resumeLink: '',
           coverLetterLink: '',
@@ -801,9 +837,76 @@ export function AppliedTrack() {
     );
   }
 
+  // Update the onboarding completion handler
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    setShowConfetti(true);
+    setShowWelcomeModal(true);
+    // Remove confetti after 5 seconds
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
   return (
     <>
-      {showOnboarding && <OnboardingModal isOpen={showOnboarding} />}
+      {showConfetti && (
+        <ReactConfetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={500}
+          gravity={0.2}
+        />
+      )}
+      
+      {showOnboarding && (
+        <OnboardingModal 
+          isOpen={showOnboarding} 
+          onComplete={handleOnboardingComplete} 
+        />
+      )}
+
+      <Dialog open={showWelcomeModal} onOpenChange={setShowWelcomeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-center">
+            Welcome to AppliedTrack! {'\u{1F389}'}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Your job search journey starts here. Let's help you land your dream job!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 p-4 text-center">
+            <p className="text-muted-foreground">
+              Here's what you can do next:
+            </p>
+            <ul className="space-y-2 text-left">
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Add your first job application
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Track application statuses
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Generate AI-powered cover letters
+              </li>
+            </ul>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              className="w-full"
+              onClick={() => setShowWelcomeModal(false)}
+            >
+              Let's Get Started!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Header
         onNotificationClick={handleNotificationClick}
         onProfileClick={handleProfileClick}
@@ -811,7 +914,6 @@ export function AppliedTrack() {
       <SignedOut>
         <SignedOutCallback />
       </SignedOut>
-      <SignedIn>
         <div className="container mx-auto p-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
             <div className="relative w-full sm:w-64">
@@ -1182,7 +1284,6 @@ export function AppliedTrack() {
 
           
         </div>
-      </SignedIn>
     </>
   )
 }
@@ -1197,11 +1298,77 @@ const SignedOutCallback = () => {
   return null;
 };
 
+const ResumeButton = ({ job }: { job: Job }) => {
+  const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
+    job.generatedResume?.status || "not_started"
+  );
 
+  
+
+  switch (isGenerating) {
+    case 'generating':
+      return (
+        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Generating Resume...
+        </Button>
+      );
+
+    case 'ready':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
+          onClick={() => {
+            window.open(job.generatedResume?.url, '_blank');
+          }}
+        >
+          <Download className="w-4 h-4" />
+          <span>Download Resume</span>
+          <CheckCircle2 className="w-4 h-4 text-green-500" />
+        </Button>
+      );
+
+    case 'failed':
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2 text-red-600"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateResume(job, setIsGenerating);
+          }}
+        >
+          <AlertCircle className="h-4 w-4" />
+          Generation Failed - Retry
+        </Button>
+      );
+
+    
+
+    
+    default:
+      return (
+      <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => {
+            setIsGenerating("generating");
+            generateResume(job, setIsGenerating);
+          }}
+        >
+          <Sparkles className="h-4 w-4" />
+          Generate Resume
+        </Button>
+      );
+  }
+};
 
 const CoverLetterButton = ({ job }: { job: Job }) => {
   const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
-  const [resumeUrl, setResumeUrl] = useState(job.resumeLink);
   const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
 
   // if (job.coverLetter?.status === 'ready') {
@@ -1227,31 +1394,8 @@ const CoverLetterButton = ({ job }: { job: Job }) => {
           variant="outline"
           size="sm"
           className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
-          onClick={async () => {
-            try {
-              // Fetch the PDF file
-              const response = await fetch(coverLetterUrl || '');
-              const blob = await response.blob();
-
-              // Create a temporary URL for the blob
-              const url = window.URL.createObjectURL(blob);
-
-              // Create a temporary anchor element
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `${job.company.replace(/\s+/g, '_')}_coverletter.pdf`;
-
-              // Append to document, click, and cleanup
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-
-              // Revoke the temporary URL
-              window.URL.revokeObjectURL(url);
-            } catch (error) {
-              console.error('Error downloading cover letter:', error);
-              toast.error("Failed to download the cover letter. Please try again.")
-            }
+          onClick={() => {
+            window.open(job.coverLetter?.url, '_blank');
           }}
         >
           <Download className="w-4 h-4" />
@@ -1479,29 +1623,18 @@ function JobCard({
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-semibold text-lg">{job.company}</h3>
-              <p className="text-sm text-gray-600">{job.position}</p>
-              <Badge variant="outline" className="text-xs">
-                {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-600">{job.position}</p>
+                <Badge variant="outline" className="text-xs">
+                  {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                </Badge>
+              </div>
+              
             </div>
-            <Select
-              value={job.status}
-              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-            >
-              <SelectTrigger className={`w-[130px] ${getStatusColor(job.status)}`}>
-                <SelectValue>{job.status}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {jobStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-col gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -1520,6 +1653,22 @@ function JobCard({
               <FileText className="w-4 h-4" />
               Quick Note
             </Button>
+            <Select
+              value={job.status}
+              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
+              
+            >
+              <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
+                <SelectValue>{job.status}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {jobStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {showQuickNote && (
@@ -1590,16 +1739,13 @@ function JobCard({
                 <TooltipTrigger asChild>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <span className="inline-block"> {/* Use span instead of div for inline elements */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="hover:bg-red-100 hover:text-red-600 transition-colors"
-
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
-                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -1640,10 +1786,24 @@ function JobCard({
           <div className={layoutMode === 'list' ? 'w-[70%] pr-4' : 'w-full'}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4" id="job-details-section">
               <div>
-                <h3 className="text-xl font-semibold">{job.position}</h3>
-                <Badge variant="outline" className="text-sm">
-                  <Sparkles className="w-4 h-4 mr-1" />{job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-semibold">{job.position}</h3>
+                  <Badge 
+                    variant="outline" 
+                    className={`text-sm ${
+                      job.aiRating 
+                        ? job.aiRating >= 80
+                          ? 'bg-green-100 text-green-800'
+                          : job.aiRating >= 60
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-red-100 text-red-800'
+                        : ''
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                  </Badge>
+                </div>
                 <p className="text-sm text-gray-500">
                   Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
                 </p>
@@ -1671,6 +1831,7 @@ function JobCard({
                 Resume
               </a> */}
               <CoverLetterButton job={job} />
+              <ResumeButton job={job} />
 
             </div>
 
@@ -1740,32 +1901,7 @@ function JobCard({
                 </Button>
               </div>
             </div>
-            {/* <div className="mt-4">
-              <h4 className="font-semibold mb-2">Application Progress</h4>
-              <div className="flex items-center space-x-1 ">
-                {jobStatuses.map((status, index) => {
-                  const isCompleted = jobStatuses.indexOf(job.status) >= index;
-                  const isCurrent = job.status === status;
-                  return (
-                    <div key={status} className="flex items-center">
-                      {index > 0 && <div className="h-0.5 w-2 bg-gray-300"></div>}
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs
-                          ${isCompleted
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-200 text-gray-600'
-                          } ${isCurrent ? 'ring-2 ring-blue-300' : ''}`}
-                      >
-                        {isCompleted ? (index + 1) : ''}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div> */}
-
-
-            {/* this is a comment */}
+            
           </div>
           {layoutMode === 'list' && (
             <div className="w-[30%] pl-4 border-l" id="hunter-section">
@@ -1897,7 +2033,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Partial<Job>>({
     dateApplied: new Date().toISOString().split('T')[0],
-    status: 'Yet to Apply',
+    status: JobStatus.YET_TO_APPLY,
     company: '',
     position: '',
     website: '',
@@ -1944,7 +2080,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
     setCurrentStep(0);
     setFormData({
       dateApplied: new Date().toISOString().split('T')[0],
-      status: 'Yet to Apply',
+      status: JobStatus.YET_TO_APPLY,
       company: '',
       position: '',
       website: '',

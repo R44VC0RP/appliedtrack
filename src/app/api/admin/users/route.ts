@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         imageUrl: clerkUser.imageUrl,
         tier: dbUser?.tier || "free",
         role: dbUser?.role || "user",
+        onBoardingComplete: dbUser?.onBoardingComplete || false,
         lastSignIn: clerkUser.lastSignInAt,
         dateCreated: dbUser?.dateCreated || clerkUser.createdAt
       };
@@ -107,7 +108,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId: targetUserId, role, tier } = body;
+    const { userId: targetUserId, role, tier, onBoardingComplete } = body;
 
     await Logger.info('Admin attempting to update user', {
       adminUserId: userId,
@@ -122,6 +123,7 @@ export async function PUT(request: NextRequest) {
     };
     if (role) updateFields.role = role;
     if (tier) updateFields.tier = tier;
+    if (onBoardingComplete !== undefined) updateFields.onBoardingComplete = onBoardingComplete;
 
     // Update in MongoDB
     await UserModel.findOneAndUpdate(
