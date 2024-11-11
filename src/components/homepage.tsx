@@ -74,24 +74,6 @@ export const FEATURES = [
   },
 ] as const
 
-export const images = {
-  dashboard: {
-    src: jobTrackDashboard,
-    alt: "AppliedTrack Dashboard",
-    priority: true,
-    quality: 85
-  },
-  emailLookup: {
-    src: emailLookup,
-    alt: "Email Discovery Feature",
-    loading: "lazy"
-  },
-  resumeManagement: {
-    src: resumeManagement,
-    alt: "Resume Management",
-    loading: "lazy"
-  }
-} as const
 
 export default function Homepage() {
   const [refItem, setRefItem] = useState('')
@@ -286,25 +268,101 @@ export default function Homepage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-              {FEATURES.map((feature) => (
-                <Card
-                  key={feature.title}
-                  className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800"
-                >
-                  <CardHeader>
-                    <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-xl bg-gradient-to-br ${feature.gradient} text-white`}>
-                        <feature.icon className="w-6 h-6" />
-                      </div>
-                      <CardTitle className="dark:text-white">{feature.title}</CardTitle>
+              {/* Smart Application Tracking */}
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+                <CardHeader>
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white">
+                      <Briefcase className="w-6 h-6" />
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="dark:text-gray-400">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
+                    <CardTitle className="dark:text-white">Smart Application Tracking</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="dark:text-gray-400">Organize and monitor all your job applications with detailed status tracking and follow-up reminders.</p>
+                </CardContent>
+              </Card>
+
+              {/* Email Discovery */}
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+                <CardHeader>
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                      <Search className="w-6 h-6" />
+                    </div>
+                    <CardTitle className="dark:text-white">Email Discovery</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="dark:text-gray-400">Powered by Hunter.io, automatically find the right contact person for your follow-ups and networking.</p>
+                </CardContent>
+              </Card>
+
+              {/* Resume Management */}
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+                <CardHeader>
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                      <BarChart className="w-6 h-6" />
+                    </div>
+                    <CardTitle className="dark:text-white">Resume Management</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="dark:text-gray-400">Upload multiple resumes and track which version you used for each application.</p>
+                </CardContent>
+              </Card>
+
+              {/* Cover Letter Generator */}
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+                <CardHeader>
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <CardTitle className="dark:text-white">Cover Letter Generator</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="dark:text-gray-400">Generate professional, personalized PDF cover letters tailored to each application.</p>
+                </CardContent>
+              </Card>
+
+              {/* Follow-up Reminders */}
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+                <CardHeader>
+                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+                      <Clock className="w-6 h-6" />
+                    </div>
+                    <CardTitle className="dark:text-white">Follow-up Reminders</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="dark:text-gray-400">We will remind you to follow up on your applications if it has been a while since you last heard from them.</p>
+                </CardContent>
+              </Card>
+
+              {/* ATS Review */}
+              <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-900 dark:border-gray-800">
+                <CardHeader>
+                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-white">
+                      <Calendar className="w-6 h-6" />
+                    </div>
+                    <CardTitle className="dark:text-white">Coming Soon: ATS Review</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="dark:text-gray-400">Get insights on how your resume performs against applicant tracking systems.</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
