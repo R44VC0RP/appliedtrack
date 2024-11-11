@@ -5,6 +5,4 @@ services:
     image: luzifer/tex-api
     ports:
       - "3400:3000"
-    volumes:
-      - ./storage:/storage
     restart: unless-stopped
