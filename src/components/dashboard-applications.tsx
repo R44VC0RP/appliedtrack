@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 // import logo from '@/app/logos/logo.png'
 import hunterLogo from '@/app/logos/hunter.png'
+import ReactConfetti from 'react-confetti';
 import { UploadButton } from "@/utils/uploadthing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -60,6 +61,28 @@ import { userInfo } from 'os';
 
 import { toast } from "sonner"
 
+function useWindowSize() {
+  const [size, setSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      setSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return size;
+}
 
 // Define types for Hunter.io email data
 interface HunterEmail {
@@ -367,6 +390,9 @@ export function AppliedTrack() {
   const [sortBy, setSortBy] = useState('newest');
   const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const { width, height } = useWindowSize();
 
   // Move the useEffect to the top level of the component
   useEffect(() => {
@@ -801,9 +827,76 @@ export function AppliedTrack() {
     );
   }
 
+  // Update the onboarding completion handler
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    setShowConfetti(true);
+    setShowWelcomeModal(true);
+    // Remove confetti after 5 seconds
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
   return (
     <>
-      {showOnboarding && <OnboardingModal isOpen={showOnboarding} />}
+      {showConfetti && (
+        <ReactConfetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={500}
+          gravity={0.2}
+        />
+      )}
+      
+      {showOnboarding && (
+        <OnboardingModal 
+          isOpen={showOnboarding} 
+          onComplete={handleOnboardingComplete} 
+        />
+      )}
+
+      <Dialog open={showWelcomeModal} onOpenChange={setShowWelcomeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-center">
+              Welcome to AppliedTrack! 🎉
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Your job search journey starts here. Let's help you land your dream job!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 p-4 text-center">
+            <p className="text-muted-foreground">
+              Here's what you can do next:
+            </p>
+            <ul className="space-y-2 text-left">
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Add your first job application
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Track application statuses
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Generate AI-powered cover letters
+              </li>
+            </ul>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              className="w-full"
+              onClick={() => setShowWelcomeModal(false)}
+            >
+              Let's Get Started!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Header
         onNotificationClick={handleNotificationClick}
         onProfileClick={handleProfileClick}

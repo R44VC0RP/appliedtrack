@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Search, UserCog } from 'lucide-react'
+import { useUser } from '@clerk/nextjs'
 
 interface User {
   userId: string;
@@ -17,6 +18,7 @@ interface User {
   role: string;
   lastSignIn?: string;
   dateCreated: string;
+  onBoardingComplete: boolean;
   isUpdating?: boolean;
 }
 
@@ -25,6 +27,7 @@ export function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user: currentUser } = useUser()
 
   useEffect(() => {
     fetchUsers();
@@ -44,7 +47,7 @@ export function AdminUsers() {
     }
   };
 
-  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string }) => {
+  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string, onBoardingComplete?: boolean }) => {
     try {
       setUsers(prevUsers => 
         prevUsers.map(user => 
@@ -127,6 +130,7 @@ export function AdminUsers() {
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Tier</TableHead>
+                  <TableHead>Onboarding</TableHead>
                   <TableHead>Last Sign In</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Actions</TableHead>
@@ -134,7 +138,14 @@ export function AdminUsers() {
               </TableHeader>
               <TableBody className="overflow-auto">
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.userId}>
+                  <TableRow 
+                    key={user.userId}
+                    className={
+                      user.userId === currentUser?.id 
+                        ? "bg-blue-500/5 hover:bg-blue-500/10 border-b-2 border-blue-500 " 
+                        : "hover:bg-muted/50"
+                    }
+                  >
                     <TableCell className="flex items-center space-x-2">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.imageUrl} />
@@ -177,6 +188,21 @@ export function AdminUsers() {
                           <SelectItem value="free">Free</SelectItem>
                           <SelectItem value="pro">Pro</SelectItem>
                           <SelectItem value="power">Power</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        defaultValue={user.onBoardingComplete.toString()}
+                        onValueChange={(value) => handleUserUpdate(user.userId, { onBoardingComplete: value === 'true' })}
+                        disabled={user.isUpdating}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Completed</SelectItem>
+                          <SelectItem value="false">Pending</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>

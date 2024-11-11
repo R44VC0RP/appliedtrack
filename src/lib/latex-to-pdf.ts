@@ -18,32 +18,30 @@ interface FileEsque {
 const utapi = new UTApi();
 
 
+const latexToPdfEndpoint = 'https://api.appliedtrack.com/job';
+
 export async function latexToPdfUrl(latexBody: string): Promise<string> {
     try {
-        // Call the FastAPI endpoint
-        const response = await fetch('https://api.appliedtrack.com/convert', {
+        // Make the API request with the LaTeX content directly
+        const response = await fetch(latexToPdfEndpoint, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Accept': 'application/pdf',
+                'Content-Type': 'application/x-tex'
             },
-            body: JSON.stringify({
-                latex_content: latexBody,
-            }),
+            body: latexBody
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`LaTeX conversion failed: ${errorData.detail || 'Unknown error'}`);
+            throw new Error(`LaTeX conversion failed: ${response.statusText}`);
         }
 
-        const data = await response.json();
-        
-        if (!data.pdf_content) {
+        // Get the PDF buffer directly from the response
+        const pdfBuffer = Buffer.from(await response.arrayBuffer());
+
+        if (!pdfBuffer.length) {
             throw new Error('No PDF content received from conversion service');
         }
-
-        // data.pdf_content is already base64 encoded from the server
-        const pdfBuffer = Buffer.from(data.pdf_content, 'base64');
 
         // Create a temporary file name with timestamp and random string for uniqueness
         const timestamp = Date.now();
@@ -75,16 +73,20 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
                 (Array.isArray(uploadResponse) ? uploadResponse[0].error?.message : 'Unknown error'));
         }
 
+        console.log(uploadResponse);
+
         const fileKey = uploadResponse[0].data?.key;
+        const fileUrl = uploadResponse[0].data?.url;
         if (!fileKey) throw new Error('No file key returned from upload');
 
         await Logger.info('LaTeX successfully converted and uploaded', {
             fileKey,
             fileName: uploadResponse[0].data?.name,
-            fileSize: pdfBuffer.length
+            fileSize: pdfBuffer.length,
+            fileUrl
         });
 
-        return fileKey;
+        return fileUrl;
 
     } catch (error) {
         await Logger.error('Failed to convert LaTeX to PDF', {

@@ -11,6 +11,27 @@ import { JobModel, Job } from '@/models/Job';
 import { Logger } from '@/lib/logger';
 // import '@/components/fonts/EBGaramond-Medium-normal'
 
+const latexGenerationRules = `
+General Rules
+Simplify Formatting: Avoid overly complex packages or formatting. Use standard LaTeX classes (e.g., article) and keep layout minimal to maximize compatibility.
+Minimal Package Use: Use only essential packages, such as geometry for margins, hyperref for links, and parskip to manage spacing between paragraphs.
+Basic and Clear Structure: Use clear and basic structures like section headings without extensive custom commands. Avoid deep nesting or complex environments.
+Consistent Font and Styling: Stick to default fonts and avoid custom font packages to minimize dependency issues.
+Cross-Platform Compatibility: Ensure the resume is universally compatible by not relying on OS-specific fonts or proprietary packages.
+Resume-Specific Guidelines
+Name and Contact Details: Center the name at the top, followed by contact details with a horizontal line for separation.
+Objective Section: Provide a concise, clear objective, preferably one or two sentences.
+Education and Work Experience: Use \\textbf for highlighting titles and use \\hfill for aligning dates to the right.
+Bullet Points: Use simple dashes or bullet points for experience and project descriptions, keeping each item brief and impactful.
+Skills: Group skills in a simple tabular format or as a list for easy readability.
+Projects and Extracurriculars: Keep descriptions concise, emphasizing key achievements or technologies used.
+Cover Letter Guidelines
+Formal Structure: Start with a salutation and end with a professional closing, including the sender’s and recipient’s information.
+Paragraph Spacing: Use \\par or \\vspace for spacing between paragraphs.
+Simple Formatting: Emphasize only important keywords or phrases using \\textbf or \\textit.
+No Custom Layouts: Avoid using custom sectioning commands; stick to plain text for easy editing.
+`
+
 /**
  * Creates a PDF buffer from a cover letter body text
  * @param coverLetterBody - The text content of the cover letter

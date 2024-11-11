@@ -9,9 +9,10 @@ import { FileText, Upload } from "lucide-react";
 
 interface OnboardingModalProps {
   isOpen: boolean;
+  onComplete: () => void;
 }
 
-export function OnboardingModal({ isOpen }: OnboardingModalProps) {
+export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [bio, setBio] = useState('');
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +74,9 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
         title: "Profile Complete!",
         description: "Thanks for completing your profile. You can now start tracking your job applications.",
       });
+      
+      // Call the onComplete callback to close the modal
+      onComplete();
     } catch (error) {
       console.error('Error updating user:', error);
       toast({
@@ -82,9 +86,6 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
       });
     } finally {
       setIsSubmitting(false);
-      console.log("closing modal");
-      // close the modal
-      isOpen = false;
     }
   };
 
