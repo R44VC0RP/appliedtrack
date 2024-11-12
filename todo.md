@@ -16,6 +16,3 @@
 ## LATEX TO PDF FOR RESUMES AND COVER LETTERS
 - [ ] Figure out a way to convert latex to pdf for resumes and cover letters
 - [ ] Figure out a way to convert latex to pdf for research papers
-
-
-for the commit message say, "spent 2 hours on latex to pdf just for the AI to be wrong"

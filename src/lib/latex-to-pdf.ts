@@ -1,6 +1,6 @@
 import { UTApi } from "uploadthing/server";
 import { Logger } from '@/lib/logger';
-import { writeFile, readFile, unlink } from 'fs/promises';
+import { writeFile, readFile, unlink, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,16 +22,26 @@ interface FileEsque {
 
 const utapi = new UTApi();
 
-const latexToPdfEndpoint = 'https://api.appliedtrack.com/job';
+function sanitizeLatex(latex: string): string {
+    // Only escape special characters #, $, %, &, ’
+    return latex.replace(/(?<!\\)([#$%&’])/g, '\\$1');
+}
 
-export async function latexToPdfUrl(latexBody: string): Promise<string> {
+export async function latexToPdfUrl(latexBody: string): Promise<{url: string, status: string}> {
     try {
-        const tempDir = tmpdir();
         const uuid_latex = uuidv4();
+        const tempDir = join(tmpdir(), 'latex-to-pdf', uuid_latex);
+
+        // Create the temp directory if it doesn't exist
+        await mkdir(tempDir, { recursive: true });
+
         const texFilePath = join(tempDir, `${uuid_latex}.tex`);
         const outputPdfPath = join(tempDir, `${uuid_latex}.pdf`);
         
-        await writeFile(texFilePath, latexBody);
+        // Only use the sanitizeLatex function instead of the previous double processing
+        const processedLatex = sanitizeLatex(latexBody);
+        
+        await writeFile(texFilePath, processedLatex);
         
         // Change to temp directory before running curl
         const currentDir = process.cwd();
@@ -41,22 +51,36 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
         console.log("outputPdfPath", outputPdfPath);
         
         // Execute curl command (now relative to temp directory)
-        const curlCommand = `curl -L -H 'Accept: application/pdf' --data-binary @${uuid_latex}.tex -o ${uuid_latex}.pdf 'https://api.appliedtrack.com/job?log-on-error=true?format=pdf'`;
+        const curlCommand = `curl -L -H 'Accept: application/pdf' --data-binary @${uuid_latex}.tex -OJ 'https://api.appliedtrack.com/job?log-on-error=true?format=pdf'`;
+
+        console.log("curlCommand", curlCommand);
         
         const { stdout, stderr } = await execAsync(curlCommand);
         
         // Change back to original directory
         process.chdir(currentDir);
         
-        // if (stderr) {
-        //     throw new Error(`Curl command failed: ${stderr}`);
-        // }
+        // List files in the output PDf path directory
+        const files = await readdir(tempDir);
+        console.log("Files in the output PDF path directory PDF3:", files);
 
+        // Inside of the temp directory if there is a file ending in .log the process failed, if there is a file ending in .pdf the process succeeded
+        const findLogFile = files.find(file => file.endsWith('.log'));
+        const findPdfFile = files.find(file => file.endsWith('.pdf'));
+
+        if (findLogFile) {
+            return {url: "", status: "Error: LaTeX to PDF conversion failed"};
+        }
+
+        console.log("findPdfFile", findPdfFile, outputPdfPath);
+        if (!findPdfFile) {
+            return {url: "", status: "Error: No PDF file found in temp directory"};
+        }
         // Read the PDF from temp directory
-        const pdfBuffer = await readFile(outputPdfPath);
+        const pdfBuffer = await readFile(join(tempDir, findPdfFile));
 
         if (!pdfBuffer.length) {
-            return "Error: No PDF content received from conversion service";
+            return {url: "", status: "Error: No PDF content received from conversion service"};
         }
 
         const fileName = `latex-${Date.now()}-${uuidv4()}.pdf`;
@@ -79,12 +103,12 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
         const uploadResponse = await utapi.uploadFiles([pdfFile]);
 
         if (!Array.isArray(uploadResponse) || uploadResponse[0].error) {
-            return 'Upload failed: ' + 
-                    (Array.isArray(uploadResponse) ? uploadResponse[0].error?.message : 'Unknown error');
+            return {url: "", status: 'Upload failed: ' + 
+                    (Array.isArray(uploadResponse) ? uploadResponse[0].error?.message : 'Unknown error')};
         }
 
         const fileUrl = uploadResponse[0].data?.url;
-        if (!fileUrl) return 'No file URL returned from upload';
+        if (!fileUrl) return {url: "", status: 'No file URL returned from upload'};
 
         await Logger.info('LaTeX successfully converted and uploaded', {
             fileName,
@@ -92,7 +116,7 @@ export async function latexToPdfUrl(latexBody: string): Promise<string> {
             fileUrl
         });
 
-        return fileUrl;
+        return {url: fileUrl, status: "Success"};
 
     } catch (error) {
         await Logger.error('Failed to convert LaTeX to PDF', {

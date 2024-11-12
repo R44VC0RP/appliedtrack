@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings, Archive, Settings2, Download, Loader2, Sparkles, Check, Bot, Users, Globe2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch } from "@/components/ui/switch"
+import { AdminOnly } from '@/hooks/useAdmin';
 // import Masonry from 'react-masonry-css'
 // import { FaThLarge, FaList } from 'react-icons/fa'
 import { useMediaQuery } from 'react-responsive'
@@ -273,7 +274,8 @@ const isMobileDevice = () => {
 
 const generateResume = async (
   job: Job,
-  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>
+  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
+  updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
   try {
     const response = await fetch('/api/genai', {
@@ -285,21 +287,12 @@ const generateResume = async (
 
     if (data.success) {
       // Update job with generated resume
-      const response_update = await fetch(`/api/jobs`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: job.id,
-          resumeLink: data.data.pdfUrl,
-          dateUpdated: new Date().toISOString()
-        }),
+      await updateJobDetails({
+        ...job,
+        resumeGenerated: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
       });
 
-      if (!response_update.ok) {
-        throw new Error('Failed to update job with resume');
-      }
+      toast.success("Resume generated successfully");
 
       setIsGenerating("ready");
     }
@@ -312,7 +305,8 @@ const generateResume = async (
 
 const generateCoverLetter = async (
   job: Job,
-  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>
+  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
+  updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
   try {
     const response = await fetch('/api/genai', {
@@ -324,25 +318,29 @@ const generateCoverLetter = async (
 
     if (data.success) {
       // Update to match the server's expected structure
-      const response_update = await fetch(`/api/jobs`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: job.id,
-          coverLetter: {
-            url: data.data.pdfUrl,  // This is what we receive from genai
-            status: 'ready',
-            dateGenerated: new Date().toISOString(),
-            dateUpdated: new Date().toISOString()  // Add this to track updates
-          }
-        }),
+      // const response_update = await fetch(`/api/jobs`, {
+      //   method: 'PUT',
+      //   headers: {
+      //     'Content-Type': 'application/json'
+      //   },
+      //   body: JSON.stringify({
+      //     id: job.id,
+      //     coverLetter: {
+      //       url: data.data.pdfUrl,  // This is what we receive from genai
+      //       status: 'ready',
+      //       dateGenerated: new Date().toISOString(),
+      //       dateUpdated: new Date().toISOString()  // Add this to track updates
+      //     }
+      //   }),
+      // });
+
+      // Update the local job with cover letter data
+      await updateJobDetails({
+        ...job,
+        coverLetter: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
       });
 
-      if (!response_update.ok) {
-        throw new Error('Failed to update job with cover letter');
-      }
+      toast.success("Cover letter generated successfully");
 
       setIsGenerating("ready");
     }
@@ -588,7 +586,7 @@ export function AppliedTrack() {
     }
   };
 
-  
+
 
   const updateJobDetails = async (updatedJob: Job) => {
     try {
@@ -614,10 +612,6 @@ export function AppliedTrack() {
       // console.log("There are ", jobs.length, " jobs");
       setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
       setIsModalOpen(false);
-      // toast({
-      //   title: "Job Updated",
-      //   description: "The job has been successfully updated.",
-      // })
     } catch (error) {
       console.error('Error updating job:', error);
       toast.error("Failed to update the job. Please try again.")
@@ -629,7 +623,7 @@ export function AppliedTrack() {
     const loadingToast = toast.loading("Analyzing job application...", {
       duration: Infinity // Keep the toast until we dismiss it
     });
-  
+
     try {
       const response = await fetch('/api/genai', {
         method: 'POST',
@@ -638,13 +632,13 @@ export function AppliedTrack() {
         },
         body: JSON.stringify({ job, action: 'ai-rating' }),
       });
-  
+
       if (!response.ok) {
         throw new Error('Failed to generate AI rating');
       }
-  
+
       const data = await response.json();
-  
+
       if (data.success) {
         // Update the job with AI rating data
         const updatedJob = {
@@ -654,9 +648,9 @@ export function AppliedTrack() {
           aiNotes: data.data.aiNotes,
           dateUpdated: new Date().toISOString()
         };
-  
+
         await updateJobDetails(updatedJob);
-  
+
         // Update the loading toast with success message
         toast.success(`Your application received a ${data.data.aiRating}/100 match score.`, {
           id: loadingToast, // Update the existing toast then dismiss it after 5 seconds
@@ -857,11 +851,11 @@ export function AppliedTrack() {
           gravity={0.2}
         />
       )}
-      
+
       {showOnboarding && (
-        <OnboardingModal 
-          isOpen={showOnboarding} 
-          onComplete={handleOnboardingComplete} 
+        <OnboardingModal
+          isOpen={showOnboarding}
+          onComplete={handleOnboardingComplete}
         />
       )}
 
@@ -869,13 +863,13 @@ export function AppliedTrack() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl text-center">
-            Welcome to AppliedTrack! {'\u{1F389}'}
+              Welcome to AppliedTrack! {'\u{1F389}'}
             </DialogTitle>
             <DialogDescription className="text-center">
               Your job search journey starts here. Let's help you land your dream job!
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 p-4 text-center">
             <p className="text-muted-foreground">
               Here's what you can do next:
@@ -897,7 +891,7 @@ export function AppliedTrack() {
           </div>
 
           <DialogFooter>
-            <Button 
+            <Button
               className="w-full"
               onClick={() => setShowWelcomeModal(false)}
             >
@@ -914,376 +908,376 @@ export function AppliedTrack() {
       <SignedOut>
         <SignedOutCallback />
       </SignedOut>
-        <div className="container mx-auto p-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-            <div className="relative w-full sm:w-64">
-              <Input
-                type="text"
-                placeholder="Search jobs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            </div>
-            {/* Hide layout controls on mobile */}
-            {!isMobile && (
-              <div className="flex items-center space-x-4">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Statuses</SelectItem>
-                    {jobStatuses.map(status => (
-                      <SelectItem key={status} value={status}>
-                        {status === 'Archived'
-                          ? `${status} (${jobs.filter(job => job.isArchived === true).length})`
-                          : `${status} (${jobs.filter(job => job.status === status && !job.isArchived).length})`
-                        }
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => {
-                    setSortBy(value);
-                    if (typeof window !== 'undefined') {
-                      localStorage.setItem('jobSortPreference', value);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Sort by..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Most Recently Added</SelectItem>
-                    <SelectItem value="rating_asc">Lowest Match</SelectItem>
-                    <SelectItem value="rating_desc">Highest Match</SelectItem>
-                    <SelectItem value="oldest">Least Recently Added</SelectItem>
-                    <SelectItem value="updated">Last Updated</SelectItem>
-                    <SelectItem value="company">Company Name</SelectItem>
-                    <SelectItem value="status">Application Status</SelectItem>
-                    
-                  </SelectContent>
-                </Select>
-
-                <div className="bg-background border rounded-lg p-1 flex items-center gap-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={layoutMode === 'list' ? 'default' : 'ghost'}
-                          size="icon"
-                          onClick={() => setLayoutMode('list')}
-                          className="h-8 w-8"
-                        >
-                          <LayoutList className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>List View</p>
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
-                          size="icon"
-                          onClick={() => setLayoutMode('masonry')}
-                          className="h-8 w-8"
-                        >
-                          <LayoutGrid className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Grid View</p>
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={layoutMode === 'table' ? 'default' : 'ghost'}
-                          size="icon"
-                          onClick={() => setLayoutMode('table')}
-                          className="h-8 w-8"
-                        >
-                          <Table2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Table View</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
-            )}
+      <div className="container mx-auto p-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+          <div className="relative w-full sm:w-64">
+            <Input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           </div>
+          {/* Hide layout controls on mobile */}
+          {!isMobile && (
+            <div className="flex items-center space-x-4">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Statuses</SelectItem>
+                  {jobStatuses.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {status === 'Archived'
+                        ? `${status} (${jobs.filter(job => job.isArchived === true).length})`
+                        : `${status} (${jobs.filter(job => job.status === status && !job.isArchived).length})`
+                      }
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => {
+                  setSortBy(value);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('jobSortPreference', value);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Most Recently Added</SelectItem>
+                  <SelectItem value="rating_asc">Lowest Match</SelectItem>
+                  <SelectItem value="rating_desc">Highest Match</SelectItem>
+                  <SelectItem value="oldest">Least Recently Added</SelectItem>
+                  <SelectItem value="updated">Last Updated</SelectItem>
+                  <SelectItem value="company">Company Name</SelectItem>
+                  <SelectItem value="status">Application Status</SelectItem>
 
-          {!hasActiveJobs ? (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] relative">
-              <div className="text-center space-y-4 max-w-lg">
-                <h2 className="text-2xl font-bold text-foreground">Start Tracking Your Job Applications</h2>
-                <p className="text-muted-foreground">
-                  Keep track of your job applications, manage contacts, and never miss an opportunity.
-                  Click the + button to add your first job application or click here to add your first job application.
+                </SelectContent>
+              </Select>
 
-                </p>
-                <Button onClick={openNewJobModal}>Add Your First Job Application</Button>
+              <div className="bg-background border rounded-lg p-1 flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={layoutMode === 'list' ? 'default' : 'ghost'}
+                        size="icon"
+                        onClick={() => setLayoutMode('list')}
+                        className="h-8 w-8"
+                      >
+                        <LayoutList className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>List View</p>
+                    </TooltipContent>
+                  </Tooltip>
 
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
+                        size="icon"
+                        onClick={() => setLayoutMode('masonry')}
+                        className="h-8 w-8"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Grid View</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={layoutMode === 'table' ? 'default' : 'ghost'}
+                        size="icon"
+                        onClick={() => setLayoutMode('table')}
+                        className="h-8 w-8"
+                      >
+                        <Table2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Table View</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
-          ) : (
-            <AnimatePresence>
-              {layoutMode === 'table' ? (
-                <div className="w-full">
-                  <div className="flex justify-end mb-4">
-                    <Dialog open={showColumnSelector} onOpenChange={setShowColumnSelector}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <Settings2 className="h-4 w-4" />
-                          Configure Columns
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Visible Columns</DialogTitle>
-                          <DialogDescription>
-                            Select which columns you want to display in the table.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          {columnDefs.map((col) => (
-                            <div key={col.id} className="flex items-center space-x-2">
-                              <Switch
-                                id={`col-${col.id}`}
-                                checked={visibleColumns.has(col.id)}
-                                disabled={col.required}
-                                onCheckedChange={(checked) => {
-                                  setVisibleColumns(prev => {
-                                    const next = new Set(prev);
-                                    if (checked) {
-                                      next.add(col.id);
-                                    } else if (!col.required) {
-                                      next.delete(col.id);
-                                    }
-                                    return next;
-                                  });
-                                }}
-                              />
-                              <Label htmlFor={`col-${col.id}`} className="flex-1">
-                                {col.label}
-                                {col.required && (
-                                  <span className="ml-2 text-xs text-gray-500">(Required)</span>
-                                )}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
+          )}
+        </div>
 
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
+        {!hasActiveJobs ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] relative">
+            <div className="text-center space-y-4 max-w-lg">
+              <h2 className="text-2xl font-bold text-foreground">Start Tracking Your Job Applications</h2>
+              <p className="text-muted-foreground">
+                Keep track of your job applications, manage contacts, and never miss an opportunity.
+                Click the + button to add your first job application or click here to add your first job application.
+
+              </p>
+              <Button onClick={openNewJobModal}>Add Your First Job Application</Button>
+
+            </div>
+          </div>
+        ) : (
+          <AnimatePresence>
+            {layoutMode === 'table' ? (
+              <div className="w-full">
+                <div className="flex justify-end mb-4">
+                  <Dialog open={showColumnSelector} onOpenChange={setShowColumnSelector}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <Settings2 className="h-4 w-4" />
+                        Configure Columns
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Visible Columns</DialogTitle>
+                        <DialogDescription>
+                          Select which columns you want to display in the table.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        {columnDefs.map((col) => (
+                          <div key={col.id} className="flex items-center space-x-2">
+                            <Switch
+                              id={`col-${col.id}`}
+                              checked={visibleColumns.has(col.id)}
+                              disabled={col.required}
+                              onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                  const next = new Set(prev);
+                                  if (checked) {
+                                    next.add(col.id);
+                                  } else if (!col.required) {
+                                    next.delete(col.id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                            />
+                            <Label htmlFor={`col-${col.id}`} className="flex-1">
+                              {col.label}
+                              {col.required && (
+                                <span className="ml-2 text-xs text-gray-500">(Required)</span>
+                              )}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {columnDefs
+                        .filter(col => visibleColumns.has(col.id))
+                        .map((col) => (
+                          <TableHead
+                            key={col.id}
+                            className={col.sortable ? 'cursor-pointer select-none hover:bg-gray-50' : ''}
+                            onClick={() => {
+                              if (!col.sortable) return;
+                              setSortState(prev => ({
+                                column: col.id,
+                                direction:
+                                  prev.column === col.id
+                                    ? prev.direction === 'asc'
+                                      ? 'desc'
+                                      : prev.direction === 'desc'
+                                        ? null
+                                        : 'asc'
+                                    : 'asc'
+                              }));
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              {col.label}
+                              {col.sortable && (
+                                <span className="text-gray-400">
+                                  {sortState.column === col.id ? (
+                                    sortState.direction === 'asc' ? (
+                                      <FaSortUp className="text-blue-500" />
+                                    ) : sortState.direction === 'desc' ? (
+                                      <FaSortDown className="text-blue-500" />
+                                    ) : (
+                                      <FaSort />
+                                    )
+                                  ) : (
+                                    <FaSort />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </TableHead>
+                        ))}
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedJobs.map((job) => (
+                      <TableRow key={job.id}>
                         {columnDefs
                           .filter(col => visibleColumns.has(col.id))
                           .map((col) => (
-                            <TableHead
-                              key={col.id}
-                              className={col.sortable ? 'cursor-pointer select-none hover:bg-gray-50' : ''}
-                              onClick={() => {
-                                if (!col.sortable) return;
-                                setSortState(prev => ({
-                                  column: col.id,
-                                  direction:
-                                    prev.column === col.id
-                                      ? prev.direction === 'asc'
-                                        ? 'desc'
-                                        : prev.direction === 'desc'
-                                          ? null
-                                          : 'asc'
-                                      : 'asc'
-                                }));
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                {col.label}
-                                {col.sortable && (
-                                  <span className="text-gray-400">
-                                    {sortState.column === col.id ? (
-                                      sortState.direction === 'asc' ? (
-                                        <FaSortUp className="text-blue-500" />
-                                      ) : sortState.direction === 'desc' ? (
-                                        <FaSortDown className="text-blue-500" />
-                                      ) : (
-                                        <FaSort />
-                                      )
-                                    ) : (
-                                      <FaSort />
-                                    )}
-                                  </span>
-                                )}
-                              </div>
-                            </TableHead>
+                            <TableCell key={col.id}>
+                              {col.id === 'status' ? (
+                                <Badge className={`${getStatusColor(job.status)}`}>
+                                  {job.status}
+                                </Badge>
+                              ) : col.id === 'dateApplied' || col.id === 'dateUpdated' ? (
+                                job[col.id] ? format(new Date(job[col.id]!), 'PP') : 'N/A'
+                              ) : col.id === 'contactName' ? (
+                                <div className="flex flex-col">
+                                  <span>{job.contactName || 'N/A'}</span>
+                                  {job.contactEmail && (
+                                    <a href={`mailto:${job.contactEmail}`} className="text-sm text-blue-600 hover:underline">
+                                      {job.contactEmail}
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                String(job[col.id] || 'N/A')
+                              )}
+                            </TableCell>
                           ))}
-                        <TableHead className="w-[100px]">Actions</TableHead>
+                        <TableCell>
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openJobDetails(job)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Select
+                              value={job.status}
+                              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue>{job.status}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {jobStatuses.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {status}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedJobs.map((job) => (
-                        <TableRow key={job.id}>
-                          {columnDefs
-                            .filter(col => visibleColumns.has(col.id))
-                            .map((col) => (
-                              <TableCell key={col.id}>
-                                {col.id === 'status' ? (
-                                  <Badge className={`${getStatusColor(job.status)}`}>
-                                    {job.status}
-                                  </Badge>
-                                ) : col.id === 'dateApplied' || col.id === 'dateUpdated' ? (
-                                  job[col.id] ? format(new Date(job[col.id]!), 'PP') : 'N/A'
-                                ) : col.id === 'contactName' ? (
-                                  <div className="flex flex-col">
-                                    <span>{job.contactName || 'N/A'}</span>
-                                    {job.contactEmail && (
-                                      <a href={`mailto:${job.contactEmail}`} className="text-sm text-blue-600 hover:underline">
-                                        {job.contactEmail}
-                                      </a>
-                                    )}
-                                  </div>
-                                ) : (
-                                  String(job[col.id] || 'N/A')
-                                )}
-                              </TableCell>
-                            ))}
-                          <TableCell>
-                            <div className="flex justify-end space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openJobDetails(job)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Select
-                                value={job.status}
-                                onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-                              >
-                                <SelectTrigger className="w-[130px]">
-                                  <SelectValue>{job.status}</SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {jobStatuses.map((status) => (
-                                    <SelectItem key={status} value={status}>
-                                      {status}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : layoutMode === 'list' ? (
-                <motion.div
-                  className="space-y-6"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {filteredJobs.map((job) => (
-                    <motion.div
-                      key={job.id || `job-${job.company}-${job.position}`}
-                      layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <JobCard
-                        job={job}
-                        openJobDetails={openJobDetails}
-                        handleKeyDown={handleKeyDown}
-                        layoutMode={layoutMode}
-                        updateJobStatus={updateJobStatus}
-                        updateJobDetails={updateJobDetails}
-                        setActiveTab={setActiveTab}
-                      />
-                    </motion.div>
-                  ))}
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="grid gap-6"
-                  style={{
-                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {filteredJobs.map((job) => (
-                    <motion.div
-                      key={job.id || `job-${job.company}-${job.position}`}
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <JobCard
-                        job={job}
-                        openJobDetails={openJobDetails}
-                        handleKeyDown={handleKeyDown}
-                        layoutMode={layoutMode}
-                        updateJobStatus={updateJobStatus}
-                        updateJobDetails={updateJobDetails}
-                        setActiveTab={setActiveTab}
-                      />
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : layoutMode === 'list' ? (
+              <motion.div
+                className="space-y-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {filteredJobs.map((job) => (
+                  <motion.div
+                    key={job.id || `job-${job.company}-${job.position}`}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <JobCard
+                      job={job}
+                      openJobDetails={openJobDetails}
+                      handleKeyDown={handleKeyDown}
+                      layoutMode={layoutMode}
+                      updateJobStatus={updateJobStatus}
+                      updateJobDetails={updateJobDetails}
+                      setActiveTab={setActiveTab}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid gap-6"
+                style={{
+                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                }}
+              >
+                {filteredJobs.map((job) => (
+                  <motion.div
+                    key={job.id || `job-${job.company}-${job.position}`}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <JobCard
+                      job={job}
+                      openJobDetails={openJobDetails}
+                      handleKeyDown={handleKeyDown}
+                      layoutMode={layoutMode}
+                      updateJobStatus={updateJobStatus}
+                      updateJobDetails={updateJobDetails}
+                      setActiveTab={setActiveTab}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
 
-          <SteppedAddJobModal
-            isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            onSubmit={addNewJob}
-            resumes={resumes}
-          />
+        <SteppedAddJobModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={addNewJob}
+          resumes={resumes}
+        />
 
-          <Button
-            className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
-            onClick={openNewJobModal}
-          >
-            +
-          </Button>
+        <Button
+          className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
+          onClick={openNewJobModal}
+        >
+          +
+        </Button>
 
-          <ViewDetailsModal
-            isOpen={isViewDetailsModalOpen}
-            onClose={closeJobDetails}
-            job={selectedJob}
-            setSelectedJob={setSelectedJob}
-            setIsModalOpen={setIsModalOpen}
-            updateJobDetails={updateJobDetails}
-            activeTab={activeTab}
-            handleAIRecommendation={handleAIRecommendation}
-          />
+        <ViewDetailsModal
+          isOpen={isViewDetailsModalOpen}
+          onClose={closeJobDetails}
+          job={selectedJob}
+          setSelectedJob={setSelectedJob}
+          setIsModalOpen={setIsModalOpen}
+          updateJobDetails={updateJobDetails}
+          activeTab={activeTab}
+          handleAIRecommendation={handleAIRecommendation}
+        />
 
-          
-        </div>
+
+      </div>
     </>
   )
 }
@@ -1298,12 +1292,12 @@ const SignedOutCallback = () => {
   return null;
 };
 
-const ResumeButton = ({ job }: { job: Job }) => {
+const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
   const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
-    job.generatedResume?.status || "not_started"
+    job.resumeGenerated?.status || "not_started"
   );
 
-  
+
 
   switch (isGenerating) {
     case 'generating':
@@ -1321,7 +1315,8 @@ const ResumeButton = ({ job }: { job: Job }) => {
           size="sm"
           className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
           onClick={() => {
-            window.open(job.generatedResume?.url, '_blank');
+            console.log(job.resumeGenerated)
+            window.open(job.resumeGenerated?.url, '_blank');
           }}
         >
           <Download className="w-4 h-4" />
@@ -1338,7 +1333,7 @@ const ResumeButton = ({ job }: { job: Job }) => {
           className="flex items-center gap-2 text-red-600"
           onClick={() => {
             setIsGenerating("generating");
-            generateResume(job, setIsGenerating);
+            generateResume(job, setIsGenerating, updateJobDetails);
           }}
         >
           <AlertCircle className="h-4 w-4" />
@@ -1346,18 +1341,18 @@ const ResumeButton = ({ job }: { job: Job }) => {
         </Button>
       );
 
-    
 
-    
+
+
     default:
       return (
-      <Button
+        <Button
           variant="outline"
           size="sm"
           className="flex items-center gap-2"
           onClick={() => {
             setIsGenerating("generating");
-            generateResume(job, setIsGenerating);
+            generateResume(job, setIsGenerating, updateJobDetails);
           }}
         >
           <Sparkles className="h-4 w-4" />
@@ -1367,7 +1362,7 @@ const ResumeButton = ({ job }: { job: Job }) => {
   }
 };
 
-const CoverLetterButton = ({ job }: { job: Job }) => {
+const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
   const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
   const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
 
@@ -1395,6 +1390,7 @@ const CoverLetterButton = ({ job }: { job: Job }) => {
           size="sm"
           className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
           onClick={() => {
+            console.log(job.coverLetter);
             window.open(job.coverLetter?.url, '_blank');
           }}
         >
@@ -1412,7 +1408,7 @@ const CoverLetterButton = ({ job }: { job: Job }) => {
           className="flex items-center gap-2 text-red-600"
           onClick={() => {
             setIsGenerating("generating");
-            generateCoverLetter(job, setIsGenerating);
+            generateCoverLetter(job, setIsGenerating, updateJobDetails);
           }}
         >
           <>
@@ -1430,7 +1426,7 @@ const CoverLetterButton = ({ job }: { job: Job }) => {
           className="flex items-center gap-2"
           onClick={() => {
             setIsGenerating("generating");
-            generateCoverLetter(job, setIsGenerating);
+            generateCoverLetter(job, setIsGenerating, updateJobDetails);
           }}
         >
 
@@ -1622,6 +1618,9 @@ function JobCard({
         <CardContent className="p-4">
           <div className="flex justify-between items-start">
             <div>
+              <AdminOnly>
+                <code>{job.id}</code>
+              </AdminOnly>
               <h3 className="font-semibold text-lg">{job.company}</h3>
               <div className="flex items-center gap-2">
                 <p className="text-sm text-gray-600">{job.position}</p>
@@ -1629,9 +1628,9 @@ function JobCard({
                   {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
                 </Badge>
               </div>
-              
+
             </div>
-            
+
           </div>
 
           <div className="mt-4 flex flex-col gap-2">
@@ -1656,7 +1655,7 @@ function JobCard({
             <Select
               value={job.status}
               onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-              
+
             >
               <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
                 <SelectValue>{job.status}</SelectValue>
@@ -1714,7 +1713,11 @@ function JobCard({
       onKeyDown={(e) => handleKeyDown(e, job)}
     >
       <CardHeader>
+        <AdminOnly>
+          <code className="text-xs">Job ID: {job.id}</code>
+        </AdminOnly>
         <CardTitle className="flex justify-between items-center">
+
           <span className="text-2xl">{job.company}</span>
           <div className="flex items-center gap-2">
             <Select
@@ -1788,17 +1791,16 @@ function JobCard({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-xl font-semibold">{job.position}</h3>
-                  <Badge 
-                    variant="outline" 
-                    className={`text-sm ${
-                      job.aiRating 
-                        ? job.aiRating >= 80
-                          ? 'bg-green-100 text-green-800'
-                          : job.aiRating >= 60
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-red-100 text-red-800'
-                        : ''
-                    }`}
+                  <Badge
+                    variant="outline"
+                    className={`text-sm ${job.aiRating
+                      ? job.aiRating >= 80
+                        ? 'bg-green-100 text-green-800'
+                        : job.aiRating >= 60
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      : ''
+                      }`}
                   >
                     <Sparkles className="w-4 h-4 mr-1" />
                     {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
@@ -1830,8 +1832,8 @@ function JobCard({
                 <FileText className="w-4 h-4 mr-1" />
                 Resume
               </a> */}
-              <CoverLetterButton job={job} />
-              <ResumeButton job={job} />
+              <CoverLetterButton job={job} updateJobDetails={updateJobDetails} />
+              <ResumeButton job={job} updateJobDetails={updateJobDetails} />
 
             </div>
 
@@ -1901,7 +1903,7 @@ function JobCard({
                 </Button>
               </div>
             </div>
-            
+
           </div>
           {layoutMode === 'list' && (
             <div className="w-[30%] pl-4 border-l" id="hunter-section">
@@ -2144,10 +2146,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                 {addJobSteps.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-1 w-4 sm:w-8 rounded-full ${
-                      index === currentStep ? 'bg-blue-600' :
+                    className={`h-1 w-4 sm:w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
                       index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -2241,10 +2242,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                 {addJobSteps.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-1 w-4 sm:w-8 rounded-full ${
-                      index === currentStep ? 'bg-blue-600' :
+                    className={`h-1 w-4 sm:w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
                       index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -2290,7 +2290,7 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
   const [activeTab, setActiveTab] = useState<'details' | 'hunter'>(initialActiveTab || 'details');
   const [editingField, setEditingField] = useState<keyof Job | null>(null);
   const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
-  
+
   // Add this useEffect to update the selected job when the job prop changes
   useEffect(() => {
     if (job) {
@@ -2301,7 +2301,7 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
   // Add a wrapper function for handleAIRecommendation
   const handleAIAnalysis = async () => {
     if (!job) return;
-    
+
     await handleAIRecommendation(job);
     // After AI recommendation is complete, fetch the latest job data
     try {
@@ -2451,115 +2451,153 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-lg">
-      <ScrollArea className="flex-grow ">
-        <DialogHeader className="p-3 sm:p-6 pb-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-900/20 dark:to-purple-900/20 border-bottom-rounded">
-          <div className="space-y-3 sm:space-y-4">
-            {/* Company and Position Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mt-2 sm:mt-4">
-              <div className="space-y-1 sm:space-y-2 w-full sm:w-auto">
-                <DialogTitle className="text-xl sm:text-3xl font-bold break-words">
-                  {job?.company}
-                </DialogTitle>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base sm:text-lg text-muted-foreground">{job?.position}</h2>
-                  <Badge className={`${getStatusColor(job.status)}`}>
-                    {job.status}
-                  </Badge>
+        <ScrollArea className="flex-grow ">
+          <DialogHeader className="p-3 sm:p-6 pb-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-900/20 dark:to-purple-900/20 border-bottom-rounded">
+            <div className="space-y-3 sm:space-y-4">
+              {/* Company and Position Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mt-2 sm:mt-4">
+                <div className="space-y-1 sm:space-y-2 w-full sm:w-auto">
+                  <DialogTitle className="text-xl sm:text-3xl font-bold break-words">
+                    {job?.company}
+                  </DialogTitle>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-base sm:text-lg text-muted-foreground">{job?.position}</h2>
+                    <Badge className={`${getStatusColor(job.status)}`}>
+                      {job.status}
+                    </Badge>
+                  </div>
                 </div>
+                <a
+                  href={job.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Globe2 className="h-4 w-4" />
+                  Visit Website
+                </a>
               </div>
-              <a
-                href={job.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 whitespace-nowrap"
+
+              {/* AI Button - Make it full width on mobile */}
+              <Button
+                onClick={handleAIAnalysis}
+                disabled={!job || job.aiRated}
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
               >
-                <Globe2 className="h-4 w-4" />
-                Visit Website
-              </a>
-            </div>
+                {job?.aiRated ? (
+                  <>
+                    <Bot className="h-4 w-4" />
+                    AI Score: {job.aiRating}% Match
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Get AI Recommendation
+                  </>
+                )}
+              </Button>
 
-            {/* AI Button - Make it full width on mobile */}
-            <Button 
-              onClick={handleAIAnalysis}
-              disabled={!job || job.aiRated}
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-            >
-              {job?.aiRated ? (
-                <>
-                  <Bot className="h-4 w-4" />
-                  AI Score: {job.aiRating}% Match
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Get AI Recommendation
-                </>
-              )}
-            </Button>
-
-            {/* AI Recommendation Card - Adjust padding for mobile */}
-            {job.aiRating && (
-              <Card className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 dark:from-emerald-900/20 dark:to-blue-900/20 border-none">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <div className="mt-1 hidden sm:block">
-                      <Bot className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              {/* AI Recommendation Card - Adjust padding for mobile */}
+              {job.aiRating && (
+                <Card className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 dark:from-emerald-900/20 dark:to-blue-900/20 border-none">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="mt-1 hidden sm:block">
+                        <Bot className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+                          AI Recommendation
+                          <Sparkles className="h-4 w-4 text-yellow-500" />
+                        </h3>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          <p>Based on your profile and this job's requirements, you have a <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{job.aiRating}% match</span> for this position.</p>
+                          {job.aiNotes && (
+                            <div className="mt-2" dangerouslySetInnerHTML={{ __html: job.aiNotes }} />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-                        AI Recommendation
-                        <Sparkles className="h-4 w-4 text-yellow-500" />
-                      </h3>
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        <p>Based on your profile and this job's requirements, you have a <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{job.aiRating}% match</span> for this position.</p>
-                        {job.aiNotes && (
-                          <div className="mt-2" dangerouslySetInnerHTML={{ __html: job.aiNotes }} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tab Navigation - Make it scroll horizontally on mobile */}
+              <div className="flex space-x-2 overflow-x-auto pb-2 mt-2 sm:mt-4 -mx-3 sm:mx-0 px-3 sm:px-0">
+                <Button
+                  variant={activeTab === 'details' ? 'default' : 'ghost'}
+                  onClick={() => setActiveTab('details')}
+                  className="whitespace-nowrap flex-shrink-0"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Details
+                </Button>
+                <Button
+                  variant={activeTab === 'hunter' ? 'default' : 'ghost'}
+                  onClick={() => setActiveTab('hunter')}
+                  className="whitespace-nowrap flex-shrink-0"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Contacts Found
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-3 sm:p-6">
+            <div className="py-3 sm:py-4">
+              {activeTab === 'details' ? (
+                <div className="space-y-4 sm:space-y-6">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold">Job Description</h4>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
+                        >
+                          {isJobDescriptionCollapsed ? 'Show More' : 'Show Less'}
+                        </Button>
+                        {editingField === 'jobDescription' ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingField(null)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingField('jobDescription')}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </div>
+                    {editingField === 'jobDescription' ? (
+                      <Textarea
+                        value={job.jobDescription || ''}
+                        onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
+                        className="min-h-[200px]"
+                      />
+                    ) : (
+                      <div className={`relative ${isJobDescriptionCollapsed ? 'max-h-[100px]' : 'max-h-none'} overflow-hidden`}>
+                        <p className="text-sm whitespace-pre-wrap">{job.jobDescription}</p>
+                        {isJobDescriptionCollapsed && job.jobDescription && job.jobDescription.length > 300 && (
+                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                        )}
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tab Navigation - Make it scroll horizontally on mobile */}
-            <div className="flex space-x-2 overflow-x-auto pb-2 mt-2 sm:mt-4 -mx-3 sm:mx-0 px-3 sm:px-0">
-              <Button
-                variant={activeTab === 'details' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('details')}
-                className="whitespace-nowrap flex-shrink-0"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Details
-              </Button>
-              <Button
-                variant={activeTab === 'hunter' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('hunter')}
-                className="whitespace-nowrap flex-shrink-0"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Contacts Found
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="p-3 sm:p-6">
-          <div className="py-3 sm:py-4">
-            {activeTab === 'details' ? (
-              <div className="space-y-4 sm:space-y-6">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold">Job Description</h4>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsJobDescriptionCollapsed(!isJobDescriptionCollapsed)}
-                      >
-                        {isJobDescriptionCollapsed ? 'Show More' : 'Show Less'}
-                      </Button>
-                      {editingField === 'jobDescription' ? (
+                  <Separator />
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold">Notes</h4>
+                      {editingField === 'notes' ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -2571,102 +2609,64 @@ function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setEditingField('jobDescription')}
+                          onClick={() => setEditingField('notes')}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
+                    {editingField === 'notes' ? (
+                      <Textarea
+                        value={job.notes || ''}
+                        onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
+                        className="min-h-[100px] sm:min-h-[200px]"
+                      />
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
+                    )}
                   </div>
-                  {editingField === 'jobDescription' ? (
-                    <Textarea
-                      value={job.jobDescription || ''}
-                      onChange={(e) => setSelectedJob({ ...job, jobDescription: e.target.value })}
-                      className="min-h-[200px]"
-                    />
-                  ) : (
-                    <div className={`relative ${isJobDescriptionCollapsed ? 'max-h-[100px]' : 'max-h-none'} overflow-hidden`}>
-                      <p className="text-sm whitespace-pre-wrap">{job.jobDescription}</p>
-                      {isJobDescriptionCollapsed && job.jobDescription && job.jobDescription.length > 300 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Important Dates</h4>
+                    {renderField("Interview Date", job.interviewDate, "interviewDate")}
+                    {renderField("Date Applied", job.dateApplied, "dateApplied")}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Documents</h4>
+                    <div className="space-y-4">
+                      {job.resumeLink && (
+                        <div>
+                          <Label className="font-semibold">Resume</Label>
+                          <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
+                        </div>
+                      )}
+                      {job.coverLetterLink && (
+                        <div>
+                          <Label className="font-semibold">Cover Letter</Label>
+                          <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-                <Separator />
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold">Notes</h4>
-                    {editingField === 'notes' ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingField(null)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingField('notes')}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
-                  {editingField === 'notes' ? (
-                    <Textarea
-                      value={job.notes || ''}
-                      onChange={(e) => setSelectedJob({ ...job, notes: e.target.value })}
-                      className="min-h-[100px] sm:min-h-[200px]"
-                    />
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap mt-1">{job.notes || 'No notes added yet.'}</p>
-                  )}
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Important Dates</h4>
-                  {renderField("Interview Date", job.interviewDate, "interviewDate")}
-                  {renderField("Date Applied", job.dateApplied, "dateApplied")}
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Documents</h4>
+                  <Separator />
                   <div className="space-y-4">
-                    {job.resumeLink && (
-                      <div>
-                        <Label className="font-semibold">Resume</Label>
-                        <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
-                      </div>
-                    )}
-                    {job.coverLetterLink && (
-                      <div>
-                        <Label className="font-semibold">Cover Letter</Label>
-                        <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
-                      </div>
-                    )}
+                    <h4 className="font-semibold">Additional Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {renderField("Salary", job.salary, "salary")}
+                      {renderField("Location", job.location, "location")}
+                      {renderField("Remote Type", job.remoteType, "remoteType")}
+                      {renderField("Job Type", job.jobType, "jobType")}
+                    </div>
                   </div>
                 </div>
-                <Separator />
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Additional Details</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {renderField("Salary", job.salary, "salary")}
-                    {renderField("Location", job.location, "location")}
-                    {renderField("Remote Type", job.remoteType, "remoteType")}
-                    {renderField("Job Type", job.jobType, "jobType")}
-                  </div>
+              ) : (
+                <div className="p-3 sm:p-6">
+                  {renderHunterTab()}
                 </div>
-              </div>
-            ) : (
-              <div className="p-3 sm:p-6">
-                {renderHunterTab()}
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
         </ScrollArea>
 
         {/* Footer Buttons - Stack on mobile */}

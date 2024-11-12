@@ -18,10 +18,7 @@ import resumeTemplate from '@/app/api/genai/templates/resume_template';
 
 
 const latexGenerationRules = `
-Avoid Using Special Characters: Ensure there are no unescaped special characters (like $, %, #, _, &, ^, ~, and \) outside of math mode or within text that isn’t supposed to be interpreted as code. For example, if you need to use one of these characters in regular text, escape it with a backslash (e.g., \&).
-Explicitly Check for Math Delimiters: Ensure that every $ you use has a matching closing $, and similarly for \[...\] and \( ... \).
-Document Structure Review: Keep your code organized and use comments to mark different sections clearly, making it easier to debug issues in the future.
-Avoid using any packages that are not supported by texlive. Do not use any packages that are not supported by texlive. Do not use any weird characters or symbols.
+    Only use the following special characters: $, %, #, &, ’
 `
 
 /**
@@ -184,17 +181,28 @@ async function createCoverLetter(job: Job) {
         });
 
         // Generate PDF
-        const coverLetterPdfUrl = await latexToPdfUrl(object.cover_letter.latex_body);
+        const { url, status } = await latexToPdfUrl(object.cover_letter.latex_body);
+
+        if (status !== "Success") {
+            await Logger.error('Cover letter generation failed', {
+                jobId: job.id,
+                status: status
+            });
+            return { success: false, error: 'Cover letter generation failed' };
+        }
 
         await Logger.info('Cover letter uploaded successfully', {
             jobId: job.id,
-            fileUrl: coverLetterPdfUrl
+            fileUrl: url
         });
+
+        // Update job with cover letter data
+        await JobModel.updateOne({ id: job.id }, { $set: { coverLetter: { url: url, status: 'ready' }, dateGenerated: new Date().toISOString() } });
 
         return {
             success: true,
             coverLetterData: object.cover_letter,
-            pdfUrl: coverLetterPdfUrl
+            pdfUrl: url
         };
     } catch (error) {
         await Logger.error('Error in createCoverLetter', {
@@ -287,17 +295,28 @@ async function createResume(job: Job) {
         });
 
         // Generate PDF
-        const resumePdfUrl = await latexToPdfUrl(object.resume.latex_body);
+        const { url, status } = await latexToPdfUrl(object.resume.latex_body);
+
+        if (status !== "Success") {
+            await Logger.error('Resume generation failed', {
+                jobId: job.id,
+                status: status
+            });
+            return { success: false, error: 'Resume generation failed' };
+        }
 
         await Logger.info('Resume uploaded successfully', {
             jobId: job.id,
-            fileUrl: resumePdfUrl
+            fileUrl: url
         });
+
+        // Update job with resume data
+        await JobModel.updateOne({ id: job.id }, { $set: { resumeGenerated: { url: url, status: 'ready', dateGenerated: new Date().toISOString() } } });
 
         return {
             success: true,
             resumeData: object.resume,
-            pdfUrl: resumePdfUrl
+            pdfUrl: url
         };
 
     } catch (error) {

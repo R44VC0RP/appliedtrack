@@ -1,21 +1,15 @@
-export default `
+export default String.raw`
 \documentclass[a4paper,10pt]{article}
 \\usepackage[margin=1in]{geometry}
-\\usepackage{parskip}  % For paragraph spacing
-\\usepackage{hyperref} % For clickable links
-\\usepackage{enumitem} % For customizing lists
+\\usepackage{parskip}  
+\\usepackage{hyperref} 
+\\usepackage{enumitem} 
 
-% Custom command for consistent formatting
-\newcommand{\sectiontitle}[1]{
-  \vspace{0.4cm}
-  \textbf{#1} \\
-}
 
 \begin{document}
 
 \begin{center}
   \textbf \\
-  Full Name \\ City, State \\
   P: Phone Number \\
   \href{mailto:email@example.com}{email@example.com} \\
 \end{center}
@@ -39,7 +33,7 @@ I have consistently demonstrated my ability to adapt to new challenges, work eff
 I am excited about the opportunity to bring my expertise to your organization and would welcome the chance to discuss how my background aligns with your goals. Thank you for considering my application.
 
 \sectiontitle
-Sincerely, \\
+Sincerely, 
 Full Name
 
 \end{document}
