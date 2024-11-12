@@ -243,11 +243,15 @@ async function createResume(job: Job) {
 
             Resume Instructions:
             - Keep it concise and professional
+            - Make it as compact as possible.
+            - Do not include any information that is not relevant to the job.
+            - Try to fit the resume in 1 page.
             - Highlight relevant skills and experience for this specific role
             - Use action verbs and quantifiable achievements
             - Ensure proper formatting and organization
             - Include contact information, work history, education, and skills
             - Tailor content to match job requirements
+            - Use LaTeX and this template: ${resumeTemplate}
             
             Here is ${user.name}'s personal statement: ${user.about}
 
