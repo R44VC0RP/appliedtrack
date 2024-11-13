@@ -1,90 +1,64 @@
 "use client"
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-// import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, ChevronRight, Briefcase, Calendar, Search, Users, BarChart, Clock, FileUp, BarChart2, Target, Quote, Zap } from 'lucide-react'
+import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap } from 'lucide-react'
 import { Header } from '@/components/header'
-
+import dynamic from 'next/dynamic'
 import { FaRocket, FaChartLine, FaBrain } from 'react-icons/fa'
 import { Sparkles } from 'lucide-react'
-import dynamic from 'next/dynamic'
 import { toast } from "sonner"
+import type { Engine } from "tsparticles-engine"
+import Particles from "react-particles"
+import { loadFull } from "tsparticles"
+import { motion } from 'framer-motion'
+import { CheckCircle2 } from 'lucide-react'
 
-// import jobTrackrLogo from '@/app/logos/logo.png'
 
-// images:
 
-import jobTrackDashboard from '@/app/images/jobTrackDashboard.png'
-import emailLookup from '@/app/images/emailLookup.png'
-import resumeManagement from '@/app/images/resumeManagement.png'
+// Import Server Actions and Types
+import { srv_handleWaitlistSignup, srv_recordPageVisit, srv_getHomepageData } from '@/app/actions/server/homepage/primary'
+import { PricingTier } from '@/models/Config'
 
-const PricingSection = dynamic(() => import('./homepage-components/PricingSection'), {
-  loading: () => <LoadingPricingSection />,
-  ssr: true
-})
 
-const ParticlesBackground = dynamic(() => import('./homepage-components/ParticlesBackground'), {
-  loading: () => null,
-  ssr: false
-})
 
-const DemoVideo = dynamic(() => import('./homepage-components/DemoVideo'), {
-  loading: () => <LoadingDemoVideo />,
-  ssr: false
-})
-
-// Move FEATURES and images to a separate constants file
-// src/constants/homepage.ts
-export const FEATURES = [
-  { 
-    icon: Briefcase, 
-    title: 'Smart Application Tracking', 
-    description: 'Organize and monitor all your job applications with detailed status tracking and follow-up reminders.',
-    gradient: 'from-blue-500 to-indigo-500'
-  },
-  { 
-    icon: Search, 
-    title: 'Email Discovery', 
-    description: 'Powered by Hunter.io, automatically find the right contact person for your follow-ups and networking.',
-    gradient: 'from-purple-500 to-pink-500'
-  },
-  { 
-    icon: BarChart, 
-    title: 'Resume Management', 
-    description: 'Upload multiple resumes and track which version you used for each application.',
-    gradient: 'from-orange-500 to-red-500'
-  },
-  { 
-    icon: Users, 
-    title: 'Cover Letter Generator', 
-    description: 'Generate professional, personalized PDF cover letters tailored to each application.',
-    gradient: 'from-green-500 to-emerald-500'
-  },
-  {
-    icon: Clock,
-    title: 'Follow-up Reminders',
-    description: 'We will remind you to follow up on your applications if it has been a while since you last heard from them.',
-    gradient: 'from-yellow-500 to-orange-500'
-  },
-  { 
-    icon: Calendar, 
-    title: 'Coming Soon: ATS Review', 
-    description: 'Get insights on how your resume performs against applicant tracking systems.',
-    gradient: 'from-teal-500 to-cyan-500'
-  },
-] as const
-
+const ReactPlayerNoSSR = dynamic(() => import('react-player'), { ssr: false })
 
 export default function Homepage() {
-  const [refItem, setRefItem] = useState('')
+  const [refItem, setRefItem] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const DAILY_SIGNUPS = 35 // Average number, no need for random generation
+  const [dailySignups, setDailySignups] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
+  const particlesInit = useCallback(async (engine: Engine): Promise<void> => {
+    await loadFull(engine)
+  }, [])
+
+  useEffect(() => {
+    const trackCampaignVisit = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search)
+        const ref = urlParams.get('ref')
+        if (ref) {
+          setRefItem(ref)
+          await srv_recordPageVisit(ref)
+        }
+      } catch (error) {
+        console.error('Failed to track campaign visit:', error)
+      }
+    }
+    const fetchPricingTiers = async () => {
+      const data = await srv_getHomepageData()
+      setPricingTiers(data?.pricingTiers || null)
+    }
+
+    trackCampaignVisit()
+    fetchPricingTiers()
+  }, [])
 
   const handleWaitlistSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,34 +68,18 @@ export default function Homepage() {
       if (!email) {
         throw new Error('Email is required')
       }
-      
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
-        throw new Error('Please enter a valid email address')
+        toast.error('Please enter a valid email address')
+        return
       }
 
-      const response = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, ref: refItem }),
-      })
-
-      if (response.status === 409) {
-        throw new Error('This email is already on our waitlist!')
-      }
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to join waitlist')
-      }
-
-      const data = await response.json()
+      const response = await srv_handleWaitlistSignup(email, refItem || '')
       setEmail('')
-      
+
       toast.success("Success!", {
-        description: `You're number ${data.totalUsers} on the waitlist. We'll notify you when we launch!`
+        description: response.message
       })
 
     } catch (err: any) {
@@ -133,42 +91,82 @@ export default function Homepage() {
     }
   }
 
-  useEffect(() => {
-    const trackCampaignVisit = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const ref = urlParams.get('ref');
-      setRefItem(ref || '')
-      
-      if (ref) {
-        try {
-          await fetch('/api/campaigns/track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ref, type: "access" }),
-          });
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-          console.error('Error tracking campaign visit:', error);
-        }
-      }
-    };
-
-    trackCampaignVisit();
-  }, []);
-
   return (
     <div className="flex flex-col min-h-screen dark:bg-gray-950">
       <Header />
-
       <main className="flex-1">
-        {/* Hero Section with proper centering */}
+        {/* Particles Background */}
         <section className="relative w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950/80 overflow-hidden">
-          <Suspense fallback={null}>
-            <ParticlesBackground />
-          </Suspense>
-
+          <Particles
+            id="tsparticles"
+            init={particlesInit}
+            className="absolute inset-0"
+            options={{
+              fullScreen: { enable: false },
+              background: {
+                color: {
+                  value: "transparent",
+                },
+              },
+              fpsLimit: 120,
+              interactivity: {
+                events: {
+                  onHover: {
+                    enable: true,
+                    mode: "grab",
+                  },
+                },
+                modes: {
+                  grab: {
+                    distance: 140,
+                    links: {
+                      opacity: 0.5,
+                    },
+                  },
+                },
+              },
+              particles: {
+                color: {
+                  value: "#ffffff",
+                },
+                links: {
+                  color: "#ffffff",
+                  distance: 150,
+                  enable: true,
+                  opacity: 0.2,
+                  width: 1,
+                },
+                move: {
+                  direction: "none",
+                  enable: true,
+                  outModes: {
+                    default: "bounce",
+                  },
+                  random: false,
+                  speed: 1,
+                  straight: false,
+                },
+                number: {
+                  density: {
+                    enable: true,
+                    area: 800,
+                  },
+                  value: 80,
+                },
+                opacity: {
+                  value: 0.3,
+                },
+                shape: {
+                  type: "circle",
+                },
+                size: {
+                  value: { min: 1, max: 3 },
+                },
+              },
+              detectRetina: true,
+            }}
+          />
           <div className="container relative mx-auto px-4 md:px-6 flex flex-col items-center text-center">
-            {/* Beta Badge */}
             <div className="mb-6">
               <span className="px-3 py-1 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-1">
                 <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
@@ -176,8 +174,6 @@ export default function Homepage() {
                 <span className="md:hidden">Beta Soon</span>
               </span>
             </div>
-
-            {/* Main Heading */}
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-white max-w-4xl">
               Your Job Search,{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
@@ -210,21 +206,21 @@ export default function Homepage() {
             {/* Waitlist Form */}
             <div className="w-full max-w-md mt-8">
               <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleWaitlistSignup}>
-              <Input
+                <Input
                   className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
                   placeholder="Enter your email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   variant="secondary"
                   className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
-                      <span className="animate-spin"><Zap className="w-4 h-4" /></span> 
+                      <span className="animate-spin"><Zap className="w-4 h-4" /></span>
                       Joining...
                     </div>
                   ) : (
@@ -234,18 +230,18 @@ export default function Homepage() {
               </form>
               <p className="text-xs md:text-sm text-gray-300 flex items-center justify-center gap-2 mt-2">
                 <span className="flex h-2 w-2 bg-green-400 rounded-full animate-pulse" />
-                {DAILY_SIGNUPS} people joined today
+                {dailySignups ?? 35} people joined today
               </p>
             </div>
 
             {/* Product Hunt Badge */}
             <div className="hidden md:block mt-8">
               <a href="https://www.producthunt.com/posts/appliedtrack" className="inline-block">
-                <img 
-                  src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=587730&theme=neutral" 
-                  alt="AppliedTrack on Product Hunt" 
-                  width="250" 
-                  height="54" 
+                <img
+                  src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=587730&theme=neutral"
+                  alt="AppliedTrack on Product Hunt"
+                  width="250"
+                  height="54"
                 />
               </a>
             </div>
@@ -384,30 +380,124 @@ export default function Homepage() {
 
             <div className="max-w-4xl mx-auto">
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-xl">
-                <DemoVideo />
+                <div className="relative mx-auto max-w-[1200px]">
+                  <div className="relative rounded-lg overflow-hidden border shadow-lg dark:border-gray-800">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                    <ReactPlayerNoSSR
+                      url="https://utfs.io/f/HhaWmBOvDmlROQ3xTvtchYsK8zZDAp4J1TSadIxoHBWQ7lPq"
+                      width="100%"
+                      height="100%"
+                      playing={true}
+                      loop={true}
+                      muted={true}
+                      controls={false}
+                      playsinline={true}
+                      config={{
+                        file: {
+                          attributes: {
+                            style: { width: '100%', height: '100%' }
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* Pricing Section */}
-        <Suspense fallback={<LoadingPricingSection />}>
-          <PricingSection />
-        </Suspense>
+        <section id="pricing" className="w-full py-24 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
+          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent dark:from-gray-900 dark:to-transparent" />
+          
+          <div className="container relative mx-auto px-4 md:px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-16"
+            >
+              <span className="px-4 py-1.5 text-sm bg-primary/10 text-primary dark:bg-primary/20 rounded-full font-medium inline-block mb-4">
+                Simple Pricing
+              </span>
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                Choose the Right Plan for You
+              </h2>
+              <div className="mt-6 flex items-center justify-center gap-2 max-w-2xl mx-auto mb-2">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
+                  <span className="hidden sm:inline"><Sparkles className="w-4 h-4" /></span>
+                  Students save 50% with .edu email verification
+                </span>
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                Start free and upgrade as you grow. No hidden fees, no surprises.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {pricingTiers?.map((tier, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="relative"
+                >
+                  {tier.name === 'Pro' && (
+                    <div className="absolute -top-4 left-0 right-0 flex justify-center">
+                      <span className="px-3 py-1 text-sm bg-gradient-to-r from-primary to-primary/80 text-white rounded-full font-medium">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+                  
+                  <Card className={`h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 ${
+                    tier.name === 'Pro' ? 'border-primary shadow-lg scale-105' : ''
+                  }`}>
+                    <CardHeader>
+                      <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
+                      <CardDescription className="flex items-baseline mt-4">
+                        <span className="text-4xl font-bold">{tier.price}</span>
+                        {tier.price !== 'Free' && (
+                          <span className="text-gray-500 dark:text-gray-400 ml-2">/month</span>
+                        )}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <ul className="space-y-4">
+                        {tier.features.map((feature, featureIndex) => (
+                          <li key={featureIndex} className="flex items-center space-x-3">
+                            <CheckCircle2 className="w-5 h-5 text-primary" />
+                            <span className="dark:text-gray-300">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Footer */}
         <footer className="w-full py-6 border-t dark:border-gray-700">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between">
             <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 AppliedTrack. All rights reserved.</p>
             <nav className="flex gap-4 sm:gap-6 mt-4 sm:mt-0">
-              <Link 
-                href="/terms" 
+              <Link
+                href="/terms"
                 className="text-xs hover:underline underline-offset-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 Terms of Service
               </Link>
-              <Link 
-                href="/privacy" 
+              <Link
+                href="/privacy"
                 className="text-xs hover:underline underline-offset-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 Privacy Policy
@@ -417,30 +507,5 @@ export default function Homepage() {
         </footer>
       </main>
     </div>
-  )
-}
-
-// Keep LoadingPricingSection component
-function LoadingPricingSection() {
-  return (
-    <div className="w-full py-24 bg-gray-50 dark:bg-gray-950">
-      <div className="container mx-auto px-4 text-center">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 dark:bg-gray-900 rounded w-64 mx-auto" />
-          <div className="h-4 bg-gray-200 dark:bg-gray-900 rounded w-96 mx-auto" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-96 bg-gray-200 dark:bg-gray-900 rounded" />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function LoadingDemoVideo() {
-  return (
-    <div className="absolute inset-0 w-full h-full bg-gray-200 dark:bg-gray-900 animate-pulse rounded-xl" />
   )
 }

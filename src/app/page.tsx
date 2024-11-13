@@ -1,12 +1,10 @@
+import Homepage from '@/components/homepage'
+import { Suspense } from 'react'
 
-'use server'
-
-import Homepage from "@/components/homepage";
-
-export default async function Home() {
+export default function Page() {
   return (
-    <div>
+    <Suspense fallback={null}>
       <Homepage />
-    </div>
+    </Suspense>
   )
 }
