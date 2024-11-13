@@ -1,5 +1,7 @@
 "use client"
 
+// USING SERVER ACTIONS FROM @/app/actions/server/homepage/primary.ts
+
 import { useState, useEffect, Suspense, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
