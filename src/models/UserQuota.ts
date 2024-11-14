@@ -3,7 +3,8 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 export interface UserQuota extends Document {
   userId: string;
   emailsUsed: number;
-  coverLettersUsed: number;
+  aiCoverLettersUsed: number;
+  aiResumesUsed: number;
   dateCreated: Date;
   dateUpdated: Date;
   quotaResetDate: Date;
@@ -12,7 +13,8 @@ export interface UserQuota extends Document {
 const UserQuotaSchema = new Schema({
   userId: { type: String, required: true, unique: true },
   emailsUsed: { type: Number, default: 0 },
-  coverLettersUsed: { type: Number, default: 0 },
+  aiCoverLettersUsed: { type: Number, default: 0 },
+  aiResumesUsed: { type: Number, default: 0 },
   dateCreated: { type: Date, default: Date.now },
   dateUpdated: { type: Date, default: Date.now },
   quotaResetDate: { type: Date, required: true }

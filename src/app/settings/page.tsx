@@ -13,7 +13,7 @@ import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { CircleProgress } from "@/components/ui/circle-progress";
-import { Header } from "@/components/header";
+import { Header } from "@/components/header/header";
 import { Loader2 } from "lucide-react";
 
 export default function SettingsPage() {

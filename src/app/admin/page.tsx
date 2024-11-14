@@ -29,7 +29,8 @@ import {
     FileText,
     MessageSquare,
     BarChart3,
-    CreditCard
+    CreditCard,
+    MapIcon
 } from 'lucide-react'
 import { ThemeControl } from '@/components/ui/themecontrol'
 import { StripeTestHelper } from '@/components/stripe-test-helper'
@@ -42,6 +43,7 @@ import { CampaignManagement } from './components/campaign-management'
 import AiPlayground from './components/aiplayground'
 import { LoggingDashboard } from './components/logging-dashboard'
 import LatexGenerator from './components/latexgen'
+import { RoadMapPage} from './components/RoadMapPage'
 
 interface NavItem {
     title: string;
@@ -91,9 +93,9 @@ const navItems: NavItem[] = [
         component: LatexGenerator,
     },
     {
-        title: "Settings",
-        icon: Settings,
-        component: () => <div>Settings Component</div>, // Placeholder
+        title: "RoadMap",
+        icon: MapIcon,
+        component: RoadMapPage, // Placeholder
     },
 ]
 

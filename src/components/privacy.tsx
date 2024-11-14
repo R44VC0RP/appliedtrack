@@ -1,5 +1,5 @@
 import React from 'react';
-import { Header } from '@/components/header';
+import { Header } from '@/components/header/header';
 import { Separator } from "@/components/ui/separator";
 
 export function PrivacyPolicy() {
