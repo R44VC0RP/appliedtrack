@@ -7,7 +7,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import Script from 'next/script'
 import { siteConfig } from '@/config/metadata'
 import { Toaster } from "@/components/ui/sonner"
-import dbConnect from '@/lib/mongodb'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -46,7 +45,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  await dbConnect();
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { default: dbConnect } = await import('@/lib/mongodb')
+      await dbConnect()
+    } catch (error) {
+      console.warn('MongoDB connection failed during build:', error)
+    }
+  }
 
   return (
     <ClerkProvider>
