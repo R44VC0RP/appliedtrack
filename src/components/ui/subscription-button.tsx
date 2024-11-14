@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 
 interface SubscriptionButtonProps {
   tier: string;
@@ -11,7 +11,6 @@ interface SubscriptionButtonProps {
 
 export function SubscriptionButton({ tier, price }: SubscriptionButtonProps) {
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleSubscribe = async () => {
     try {
@@ -32,11 +31,7 @@ export function SubscriptionButton({ tier, price }: SubscriptionButtonProps) {
       window.location.href = url;
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start subscription process",
-        variant: "destructive",
-      });
+      toast.error("Failed to start subscription process");
     } finally {
       setLoading(false);
     }

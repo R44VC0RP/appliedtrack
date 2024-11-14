@@ -34,7 +34,6 @@ import {
 } from '@clerk/nextjs'
 import { useAuth } from '@clerk/nextjs';
 import { OurFileRouter } from "@/app/api/uploadthing/core";
-// import { useToast } from "@/hooks/use-toast"
 import { FaSync } from 'react-icons/fa';
 import { useSearchParams } from 'next/navigation';
 import {
