@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 import { Logger } from '@/lib/logger';
 import { checkRole } from '@/middleware/checkRole';

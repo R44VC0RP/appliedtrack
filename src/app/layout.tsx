@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import Script from 'next/script'
 import { siteConfig } from '@/config/metadata'
 import { Toaster } from "@/components/ui/sonner"
+import dbConnect from '@/lib/mongodb'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -40,11 +41,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  await dbConnect();
+
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>

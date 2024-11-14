@@ -33,7 +33,6 @@ import {
     MapIcon
 } from 'lucide-react'
 import { ThemeControl } from '@/components/ui/themecontrol'
-import { StripeTestHelper } from '@/components/stripe-test-helper'
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"

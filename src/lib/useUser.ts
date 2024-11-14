@@ -1,6 +1,6 @@
 'use server';
 
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { UserModel, User } from "@/models/User";
 import { Logger } from '@/lib/logger';
 
@@ -82,4 +82,10 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
     });
     throw error;
   }
+}
+
+export async function srv_authAdminUser(): Promise<boolean> {
+  const user = await currentUser();
+  const authUser = await UserModel.findOne({ userId: user?.id });
+  return authUser?.role === 'admin';
 }

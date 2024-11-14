@@ -5,8 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StripeTestHelper } from '@/components/stripe-test-helper';
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Subscription {
   id: string;
@@ -24,7 +23,6 @@ export function BillingDashboard() {
   const [stripeMode, setStripeMode] = useState<'test' | 'live'>('test');
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchStripeData();
@@ -39,11 +37,7 @@ export function BillingDashboard() {
       setSubscriptions(data.subscriptions);
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch subscription data",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch subscription data");
     } finally {
       setLoading(false);
     }
@@ -73,10 +67,6 @@ export function BillingDashboard() {
         <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          {process.env.NODE_ENV === 'development' && (
-            <TabsTrigger value="testing">Testing</TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="overview" className="h-full">
@@ -148,32 +138,6 @@ export function BillingDashboard() {
             </div>
           </Card>
         </TabsContent>
-
-        <TabsContent value="settings" className="h-full">
-          <Card className="p-4 h-full">
-            <h3 className="font-semibold mb-4">Stripe Configuration</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Webhook Status</label>
-                <Badge className="ml-2" variant="outline">
-                  {stripeMode === 'live' ? 'Configured' : 'Development'}
-                </Badge>
-              </div>
-              <div>
-                <label className="text-sm font-medium">API Mode</label>
-                <Badge className="ml-2" variant={stripeMode === 'live' ? 'default' : 'secondary'}>
-                  {stripeMode}
-                </Badge>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {process.env.NODE_ENV === 'development' && (
-          <TabsContent value="testing" className="h-full">
-            <StripeTestHelper />
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );

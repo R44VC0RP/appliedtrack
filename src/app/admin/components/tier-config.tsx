@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Settings } from 'lucide-react'
 
 interface TierLimits {
@@ -22,7 +22,6 @@ interface Config {
 export function TierConfig() {
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchConfig();
@@ -36,11 +35,7 @@ export function TierConfig() {
       setConfig(data);
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch tier configuration",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch tier configuration");
     } finally {
       setLoading(false);
     }
@@ -56,17 +51,10 @@ export function TierConfig() {
 
       if (!response.ok) throw new Error('Failed to update config');
 
-      toast({
-        title: "Success",
-        description: "Tier configuration updated successfully",
-      });
+      toast.success("Tier configuration updated successfully");
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update tier configuration",
-        variant: "destructive",
-      });
+      toast.error("Failed to update tier configuration");
     }
   };
 

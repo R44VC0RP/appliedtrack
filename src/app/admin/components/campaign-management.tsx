@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FaPlus, FaCopy, FaQrcode, FaDownload, FaTrash } from "react-icons/fa";
 import { useQRCode } from 'next-qrcode';
@@ -25,7 +25,6 @@ interface Campaign {
 function CreateCampaignDialog({ onCampaignCreated }: { onCampaignCreated: () => void }) {
   const [newCampaign, setNewCampaign] = useState({ name: '', ref: '', description: '' });
   const [open, setOpen] = useState(false);
-  const { toast } = useToast();
 
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,20 +37,13 @@ function CreateCampaignDialog({ onCampaignCreated }: { onCampaignCreated: () => 
 
       if (!response.ok) throw new Error('Failed to create campaign');
 
-      toast({
-        title: "Success",
-        description: "Campaign created successfully",
-      });
+      toast.success("Campaign created successfully");
 
       setNewCampaign({ name: '', ref: '', description: '' });
       setOpen(false);
       onCampaignCreated();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create campaign",
-        variant: "destructive",
-      });
+      toast.error("Failed to create campaign");
     }
   };
 
@@ -92,7 +84,6 @@ function CreateCampaignDialog({ onCampaignCreated }: { onCampaignCreated: () => 
 export function CampaignManagement() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
   const { Canvas } = useQRCode();
   const [selectedQR, setSelectedQR] = useState<{ ref: string; url: string } | null>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
@@ -108,11 +99,7 @@ export function CampaignManagement() {
       const data = await response.json();
       setCampaigns(data);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch campaigns",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch campaigns");
     } finally {
       setLoading(false);
     }
@@ -121,10 +108,7 @@ export function CampaignManagement() {
   const copyToClipboard = (ref: string) => {
     const url = `${window.location.origin}?ref=${ref}`;
     navigator.clipboard.writeText(url);
-    toast({
-      title: "Copied!",
-      description: "Campaign URL copied to clipboard",
-    });
+    toast.success("Campaign URL copied to clipboard");
   };
 
   const showQRPreview = (ref: string) => {
@@ -158,18 +142,11 @@ export function CampaignManagement() {
 
       if (!response.ok) throw new Error('Failed to delete campaign');
 
-      toast({
-        title: "Success",
-        description: "Campaign deleted successfully",
-      });
+      toast.success("Campaign deleted successfully");
 
       fetchCampaigns();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete campaign",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete campaign");
     } finally {
       setCampaignToDelete(null);
     }

@@ -3,7 +3,7 @@
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { UserModel } from "@/models/User";
 import { Logger } from '@/lib/logger';
-import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser";
+import { srv_getCompleteUserProfile, CompleteUserProfile, srv_authAdminUser } from "@/lib/useUser";
 
 // Types
 interface UpdateUserParams {
@@ -18,13 +18,13 @@ interface UpdateUserParams {
  */
 export async function srv_getUsers(adminUserId: string) {
   try {
-    const authAdminUser = await UserModel.findOne({ userId: adminUserId });
-    const clerkAdminUser = await currentUser()
+    const authAdminUser = await srv_authAdminUser();
+    const userAuth = await srv_getCompleteUserProfile(adminUserId);
 
-    if (!authAdminUser || authAdminUser.role !== 'admin' && clerkAdminUser?.id !== adminUserId) {
+    if (!authAdminUser || userAuth?.role !== 'admin') {
       await Logger.warning('Non-admin user attempted to fetch users', {
         userId: adminUserId,
-        userRole: authAdminUser?.role
+        userRole: userAuth?.role
       });
       throw new Error("Forbidden");
     }
@@ -53,13 +53,13 @@ export async function srv_getUsers(adminUserId: string) {
  */
 export async function srv_updateUser(adminUserId: string, params: UpdateUserParams) {
   try {
-    const authAdminUser = await UserModel.findOne({ userId: adminUserId });
-    const clerkAdminUser = await currentUser()
+    const authAdminUser = await srv_authAdminUser();
+    const userAuth = await srv_getCompleteUserProfile(adminUserId);
 
-    if (!authAdminUser || authAdminUser.role !== 'admin' && clerkAdminUser?.id !== adminUserId) {
+    if (!authAdminUser || userAuth?.role !== 'admin') {
       await Logger.warning('Non-admin user attempted to update user', {
         userId: adminUserId,
-        userRole: authAdminUser?.role
+        userRole: userAuth?.role
       });
       throw new Error("Forbidden");
     }

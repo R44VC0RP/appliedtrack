@@ -4,9 +4,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
 import { Search, UserCog, Lock, Unlock } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
+import { toast } from "sonner"
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 // Server Actions
@@ -22,7 +22,6 @@ export function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(true);
-  const { toast } = useToast();
   const { user: currentUser } = useUser()
   const [lockedModalOpen, setLockedModalOpen] = useState(false);
   useEffect(() => {
@@ -54,20 +53,12 @@ export function AdminUsers() {
 
       await srv_updateUser(currentUser?.id as string, { targetUserId: userId, ...updates });
 
-      toast({
-        title: "Success",
-        description: `User ${Object.keys(updates).join(' and ')} updated successfully`,
-        variant: "default",
-      });
+      toast.success(`User ${Object.keys(updates).join(' and ')} updated successfully`);
 
       await fetchUsers();
     } catch (error) {
       console.error('Error updating user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update user. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to update user. Please try again.");
 
       setUsers(prevUsers =>
         prevUsers.map(user =>

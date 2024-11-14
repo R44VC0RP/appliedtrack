@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from "sonner";
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface ILog {
@@ -240,7 +240,6 @@ function FilterPanel({
 }
 
 export function LoggingDashboard() {
-  const { toast } = useToast()
   const [filters, setFilters] = useState<FilterState>({
     level: ALL_LEVELS,
     service: ALL_SERVICES,
@@ -305,11 +304,7 @@ export function LoggingDashboard() {
       setPagination(data.pagination)
       setHasMore(currentPage < data.pagination.pages)
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch logs. Please try again.",
-        variant: "destructive"
-      })
+      toast.error("Failed to fetch logs. Please try again.");
     } finally {
       setIsLoading(false)
       setInitialLoading(false)
@@ -346,10 +341,7 @@ export function LoggingDashboard() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    toast({
-      title: "Copied",
-      description: "Log details copied to clipboard",
-    })
+    toast.success("Log details copied to clipboard");
   }
 
   const uniqueServices = useMemo(() => {
