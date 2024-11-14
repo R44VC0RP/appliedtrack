@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { srv_getRoadmapData, srv_updateRoadmap, srv_createRoadmap, srv_deleteRoadmap } from '@/app/actions/server/admin/roadmap/primary'
 import { Roadmap } from '@/models/Roadmap'
@@ -20,7 +20,7 @@ export function RoadMapPage() {
     const [items, setItems] = useState<Roadmap[]>([])
     const [editItem, setEditItem] = useState<Roadmap | null>(null)
     const [newItem, setNewItem] = useState({ title: '', description: '' })
-    const { toast } = useToast()
+    const [dialogOpen, setDialogOpen] = useState(false)
 
     useEffect(() => {
         fetchItems()
@@ -69,25 +69,22 @@ export function RoadMapPage() {
 
             // Then sync with server in the background
             if (source.droppableId !== destination.droppableId) {
-                await srv_updateRoadmap(
+                const response = await srv_updateRoadmap(
                     draggableId,
                     draggedItem.title,
                     draggedItem.description,
                     destination.droppableId as Status
                 )
+
+                if (response.error) {
+                    toast.error(response.error)
+                }
             }
             
-            toast({
-                title: "Success",
-                description: "Item moved successfully",
-            })
+            toast.success("Item moved successfully")
         } catch (error) {
             console.error('Error during drag and drop:', error)
-            toast({
-                title: "Error",
-                description: "Failed to move item",
-                variant: "destructive",
-            })
+            toast.error("Failed to move item")
             // Revert to original state
             fetchItems()
         }
@@ -104,25 +101,26 @@ export function RoadMapPage() {
 
         await srv_updateRoadmap(editItem.id, editItem.title, editItem.description, editItem.status)
 
-        toast({
-            title: "Success",
-            description: "Item updated successfully",
-        })
+        toast.success("Item updated successfully")
     }
 
     const handleCreateItem = async () => {
         if (!newItem.title.trim()) return  // Prevent empty submissions
         
-        await srv_createRoadmap(newItem.title, newItem.description, 'not-started')
+        const response = await srv_createRoadmap(newItem.title, newItem.description, 'not-started')
+
+        if (response.error) {
+            toast.error(response.error)
+            return
+        }
+
         setNewItem({ title: '', description: '' })
         fetchItems()
 
-        toast({
-            title: "Success",
-            description: "New item created successfully",
-        })
+        toast.success("New item created successfully")
 
-        // Close the dialog
+        // Close the dialog after creating the item
+        setDialogOpen(false)
 
     }
 
@@ -137,16 +135,9 @@ export function RoadMapPage() {
         try {
             await srv_deleteRoadmap(id)
             setItems(items.filter(item => item.id !== id))
-            toast({
-                title: "Success",
-                description: "Item deleted successfully",
-            })
+            toast.success("Item deleted successfully")
         } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to delete item",
-                variant: "destructive",
-            })
+            toast.error("Failed to delete item")
         }
     }
 
@@ -161,7 +152,7 @@ export function RoadMapPage() {
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Roadmap</h2>
-                <Dialog open={!!newItem.title} onOpenChange={() => setNewItem({ title: '', description: '' })}>
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild >
                         <Button>Add New Item</Button>
                     </DialogTrigger>
@@ -234,7 +225,7 @@ export function RoadMapPage() {
                                                             <div className="flex justify-between items-start">
                                                                 <div onClick={() => setEditItem(item)} className="flex-1">
                                                                     <h4 className="font-medium">{item.title}</h4>
-                                                                    <p className="text-sm text-muted-foreground mt-2">
+                                                                    <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">
                                                                         {item.description}
                                                                     </p>
                                                                 </div>
