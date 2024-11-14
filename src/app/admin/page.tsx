@@ -145,7 +145,7 @@ export default function AdminDashboard() {
 
                     <div className="flex-1 overflow-auto">
                         <div className="w-full">
-                            <div className="p-3 flex items-center justify-between gap-2 items-center">
+                            <div className="p-3 flex justify-between gap-2 items-center">
                                 <div className="flex items-center gap-2">
                                     <SidebarTrigger />
                                     <p className="text-lg font-semibold">Hi {user?.firstName}!</p>

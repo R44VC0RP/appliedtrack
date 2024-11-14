@@ -1,3 +1,5 @@
+'use client'
+
 import Homepage from '@/components/homepage'
 import { Suspense } from 'react'
 
