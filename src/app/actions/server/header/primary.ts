@@ -15,7 +15,7 @@
 
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser"
 import { UserQuota, UserQuotaModel } from "@/models/UserQuota"
-
+import { plain } from "@/lib/plain" 
 
 export interface HeaderData extends CompleteUserProfile {
     quota: UserQuota | null
@@ -25,5 +25,5 @@ export interface HeaderData extends CompleteUserProfile {
 export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
     const user = await srv_getCompleteUserProfile(userId) as CompleteUserProfile
     const quota = await UserQuotaModel.findOne({ userId }) || null
-    return { ...user, quota }
+    return plain({ ...user, quota })
 }

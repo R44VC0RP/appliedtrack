@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { srv_getStripeDashboardData } from '@/app/actions/server/admin/stripedashboard/primary';
 
 interface Subscription {
   id: string;
@@ -30,11 +31,9 @@ export function BillingDashboard() {
 
   const fetchStripeData = async () => {
     try {
-      const response = await fetch('/api/admin/stripe/dashboard');
-      if (!response.ok) throw new Error('Failed to fetch stripe data');
-      const data = await response.json();
+      const data = await srv_getStripeDashboardData();
       setStripeMode(data.mode);
-      setSubscriptions(data.subscriptions);
+      setSubscriptions(data.subscriptions as Subscription[]);
     } catch (error) {
       console.error('Error:', error);
       toast.error("Failed to fetch subscription data");

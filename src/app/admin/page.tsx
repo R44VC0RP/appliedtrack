@@ -39,9 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
-import AiPlayground from './components/aiplayground'
 import { LoggingDashboard } from './components/logging-dashboard'
-import LatexGenerator from './components/latexgen'
 import { RoadMapPage} from './components/RoadMapPage'
 
 interface NavItem {
@@ -77,19 +75,9 @@ const navItems: NavItem[] = [
         component: CampaignManagement,
     },
     {
-        title: "AI Playground",
-        icon: MessageSquare,
-        component: AiPlayground,
-    },
-    {
         title: "Logging",
         icon: FileText,
         component: LoggingDashboard,
-    },
-    {
-        title: "LaTeX Generator",
-        icon: FileText,
-        component: LatexGenerator,
     },
     {
         title: "RoadMap",

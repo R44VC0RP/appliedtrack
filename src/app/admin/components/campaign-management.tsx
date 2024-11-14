@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+// Server Actions
+import { srv_createCampaign, srv_deleteCampaign, srv_getCampaigns } from '@/app/actions/server/admin/campaignmgmt/primary';
+
 interface Campaign {
   _id: string;
   name: string;
@@ -29,13 +32,9 @@ function CreateCampaignDialog({ onCampaignCreated }: { onCampaignCreated: () => 
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCampaign),
-      });
+      const response = await srv_createCampaign(newCampaign);
 
-      if (!response.ok) throw new Error('Failed to create campaign');
+      if (!response.success) throw new Error(response.message);
 
       toast.success("Campaign created successfully");
 
@@ -94,10 +93,9 @@ export function CampaignManagement() {
 
   const fetchCampaigns = async () => {
     try {
-      const response = await fetch('/api/admin/campaigns');
-      if (!response.ok) throw new Error('Failed to fetch campaigns');
-      const data = await response.json();
-      setCampaigns(data);
+      const response = await srv_getCampaigns();
+      if (!response.success) throw new Error(response.message);
+      setCampaigns(response.data as Campaign[]);
     } catch (error) {
       toast.error("Failed to fetch campaigns");
     } finally {
@@ -136,11 +134,9 @@ export function CampaignManagement() {
 
   const deleteCampaign = async (campaign: Campaign) => {
     try {
-      const response = await fetch(`/api/admin/campaigns/${campaign._id}`, {
-        method: 'DELETE',
-      });
+      const response = await srv_deleteCampaign(campaign._id);
 
-      if (!response.ok) throw new Error('Failed to delete campaign');
+      if (!response.success) throw new Error(response.message);
 
       toast.success("Campaign deleted successfully");
 

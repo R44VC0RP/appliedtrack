@@ -3,6 +3,7 @@
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { UserModel, User } from "@/models/User";
 import { Logger } from '@/lib/logger';
+import { plain } from "./plain";
 
 export interface CompleteUserProfile {
   // Clerk data
@@ -54,7 +55,7 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       hasDbRecord: !!dbUser
     });
 
-    return {
+    return plain({
       // Clerk data
       id: clerkUser.id,
       email: clerkUser.emailAddresses[0]?.emailAddress ?? null,
@@ -72,7 +73,7 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       dateUpdated: mongoUser.dateUpdated,
       stripeCustomerId: mongoUser.stripeCustomerId,
       subscriptionId: mongoUser.subscriptionId
-    };
+    });
 
   } catch (error) {
     await Logger.error('Error fetching complete user profile', {
