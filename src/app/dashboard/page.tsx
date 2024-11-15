@@ -1,28 +1,21 @@
-import { AppliedTrack } from "@/components/dashboard-applications";
-import { Metadata } from 'next'
-import { siteConfig } from '@/config/metadata'
+"use server"
 
-export default function Dashboard() {
+import { AppliedTrack } from "./appliedtrack";
+import { srv_checkUserAttributes, srv_initialData } from "@/app/actions/server/job-board/primary";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
+export default async function Dashboard() {
+  const { jobs, resumes } = await srv_initialData();
+  const user = await currentUser();
+  if (!user) {
+    redirect('/sign-in');
+  }
+  const { onboardingComplete, role, tier } = await srv_checkUserAttributes(user.id);
   return (
     <div>
-      <AppliedTrack />
+      <AppliedTrack initJobs={jobs} initResumes={resumes} onboardingComplete={onboardingComplete} role={role} tier={tier} />
     </div>
   )
 }
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Track and manage your job applications in one place",
-  openGraph: {
-    title: "AppliedTrack Dashboard",
-    description: "Your personal job application tracking dashboard",
-    images: [
-      {
-        url: `${siteConfig.url}/api/og?title=Dashboard&type=job`,
-        width: 1200,
-        height: 630,
-        alt: "AppliedTrack Dashboard"
-      }
-    ]
-  }
-}

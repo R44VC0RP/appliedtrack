@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
-// import logo from '@/app/logos/logo.png'
-import hunterLogo from '@/app/logos/hunter.png'
+
 import ReactConfetti from 'react-confetti';
-import { UploadButton } from "@/utils/uploadthing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,26 +12,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, User, Clipboard, Pencil, Settings, Archive, Settings2, Download, Loader2, Sparkles, Check, Bot, Users, Globe2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, FileText, Mail, Calendar, Phone, Search, Clipboard, Pencil, Settings, Archive, Settings2, Download, Loader2, Sparkles, Check, Bot, Users, Globe2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch } from "@/components/ui/switch"
-import { AdminOnly } from '@/hooks/useAdmin';
-// import Masonry from 'react-masonry-css'
-// import { FaThLarge, FaList } from 'react-icons/fa'
-import { useMediaQuery } from 'react-responsive'
 import Image from 'next/image'
-import { List, Grid } from 'lucide-react'
 import { LinkedInLogoIcon } from '@radix-ui/react-icons'
 import { Separator } from "@/components/ui/separator"
 import { format } from 'date-fns'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Header } from '@/components/header'
-import {
-  SignedOut
-} from '@clerk/nextjs'
+import { SignedOut } from '@clerk/nextjs'
 import { useAuth } from '@clerk/nextjs';
-import { OurFileRouter } from "@/app/api/uploadthing/core";
 import { FaSync } from 'react-icons/fa';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -48,21 +37,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { FaTable } from 'react-icons/fa'
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import ClearbitAutocomplete from '@/components/ui/clearbit';
 import JobTitleAutocomplete from '@/components/ui/job-title-autocomplete';
 import { Checkbox } from "@/components/ui/checkbox"
 import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 import { OnboardingModal } from '@/components/onboarding-modal';
-import { auth } from '@clerk/nextjs/server';
-import { userInfo } from 'os';
 
 // Model Imports
 import { IJob as Job } from '@/models/Job';
 import { JobStatus } from '@/models/Job';
 import { toast } from "sonner"
+import { User } from '@/models/User';
+import { JobCard } from './jobcard';
 
+// Server Actions
+import { srv_addJob, srv_getJobs, srv_updateJob } from '@/app/actions/server/job-board/primary';
+
+// IMPORTANT:
 function useWindowSize() {
   const [size, setSize] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
@@ -86,60 +78,7 @@ function useWindowSize() {
   return size;
 }
 
-// Job status options
-// const jobStatuses = ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
 const jobStatuses = Object.values(JobStatus);
-// Define types for job data
-// interface Job {
-//   id?: string;
-//   userId: string;
-//   company: string;
-//   position: string;
-//   status: 'Yet to Apply' | 'Applied' | 'Phone Screen' | 'Interview' | 'Offer' | 'Rejected' | 'Accepted' | 'Archived';
-//   website: string;
-//   resumeLink: string;
-//   jobDescription: string;
-//   dateApplied: string;
-//   // Add other fields as needed, but keep them optional
-//   coverLetterLink?: string;
-//   notes?: string;
-//   contactName?: string;
-//   contactEmail?: string;
-//   contactPhone?: string;
-//   interviewDate?: string;
-//   salary?: number;
-//   location?: string;
-//   remoteType?: 'On-site' | 'Remote' | 'Hybrid';
-//   jobType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
-//   dateCreated?: string;
-//   dateUpdated?: string;
-//   flag?: 'no_response' | 'update' | string;
-//   hunterData?: {
-//     domain: string;
-//     pattern?: string;
-//     organization?: string;
-//     emails?: HunterEmail[];
-//     dateUpdated?: string;
-//     meta?: {
-//       results: number;
-//       limit: number;
-//       offset: number;
-//       params: {
-//         domain: string;
-//         [key: string]: any;
-//       };
-//     };
-//   };
-//   isArchived?: boolean;
-//   coverLetter?: {
-//     url: string;
-//     status: 'generating' | 'ready' | 'failed' | 'not_started';
-//     dateGenerated?: string;
-//   };
-//   aiRated: boolean,
-//   aiNotes: string,
-//   aiRating: number,
-// }
 
 // ============= Types & Interfaces =============
 type SortDirection = 'asc' | 'desc' | null;
@@ -165,7 +104,7 @@ type AddJobStep = {
 };
 
 // Hunter.io categories for the hunter.io search
-type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
+
 
 // ============= Constants =============
 const columnDefs: ColumnDef[] = [
@@ -174,7 +113,6 @@ const columnDefs: ColumnDef[] = [
   { id: 'status', label: 'Status', required: true, sortable: true },
   { id: 'dateApplied', label: 'Date Applied', sortable: true },
   { id: 'dateUpdated', label: 'Last Updated', sortable: true },
-  // Add more columns as needed
 ];
 
 const addJobSteps: AddJobStep[] = [
@@ -209,34 +147,19 @@ const addJobSteps: AddJobStep[] = [
   }
 ];
 
-const hunterCategories: { value: HunterCategory; label: string }[] = [
-  { value: 'executive', label: 'Executive' },
-  { value: 'it', label: 'IT' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'management', label: 'Management' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'legal', label: 'Legal' },
-  { value: 'support', label: 'Support' },
-  { value: 'hr', label: 'HR' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'communication', label: 'Communication' },
-  { value: 'education', label: 'Education' },
-  { value: 'design', label: 'Design' },
-  { value: 'health', label: 'Health' },
-  { value: 'operations', label: 'Operations' }
-];
+
 
 // ============= Utils =============
 const getStatusColor = (status: string): string => {
   switch (status) {
-    case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-    case 'Applied': return 'bg-blue-100 text-blue-800'
-    case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-    case 'Interview': return 'bg-purple-100 text-purple-800'
-    case 'Offer': return 'bg-green-100 text-green-800'
-    case 'Rejected': return 'bg-red-100 text-red-800'
-    case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-    default: return 'bg-gray-100 text-gray-800'
+      case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
+      case 'Applied': return 'bg-blue-100 text-blue-800'
+      case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
+      case 'Interview': return 'bg-purple-100 text-purple-800'
+      case 'Offer': return 'bg-green-100 text-green-800'
+      case 'Rejected': return 'bg-red-100 text-red-800'
+      case 'Accepted': return 'bg-emerald-100 text-emerald-800'
+      default: return 'bg-gray-100 text-gray-800'
   }
 }
 
@@ -248,16 +171,7 @@ const getUserInformation = async () => {
   return null;
 }
 
-const getFlagIcon = (flag: string) => {
-  switch (flag) {
-    case 'no_response':
-      return <AlertCircle className="w-5 h-5 text-yellow-500" />
-    case 'update':
-      return <Clock className="w-5 h-5 text-blue-500" />
-    default:
-      return null
-  }
-}
+
 
 const getInitialSortPreference = () => {
   if (typeof window !== 'undefined') {
@@ -271,87 +185,8 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
-const generateResume = async (
-  job: Job,
-  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
-  updateJobDetails: (updatedJob: Job) => Promise<void>
-) => {
-  try {
-    const response = await fetch('/api/genai', {
-      method: 'POST',
-      body: JSON.stringify({ job, action: 'resume' }),
-    });
 
-    const data = await response.json();
-
-    if (data.success) {
-      // Update job with generated resume
-      await updateJobDetails({
-        ...job,
-        resumeGenerated: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
-      });
-
-      toast.success("Resume generated successfully");
-
-      setIsGenerating("ready");
-    }
-  } catch (error) {
-    console.error('Error generating resume:', error);
-    setIsGenerating("failed");
-  }
-};
-
-
-const generateCoverLetter = async (
-  job: Job,
-  setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
-  updateJobDetails: (updatedJob: Job) => Promise<void>
-) => {
-  try {
-    const response = await fetch('/api/genai', {
-      method: 'POST',
-      body: JSON.stringify({ job, action: 'cover-letter' }),
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // Update to match the server's expected structure
-      // const response_update = await fetch(`/api/jobs`, {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify({
-      //     id: job.id,
-      //     coverLetter: {
-      //       url: data.data.pdfUrl,  // This is what we receive from genai
-      //       status: 'ready',
-      //       dateGenerated: new Date().toISOString(),
-      //       dateUpdated: new Date().toISOString()  // Add this to track updates
-      //     }
-      //   }),
-      // });
-
-      // Update the local job with cover letter data
-      await updateJobDetails({
-        ...job,
-        coverLetter: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
-      });
-
-      toast.success("Cover letter generated successfully");
-
-      setIsGenerating("ready");
-    }
-  } catch (error) {
-    console.error('Error generating cover letter:', error);
-    setIsGenerating("failed");
-  }
-};
-
-
-//#region ============= Custom Hooks =============
-function useClientMediaQuery(query: string): boolean {
+export function useClientMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -372,22 +207,19 @@ function useClientMediaQuery(query: string): boolean {
   return mounted ? matches : false;
 }
 
-export function AppliedTrack() {
-  const [jobs, setJobs] = useState<Job[]>([])
+export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, tier }: { initJobs: Job[], initResumes: { resumeId: string; fileUrl: string, fileName: string }[], onboardingComplete: boolean, role: User['role'], tier: User['tier'] }) {
+  const [jobs, setJobs] = useState<Job[]>(initJobs)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
-  // const [hunterIoResults, setHunterIoResults] = useState<HunterIoResult[]>([])
-  // const [isSearchingHunterIo, setIsSearchingHunterIo] = useState<boolean>(false)
   const [layoutMode, setLayoutMode] = useState<'list' | 'masonry' | 'table'>('list')
   const [columns, setColumns] = useState(3)
-  // const containerRef = useRef<HTMLDivElement>(null)
   const isTablet = useClientMediaQuery('(max-width: 1024px)')
   const isMobile = useClientMediaQuery('(max-width: 640px)')
   const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState<boolean>(false)
   const { isLoaded, userId } = useAuth();
-  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
+  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>(initResumes);
   const searchParams = useSearchParams();
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
   const [visibleColumns, setVisibleColumns] = useState<Set<keyof Job>>(
@@ -396,7 +228,7 @@ export function AppliedTrack() {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [activeTab, setActiveTab] = useState<'details' | 'hunter'>('details');
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(!onboardingComplete);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const { width, height } = useWindowSize();
@@ -450,45 +282,6 @@ export function AppliedTrack() {
   }, [isMobile, isTablet, mounted]);
 
 
-  useEffect(() => {
-    if (isLoaded && userId) {
-      // console.log("Fetching jobs");
-      fetch('/api/jobs')
-        .then(response => response.json())
-        .then(data => {
-          // console.log("Jobs fetched:", data);
-          setJobs(data)
-        })
-        .catch(error => console.error('Error fetching jobs:', error));
-    }
-  }, [isLoaded, userId]);
-
-  useEffect(() => {
-    const fetchResumes = async () => {
-      try {
-        const response = await fetch('/api/resumes');
-        if (response.ok) {
-          const data = await response.json();
-          setResumes(data);
-        }
-      } catch (error) {
-        console.error('Error fetching resumes:', error);
-      }
-    };
-
-    fetchResumes();
-  }, []);
-
-  useEffect(() => {
-    const success = searchParams.get('success');
-    const tier = searchParams.get('tier');
-
-    if (success === 'true' && tier) {
-      toast("Subscription Upgraded!", {
-        description: `Thanks for upgrading to ${tier.charAt(0).toUpperCase() + tier.slice(1)} tier.`
-      });
-    }
-  }, [searchParams, toast]);
 
   const handleKeyDown = (e: React.KeyboardEvent, job: Job) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -528,6 +321,10 @@ export function AppliedTrack() {
         })
         setIsModalOpen(true)
       }
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 5000);
+      }
     }
 
     window.addEventListener('keydown', handleGlobalKeyDown)
@@ -535,20 +332,15 @@ export function AppliedTrack() {
   }, [])
 
   const updateJobStatus = (jobId: string, newStatus: Job['status']) => {
-    const updatedJobs = jobs.map(job =>
-      job.id === jobId ? {
-        ...job,
-        status: newStatus,
-        dateUpdated: new Date().toISOString(),
-        flag: 'update' as const  // Use 'as const' to narrow the type
-      } : job
-    );
-    setJobs(updatedJobs);
+    const updatedJob = {
+      ...jobs.find(job => job.id === jobId)!,
+      status: newStatus,
+      dateUpdated: new Date().toISOString(),
+      flag: 'update' as const
+    };
 
-    const updatedJob = updatedJobs.find(job => job.id === jobId);
-    if (updatedJob) {
-      updateJobDetails(updatedJob);
-    }
+    setJobs(jobs.map(job => job.id === jobId ? updatedJob : job));
+    updateJobDetails(updatedJob);
   };
 
   const openJobDetails = (job: Job) => {
@@ -563,20 +355,11 @@ export function AppliedTrack() {
 
   const addNewJob = async (newJob: Job) => {
     try {
-      const response = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newJob),
-      });
-
-      if (!response.ok) {
+      const response = await srv_addJob(newJob);
+      if (!response) {
         throw new Error('Failed to add new job');
       }
-
-      const addedJob = await response.json();
-      setJobs([...jobs, addedJob]);
+      setJobs([...jobs, response]);
       setIsModalOpen(false);
       toast.success("Job Added")
     } catch (error) {
@@ -590,26 +373,17 @@ export function AppliedTrack() {
   const updateJobDetails = async (updatedJob: Job) => {
     try {
       if (!updatedJob.id) {
-        // This is a new job, so we should add it instead of updating
         await addNewJob(updatedJob);
         return;
       }
 
-      const response = await fetch(`/api/jobs`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedJob),
-      });
-
-      if (!response.ok) {
+      const response = await srv_updateJob(updatedJob);
+      if (!response) {
         throw new Error('Failed to update job');
       }
 
-      const result = await response.json();
-      // console.log("There are ", jobs.length, " jobs");
-      setJobs(jobs.map(job => job.id === updatedJob.id ? result : job));
+      console.log("Updated job:", response);
+      setJobs(jobs.map(job => job.id === updatedJob.id ? response : job));
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error updating job:', error);
@@ -733,68 +507,7 @@ export function AppliedTrack() {
     setIsModalOpen(true);
   };
 
-  const handleNotificationClick = () => {
-    // Handle notification click
-    // console.log('Notification clicked')
-  }
 
-  const handleProfileClick = () => {
-    // Handle profile click
-    // console.log('Profile clicked')
-  }
-
-  const pasteFromClipboard = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (selectedJob) {
-        setSelectedJob({ ...selectedJob, jobDescription: text });
-      }
-    } catch (err) {
-      console.error('Failed to read clipboard contents: ', err);
-    }
-  };
-
-  const handleResumeUpload = useCallback((res: any) => {
-    const uploadedFile = res[0];
-    // console.log("Uploaded file:", uploadedFile);
-    const saveResume = async (uploadedFile: any) => {
-      try {
-        const response = await fetch('/api/resumes', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fileUrl: uploadedFile.url,
-            fileId: uploadedFile.key,
-            resumeId: "RESUME_" + uploadedFile.key,
-            fileName: uploadedFile.name,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save resume');
-        }
-
-        const data = await response.json();
-        // console.log('Resume saved:', data);
-
-        // Update the resumes state and the selected job's resumeLink
-        setResumes(prevResumes => [...prevResumes, {
-          resumeId: "RESUME_" + uploadedFile.key,
-          fileUrl: uploadedFile.url,
-          fileName: uploadedFile.name
-        }]);
-        if (selectedJob) {
-          setSelectedJob({ ...selectedJob, resumeLink: uploadedFile.url });
-        }
-      } catch (error) {
-        console.error('Error saving resume:', error);
-      }
-    };
-
-    saveResume(uploadedFile);
-  }, [selectedJob]);
 
   const sortedJobs = useMemo(() => {
     // console.log(filteredJobs);
@@ -900,10 +613,7 @@ export function AppliedTrack() {
         </DialogContent>
       </Dialog>
 
-      <Header
-        onNotificationClick={handleNotificationClick}
-        onProfileClick={handleProfileClick}
-      />
+      <Header />
       <SignedOut>
         <SignedOutCallback />
       </SignedOut>
@@ -1211,6 +921,7 @@ export function AppliedTrack() {
                       updateJobStatus={updateJobStatus}
                       updateJobDetails={updateJobDetails}
                       setActiveTab={setActiveTab}
+                      role={role}
                     />
                   </motion.div>
                 ))}
@@ -1242,6 +953,7 @@ export function AppliedTrack() {
                       updateJobStatus={updateJobStatus}
                       updateJobDetails={updateJobDetails}
                       setActiveTab={setActiveTab}
+                      role={role}
                     />
                   </motion.div>
                 ))}
@@ -1291,738 +1003,9 @@ const SignedOutCallback = () => {
   return null;
 };
 
-const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
-  const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
-    job.resumeGenerated?.status || "not_started"
-  );
 
-
-
-  switch (isGenerating) {
-    case 'generating':
-      return (
-        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Generating Resume...
-        </Button>
-      );
-
-    case 'ready':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
-          onClick={() => {
-            console.log(job.resumeGenerated)
-            window.open(job.resumeGenerated?.url, '_blank');
-          }}
-        >
-          <Download className="w-4 h-4" />
-          <span>Download Resume</span>
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-        </Button>
-      );
-
-    case 'failed':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 text-red-600"
-          onClick={() => {
-            setIsGenerating("generating");
-            generateResume(job, setIsGenerating, updateJobDetails);
-          }}
-        >
-          <AlertCircle className="h-4 w-4" />
-          Generation Failed - Retry
-        </Button>
-      );
-
-
-
-
-    default:
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-          onClick={() => {
-            setIsGenerating("generating");
-            generateResume(job, setIsGenerating, updateJobDetails);
-          }}
-        >
-          <Sparkles className="h-4 w-4" />
-          Generate Resume
-        </Button>
-      );
-  }
-};
-
-const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
-  const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
-  const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
-
-  // if (job.coverLetter?.status === 'ready') {
-  //   setIsGenerating("ready");
-  // }
-
-  if (!job.coverLetter) {
-    return null;
-  }
-
-  switch (isGenerating) {
-    case 'generating':
-      return (
-        <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Generating Cover Letter...
-        </Button>
-      );
-
-    case 'ready':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
-          onClick={() => {
-            console.log(job.coverLetter);
-            window.open(job.coverLetter?.url, '_blank');
-          }}
-        >
-          <Download className="w-4 h-4" />
-          <span>Download Cover Letter</span>
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-        </Button>
-      );
-
-    case 'failed':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 text-red-600"
-          onClick={() => {
-            setIsGenerating("generating");
-            generateCoverLetter(job, setIsGenerating, updateJobDetails);
-          }}
-        >
-          <>
-            <AlertCircle className="h-4 w-4" />
-            Generation Failed - Retry
-          </>
-        </Button>
-      );
-
-    case 'not_started':
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-          onClick={() => {
-            setIsGenerating("generating");
-            generateCoverLetter(job, setIsGenerating, updateJobDetails);
-          }}
-        >
-
-          <>
-            <Sparkles className="h-4 w-4" />
-            Generate Cover Letter
-          </>
-
-        </Button>
-      );
-
-    default:
-      return null;
-  }
-};
 
 // ============= Card Components =============
-function JobCard({
-  job,
-  openJobDetails,
-  handleKeyDown,
-  layoutMode,
-  updateJobStatus,
-  updateJobDetails,
-  setActiveTab  // Add this prop
-}: {
-  job: Job;
-  openJobDetails: (job: Job) => void;
-  handleKeyDown: (e: React.KeyboardEvent, job: Job) => void;
-  layoutMode: 'list' | 'masonry' | 'table';
-  updateJobStatus: (jobId: string, newStatus: Job['status']) => void;
-  updateJobDetails: (job: Job) => Promise<void>;
-  setActiveTab: (tab: 'details' | 'hunter') => void;  // Add this type
-}) {
-  const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-  // const { toast } = useToast();
-  const [selectedCategories, setSelectedCategories] = useState<Set<HunterCategory>>(new Set());
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-
-  const handleStatusChange = (newStatus: string) => {
-    updateJobStatus(job.id || '', newStatus as Job['status']);
-    setIsStatusSelectOpen(false);
-  };
-
-  const handleSearch = async () => {
-    setIsLoading(true);
-    try {
-      const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-
-      // Updated API call with new parameters
-      const response = await fetch(`/api/hunter?action=domainSearch&domain=${domain}&departments=${Array.from(selectedCategories).join(',')}&limit=10`);
-
-      if (!response.ok) throw new Error('Failed to fetch Hunter data');
-
-      const hunterResult = await response.json();
-
-      // console.log(hunterResult.data.data.data);
-
-      // Update the job with the hunter data
-      const updatedJob = {
-        ...job,
-        hunterData: {
-          ...hunterResult.data.data.data,
-          dateUpdated: new Date().toISOString()
-        }
-      };
-
-      await updateJobDetails(updatedJob);
-
-      toast.success("Hunter Data Updated", {
-        description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`
-      });
-
-      setIsCategoryModalOpen(false);
-    } catch (error) {
-      console.error('Error fetching Hunter data:', error);
-      toast.error("Failed to fetch Hunter data. Please check the domain and try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const searchHunterDomain = () => {
-    setIsCategoryModalOpen(true);
-  };
-
-  const renderHunterPreview = () => {
-    if (!job.hunterData?.emails?.length) return null;
-
-    const previewEmails = job.hunterData.emails.slice(0, 2);
-    const remainingCount = Math.max(0, job.hunterData.emails.length - 2);
-
-    return (
-      <div className="space-y-2">
-        {previewEmails.map((email, index) => (
-          <div key={index} className="flex items-center justify-between text-sm">
-            <span>{email.first_name} {email.last_name}</span>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {email.position}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                {email.confidence}%
-              </Badge>
-            </div>
-          </div>
-        ))}
-        {remainingCount > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent card click event
-              openJobDetails(job);
-              setIsCategoryModalOpen(true);
-            }}
-            className="w-full text-right text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-          >
-            +{remainingCount} more contacts
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const handleArchive = async () => {
-    try {
-      const response = await fetch(`/api/jobs/${job.id}/archive`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...job,
-          isArchived: true,
-          dateUpdated: new Date().toISOString()
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to archive job');
-
-      // Call the parent's updateJobDetails to refresh the UI
-      const updatedJob = await response.json();
-      updateJobDetails(updatedJob);
-
-      toast.success("Job Archived", {
-        description: "The job has been successfully archived"
-      });
-    } catch (error) {
-      console.error('Error archiving job:', error);
-      toast.error("Failed to archive the job. Please try again.");
-    }
-  };
-
-  // Add new state for quick notes
-  const [showQuickNote, setShowQuickNote] = useState(false);
-  const [quickNote, setQuickNote] = useState(job.notes || '');
-
-  const handleQuickNoteSubmit = () => {
-    if (quickNote.trim()) {
-      const updatedJob = {
-        ...job,
-        notes: job.notes ? `${job.notes}\n\n${quickNote}` : quickNote,
-        dateUpdated: new Date().toISOString()
-      };
-      updateJobDetails(updatedJob);
-      setQuickNote('');
-      setShowQuickNote(false);
-    }
-  };
-
-  // Replace useMediaQuery with useClientMediaQuery
-  const isMobile = useClientMediaQuery('(max-width: 640px)');
-
-  const [isConfirmStatusChangeOpen, setIsConfirmStatusChangeOpen] = useState(false);
-
-  // Add useEffect to prevent hydration mismatch
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Return null during SSR or before mounting
-  if (!mounted) return null;
-
-  if (isMobile) {
-    return (
-      <Card className="w-full">
-        <CardContent className="p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <AdminOnly>
-                <code>{job.id}</code>
-              </AdminOnly>
-              <h3 className="font-semibold text-lg">{job.company}</h3>
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-gray-600">{job.position}</p>
-                <Badge variant="outline" className="text-xs">
-                  {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                </Badge>
-              </div>
-
-            </div>
-
-          </div>
-
-          <div className="mt-4 flex flex-col gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1"
-              onClick={() => openJobDetails(job)}
-            >
-              <Pencil className="w-4 h-4" />
-              Details
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1"
-              onClick={() => setShowQuickNote(!showQuickNote)}
-            >
-              <FileText className="w-4 h-4" />
-              Quick Note
-            </Button>
-            <Select
-              value={job.status}
-              onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-
-            >
-              <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
-                <SelectValue>{job.status}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {jobStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {showQuickNote && (
-            <div className="mt-4 space-y-2">
-              <Textarea
-                placeholder="Add a quick note..."
-                value={quickNote}
-                onChange={(e) => setQuickNote(e.target.value)}
-                className="text-sm"
-                rows={3}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowQuickNote(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleQuickNoteSubmit}
-                >
-                  Save Note
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 text-xs text-gray-500">
-            Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PP') : 'N/A'}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Return existing desktop card layout
-  return (
-    <Card
-      className="w-full hover:shadow-lg transition-shadow duration-300"
-      tabIndex={0}
-      onKeyDown={(e) => handleKeyDown(e, job)}
-    >
-      <CardHeader>
-        <AdminOnly>
-          <code className="text-xs">Job ID: {job.id}</code>
-        </AdminOnly>
-        <CardTitle className="flex justify-between items-center">
-
-          <span className="text-2xl">{job.company}</span>
-          <div className="flex items-center gap-2">
-            <Select
-              open={isStatusSelectOpen}
-              onOpenChange={setIsStatusSelectOpen}
-              value={job.status}
-              onValueChange={handleStatusChange}
-            >
-              <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
-                <SelectValue>{job.status}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {jobStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-red-100 hover:text-red-600 transition-colors"
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Archive Job</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to archive this job application for {job.company}?
-                          This will remove it from your active applications list.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleArchive();
-                          }}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          Archive
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Archive Job</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className={layoutMode === 'list' ? 'flex' : ''}>
-          <div className={layoutMode === 'list' ? 'w-[70%] pr-4' : 'w-full'}>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4" id="job-details-section">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-semibold">{job.position}</h3>
-                  <Badge
-                    variant="outline"
-                    className={`text-sm ${job.aiRating
-                      ? job.aiRating >= 80
-                        ? 'bg-green-100 text-green-800'
-                        : job.aiRating >= 60
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      : ''
-                      }`}
-                  >
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                  </Badge>
-                </div>
-                <p className="text-sm text-gray-500">
-                  Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
-                </p>
-              </div>
-              <div className="flex items-center space-x-2 mt-2 md:mt-0">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      {getFlagIcon(job.flag || '')}
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {job.flag === 'no_response' ? 'No response yet' : 'Recent update'}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {/* <a href={job.website} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-blue-600 hover:underline">
-                <ExternalLink className="w-4 h-4 mr-1" />
-                {job.website}
-              </a> */}
-              {/* <a href={job.resumeLink} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-blue-600 hover:underline">
-                <FileText className="w-4 h-4 mr-1" />
-                Resume
-              </a> */}
-              <CoverLetterButton job={job} updateJobDetails={updateJobDetails} />
-              <ResumeButton job={job} updateJobDetails={updateJobDetails} />
-
-            </div>
-
-            {job.interviewDate && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                <span className="flex items-center text-sm text-gray-600">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  Interview: {format(new Date(job.interviewDate), 'PPP')}
-                </span>
-              </div>
-            )}
-            <div className="inline-flex flex-wrap gap-2 mt-2 items-center">
-              <div className="flex gap-2 mt-2 w-full">
-                <Dialog open={isConfirmStatusChangeOpen} onOpenChange={setIsConfirmStatusChangeOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="flex-1">
-                      {job.status === 'Yet to Apply' && 'Mark Applied'}
-                      {job.status === 'Applied' && 'Got a phone follow up?'}
-                      {job.status === 'Phone Screen' && 'Start Interview'}
-                      {job.status === 'Interview' && 'Got Offer'}
-                      {job.status === 'Offer' && 'Finalize'}
-                      {job.status === 'Rejected' && 'Archive'}
-                      {job.status === 'Accepted' && 'Archive'}
-                      {job.status === 'Archived' && 'Restore'}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Update Status</DialogTitle>
-                      <DialogDescription>
-                        {job.status === 'Yet to Apply' && 'Mark this application as submitted?'}
-                        {job.status === 'Applied' && 'Moving to phone screening phase?'}
-                        {job.status === 'Phone Screen' && 'Moving to interview phase?'}
-                        {job.status === 'Interview' && 'Received job offer?'}
-                        {job.status === 'Offer' && 'Ready to mark as accepted/rejected?'}
-                        {job.status === 'Rejected' && 'Archive this application?'}
-                        {job.status === 'Accepted' && 'Archive this application?'}
-                        {job.status === 'Archived' && 'Restore this application?'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsConfirmStatusChangeOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          const currentStatusIndex = jobStatuses.indexOf(job.status);
-                          const nextStatusIndex = (currentStatusIndex + 1) % jobStatuses.length;
-                          updateJobStatus(job.id || '', jobStatuses[nextStatusIndex] as Job['status']);
-                          // Close modal logic
-                          setIsConfirmStatusChangeOpen(false);
-                        }}
-                      >
-                        Confirm
-                      </Button>
-
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={(e) => openJobDetails(job)}
-                >
-                  View Details
-                </Button>
-              </div>
-            </div>
-
-          </div>
-          {layoutMode === 'list' && (
-            <div className="w-[30%] pl-4 border-l" id="hunter-section">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <Image src={hunterLogo} alt={job.company} className="w-[100px] h-auto" />
-                </div>
-                <div className="flex items-center">
-                  {!job.hunterData && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsCategoryModalOpen(true)}
-                        disabled={isLoading}
-                        className="flex items-center gap-2"
-                      >
-                        {isLoading ? (
-                          <FaSync className="w-4 h-4 animate-spin" />
-                        ) : (
-                          'Find Emails'
-                        )}
-                      </Button>
-
-                      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Select Department Categories</DialogTitle>
-                            <DialogDescription>
-                              Choose the departments you want to search for contacts.
-                            </DialogDescription>
-                          </DialogHeader>
-
-                          <div className="grid grid-cols-2 gap-4 py-4">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`${job.id}-all-categories`}
-                                checked={selectedCategories.size === hunterCategories.length}
-                                onCheckedChange={() => setSelectedCategories(new Set(hunterCategories.map(c => c.value)))}
-                              />
-                              <Label htmlFor={`${job.id}-all-categories`}>Select All</Label>
-                            </div>
-                            {hunterCategories.map((category) => (
-                              <div key={category.value} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`${job.id}-${category.value}`}
-                                  checked={selectedCategories.has(category.value)}
-                                  onCheckedChange={(checked) => {
-                                    setSelectedCategories(prev => {
-                                      const next = new Set(prev);
-                                      if (checked) {
-                                        next.add(category.value);
-                                      } else {
-                                        next.delete(category.value);
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                />
-                                <Label
-                                  htmlFor={`${job.id}-${category.value}`}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                  {category.label}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-
-                          <DialogFooter className="sm:justify-between">
-                            <Button
-                              variant="ghost"
-                              onClick={() => setIsCategoryModalOpen(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              onClick={handleSearch}
-                              disabled={selectedCategories.size === 0 || isLoading}
-                            >
-                              {isLoading ? (
-                                <>
-                                  <FaSync className="w-4 h-4 animate-spin mr-2" />
-                                  Searching...
-                                </>
-                              ) : (
-                                'Search Selected Categories'
-                              )}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {job.hunterData ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">Email Pattern</h4>
-                    <Badge variant="secondary" className="text-xs">
-                      {job.hunterData.pattern}
-                    </Badge>
-                  </div>
-                  {renderHunterPreview()}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-4">
-                  <p className="text-sm">No Hunter data available</p>
-                  <p className="text-xs mt-1">Click search to find email patterns</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 // ============= Modal Components =============
 function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
