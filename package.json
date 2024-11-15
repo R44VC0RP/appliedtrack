@@ -13,6 +13,7 @@
     "@clerk/nextjs": "^5.7.3",
     "@fileforge/react-print": "^0.1.150",
     "@hello-pangea/dnd": "^17.0.0",
+    "@radix-ui/react-accordion": "^1.2.1",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",

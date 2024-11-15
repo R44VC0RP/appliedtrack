@@ -93,6 +93,11 @@ export default function AdminDashboard() {
     })
     const { user } = useUser()
 
+    // If user is not signed in, redirect to home
+    if (!user) {
+        window.location.href = "/";
+    }
+
     // Update cookie when activeComponent changes
     useEffect(() => {
         Cookies.set('adminActiveComponent', activeComponent, { expires: 7 }) // Expires in 7 days

@@ -300,7 +300,7 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
     }
 };
 
-export const JobCard = React.forwardRef(({
+const JobCard = React.forwardRef(({
     job,
     openJobDetails,
     handleKeyDown,
@@ -770,7 +770,7 @@ export const JobCard = React.forwardRef(({
                                     <Image src={hunterLogo} alt={job.company} className="w-[100px] h-auto" />
                                 </div>
                                 <div className="flex items-center">
-                                    {!job.hunterData && (
+                                    {!job.hunterData?.emails?.length && (
                                         <>
                                             <Button
                                                 variant="outline"
@@ -859,7 +859,7 @@ export const JobCard = React.forwardRef(({
                                 </div>
                             </div>
 
-                            {job.hunterData ? (
+                            {job.hunterData?.emails?.length ? (
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h4 className="font-semibold">Email Pattern</h4>
@@ -882,3 +882,7 @@ export const JobCard = React.forwardRef(({
         </Card>
     )
 })
+
+JobCard.displayName = 'JobCard';
+
+export default JobCard;

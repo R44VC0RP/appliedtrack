@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap } from 'lucide-react'
+import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap, File, Sparkle, Mail, MailCheck } from 'lucide-react'
 import { Header } from '@/components/header'
 import dynamic from 'next/dynamic'
 import { FaRocket, FaChartLine, FaBrain } from 'react-icons/fa'
@@ -18,6 +18,12 @@ import Particles from "react-particles"
 import { loadFull } from "tsparticles"
 import { motion } from 'framer-motion'
 import { CheckCircle2 } from 'lucide-react'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 
 
@@ -31,6 +37,7 @@ const ReactPlayerNoSSR = dynamic(() => import('react-player'), { ssr: false })
 
 export default function Homepage() {
   const [refItem, setRefItem] = useState<string | null>(null)
+  const [homepageTest, setHomepageTest] = useState<string | null>("A")
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dailySignups, setDailySignups] = useState<number | null>(null)
@@ -177,16 +184,17 @@ export default function Homepage() {
               </span>
             </div>
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-white max-w-4xl">
-              Your Job Search,{' '}
+              Your Job Search
+              <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
-                Supercharged
+                Supercharged and Simplified
               </span>
             </h1>
 
             <p className="max-w-[600px] text-base md:text-xl text-gray-200 mt-4 md:mt-6">
-              Never miss another opportunity. Land interviews{' '}
+              Stop getting rejected. Land interviews, and network {' '}
               <span className="font-semibold text-yellow-300">3x faster</span>{' '}
-              with our intelligent system.
+              with our simple system and personalized tools.
             </p>
 
             {/* Feature Pills */}
@@ -201,7 +209,7 @@ export default function Homepage() {
               </div>
               <div className="flex items-center space-x-2 text-gray-200">
                 <FaBrain className="w-4 h-4 text-yellow-400" />
-                <span>AI-Powered Tools</span>
+                <span>Personalized Insights</span>
               </div>
             </div>
 
@@ -261,7 +269,7 @@ export default function Homepage() {
                 </span>
               </h2>
               <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
-                Everything you need to streamline your job search and increase your chances of landing the perfect role.
+                We make job searching easier by personalizing common tools to fit your unique needs.
               </p>
             </div>
 
@@ -274,11 +282,12 @@ export default function Homepage() {
                     <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white">
                       <Briefcase className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">Smart Application Tracking</CardTitle>
+                    <CardTitle className="dark:text-white">Application Tracking</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="dark:text-gray-400">Organize and monitor all your job applications with detailed status tracking and follow-up reminders.</p>
+                  <p className="dark:text-gray-400 mb-2">Organize and monitor all your job applications with detailed status tracking and note taking.</p>
+                  <p className='text-xs text-gray-500'>No super crazy features here, just a simple way to keep track of your applications.</p>
                 </CardContent>
               </Card>
 
@@ -288,13 +297,14 @@ export default function Homepage() {
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
                     <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                      <Search className="w-6 h-6" />
+                      <File className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">Email Discovery</CardTitle>
+                    <CardTitle className="dark:text-white">ATS Optimized Resumes</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="dark:text-gray-400">Powered by Hunter.io, automatically find the right contact person for your follow-ups and networking.</p>
+                  <p className="dark:text-gray-400 mb-2">We generate resumes from your personal context that are optimized for each application. </p>
+                  <p className="text-xs text-gray-500">All while keeping your information private and fully supporting annoying ATS filters.</p>
                 </CardContent>
               </Card>
 
@@ -306,11 +316,12 @@ export default function Homepage() {
                     <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white">
                       <BarChart className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">Resume Management</CardTitle>
+                    <CardTitle className="dark:text-white">Personalized Cover Letters</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="dark:text-gray-400">Upload multiple resumes and track which version you used for each application.</p>
+                  <p className="dark:text-gray-400 mb-2">We generate cover letters from your personal context that look like they were written by you, that are tailored for each application.</p>
+                  <p className="text-xs text-gray-500">All while keeping your information private and fully supporting annoying ATS filters.</p>
                 </CardContent>
               </Card>
 
@@ -320,13 +331,14 @@ export default function Homepage() {
                   <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
                     <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white">
-                      <Users className="w-6 h-6" />
+                      <Sparkle className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">Cover Letter Generator</CardTitle>
+                    <CardTitle className="dark:text-white">JobMatch&trade; Insights</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="dark:text-gray-400">Generate professional, personalized PDF cover letters tailored to each application.</p>
+                  <p className="dark:text-gray-400 mb-2">For each job you apply to, we provide personalized insights and a personalized score to help you understand how good of a fit you are.</p>
+                  <p className="text-xs text-gray-500">This helps you self-assess and evaluate your career goals. We also provide personalized recommendations on how to improve your career search.</p>
                 </CardContent>
               </Card>
 
@@ -336,13 +348,14 @@ export default function Homepage() {
                   <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
                     <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
-                      <Clock className="w-6 h-6" />
+                      <MailCheck className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">Follow-up Reminders</CardTitle>
+                    <CardTitle className="dark:text-white">InsightLink&trade; Contacts<br/><span className='text-xs text-gray-500'>Powered by Hunter.io</span></CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="dark:text-gray-400">We will remind you to follow up on your applications if it has been a while since you last heard from them.</p>
+                  <p className="dark:text-gray-400">Haven't heard back from a company? We'll help you find the right contact person to follow up with.</p>
+                  <p className="text-xs text-gray-500">Powered by Hunter.io, we'll find the right contact person for your follow-ups and networking.</p>
                 </CardContent>
               </Card>
 
@@ -354,11 +367,12 @@ export default function Homepage() {
                     <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-white">
                       <Calendar className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">Coming Soon: ATS Review</CardTitle>
+                    <CardTitle className="dark:text-white">ATS Review<br/><span className='text-xs text-gray-500'>Coming Soon</span></CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="dark:text-gray-400">Get insights on how your resume performs against applicant tracking systems.</p>
+                  <p className="dark:text-gray-400 mb-2">Get insights on how your resume performs against applicant tracking systems.</p>
+                  <p className="text-xs text-gray-500">Coming soon, we'll analyze your resume and cover letter and provide personalized insights on how to improve your chances of getting an interview.</p>
                 </CardContent>
               </Card>
             </div>
@@ -483,6 +497,187 @@ export default function Homepage() {
                   </Card>
                 </motion.div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section id="faq" className="w-full py-24 bg-gray-50 dark:bg-gray-900">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                Everything you need to know about AppliedTrack
+              </p>
+            </div>
+            
+            <div className="max-w-3xl mx-auto">
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger className="text-left">
+                    What makes AppliedTrack different from other job tracking tools?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    AppliedTrack combines intelligent job tracking with AI-powered tools for resume optimization and personalized insights. Unlike other platforms, we focus on providing actionable feedback and automated improvements to increase your chances of landing interviews.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-2">
+                  <AccordionTrigger className="text-left">
+                    Is my data secure and private?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Yes, absolutely. We take data privacy seriously. Your personal information and job search data are encrypted and never shared with third parties. We comply with GDPR and other privacy regulations to ensure your data remains secure.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-3">
+                  <AccordionTrigger className="text-left">
+                    Can I use AppliedTrack for free?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Yes! We offer a generous free tier that includes basic job tracking and application management. Premium features like AI-powered resume optimization and advanced insights are available in our paid plans.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-4">
+                  <AccordionTrigger className="text-left">
+                    How does the student discount work?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Students with a valid .edu email address receive a 50% discount on all paid plans. Simply verify your student status during signup, and the discount will be automatically applied to your subscription.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-5">
+                  <AccordionTrigger className="text-left">
+                    Can I import my existing job applications?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Yes, you can import existing applications manually or through our bulk import feature. We also support integration with popular job boards to automatically track new applications.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-6">
+                  <AccordionTrigger className="text-left">
+                    What kind of support do you offer?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    We provide email support for all users and priority support for paid subscribers. Our knowledge base is regularly updated with guides and tips, and we're constantly improving based on user feedback.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          </div>
+        </section>
+
+        {/* Roadmap Section */}
+        <section className="w-full py-24 bg-white dark:bg-gray-900">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                Product Roadmap
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                See what's coming next for AppliedTrack
+              </p>
+            </div>
+
+            <div className="grid gap-6 max-w-3xl mx-auto">
+              {/* Current Quarter */}
+              <Card className="relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 bg-green-500 rounded-full" />
+                    Current Quarter (Q2 2024)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1">
+                      <AccordionTrigger className="text-left">
+                        Enhanced Job Search Integration
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        Direct integration with major job boards and company career pages for seamless application tracking.
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2">
+                      <AccordionTrigger className="text-left">
+                        AI Resume Optimization
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        Advanced AI-powered resume tailoring for specific job postings and improved ATS compatibility.
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
+
+              {/* Next Quarter */}
+              <Card className="relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 bg-blue-500 rounded-full" />
+                    Next Quarter (Q3 2024)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1">
+                      <AccordionTrigger className="text-left">
+                        Interview Preparation Tools
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        AI-powered interview practice sessions with industry-specific questions and feedback.
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2">
+                      <AccordionTrigger className="text-left">
+                        Network Analytics
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        Advanced networking features with LinkedIn integration and connection tracking.
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
+
+              {/* Future */}
+              <Card className="relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 bg-purple-500 rounded-full" />
+                    Future Plans
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1">
+                      <AccordionTrigger className="text-left">
+                        Career Path Planning
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        Personalized career development roadmaps and skill gap analysis.
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2">
+                      <AccordionTrigger className="text-left">
+                        Salary Insights
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        Advanced salary negotiation tools and market rate analysis.
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
