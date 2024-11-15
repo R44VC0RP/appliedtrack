@@ -40,11 +40,20 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { default: dbConnect } = await import('@/lib/mongodb')
+      await dbConnect()
+    } catch (error) {
+      console.warn('MongoDB connection failed during build:', error)
+    }
+  }
+
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>

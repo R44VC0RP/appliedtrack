@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Search, Users } from 'lucide-react'
 import { FaTrash } from "react-icons/fa";
 import {
@@ -17,41 +17,34 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 
-interface WaitlistUser {
-  _id: string;
-  email: string;
-  dateSignedUp: string;
-  isNotified: boolean;
-  dateUpdated?: string;
-}
+// Server Actions
+import { srv_getWaitlist, srv_deleteWaitlistUser, srv_sendInvitation } from "@/app/actions/server/admin/waitlistmgmt/primary";
+import { WaitlistUser } from "@/models/WaitlistUser";
 
 export function Waitlist() {
   const [waitlistUsers, setWaitlistUsers] = useState<WaitlistUser[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<WaitlistUser | null>(null);
+
+  const fetchWaitlistUsers = async () => {
+    try {
+      const data = await srv_getWaitlist();
+      setWaitlistUsers(data);
+    } catch (error) {
+      console.error('Error fetching waitlist users:', error);
+      toast.error('Error fetching waitlist users');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchWaitlistUsers();
   }, []);
 
-  const fetchWaitlistUsers = async () => {
-    try {
-      const response = await fetch('/api/waitlist');
-      if (response.ok) {
-        const data = await response.json();
-        setWaitlistUsers(data);
-        
-      }
-
-    } catch (error) {
-      console.error('Error fetching waitlist users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   const filteredUsers = waitlistUsers.filter(user => 
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -59,57 +52,22 @@ export function Waitlist() {
 
   const handleSendInvite = async (email: string) => {
     try {
-      const response = await fetch(`/api/invitations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to send invitation');
-      }
-
-      // Refresh the waitlist to show updated status
-      await fetchWaitlistUsers();
-
-      toast({
-        title: "Success",
-        description: "Invitation sent successfully",
-      });
+      const result = await srv_sendInvitation(email);
+      toast.success('Invitation sent successfully');
+      setWaitlistUsers(result);
     } catch (error) {
       console.error("Error sending invitation:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send invitation",
-        variant: "destructive"
-      });
+      toast.error("Failed to send invitation");
     }
   };
 
   const handleDelete = async (user: WaitlistUser) => {
     try {
-      const response = await fetch(`/api/waitlist/${user._id}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "User removed from waitlist",
-        });
-        fetchWaitlistUsers(); // Refresh the list
-      } else {
-        throw new Error('Failed to delete user');
-      }
+      const result = await srv_deleteWaitlistUser(user.email);
+      toast.success("User removed from waitlist");
+      setWaitlistUsers(result);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove user from waitlist",
-        variant: "destructive",
-      });
+      toast.error("Failed to remove user from waitlist");
     } finally {
       setUserToDelete(null);
       setIsDeleteDialogOpen(false);
@@ -152,7 +110,7 @@ export function Waitlist() {
             </TableHeader>
             <TableBody className="overflow-auto">
               {filteredUsers.map((user) => (
-                <TableRow key={user._id}>
+                <TableRow key={user.email.toString()}>
                   <TableCell>
                     <div className="font-medium">{user.email}</div>
                   </TableCell>

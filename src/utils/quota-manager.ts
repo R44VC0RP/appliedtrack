@@ -74,10 +74,10 @@ export async function getUserQuota(userId: string): Promise<QuotaData> {
       remaining: tierLimits.jobs === -1 ? -1 : Math.max(0, tierLimits.jobs - jobCount)
     },
     coverLetters: {
-      used: Math.max(0, quota?.coverLettersUsed || 0),
+      used: Math.max(0, quota?.aiCoverLettersUsed || 0),
       limit: tierLimits.coverLetters,
       remaining: tierLimits.coverLetters === -1 ? -1 : 
-        Math.max(0, tierLimits.coverLetters - (quota?.coverLettersUsed || 0))
+        Math.max(0, tierLimits.coverLetters - (quota?.aiCoverLettersUsed || 0))
     },
     emails: {
       used: Math.max(0, quota?.emailsUsed || 0),

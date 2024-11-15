@@ -1,9 +1,16 @@
+'use client'
+
 import { useState, useEffect } from 'react'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Settings } from 'lucide-react'
+import { Config } from '@/models/Config';
+
+
+// Server Actions
+import { srv_getConfigData, srv_updateConfig } from '@/app/actions/server/admin/config/primary';
 
 interface TierLimits {
   jobs: number;
@@ -11,18 +18,11 @@ interface TierLimits {
   contactEmails: number;
 }
 
-interface Config {
-  tierLimits: {
-    free: TierLimits;
-    pro: TierLimits;
-    power: TierLimits;
-  };
-}
+
 
 export function TierConfig() {
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchConfig();
@@ -30,17 +30,12 @@ export function TierConfig() {
 
   const fetchConfig = async () => {
     try {
-      const response = await fetch('/api/admin/config');
-      if (!response.ok) throw new Error('Failed to fetch config');
-      const data = await response.json();
-      setConfig(data);
+      const response = await srv_getConfigData();
+      if (!response.success) throw new Error(response.message);
+      setConfig(response.data);
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch tier configuration",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch tier configuration");
     } finally {
       setLoading(false);
     }
@@ -48,32 +43,22 @@ export function TierConfig() {
 
   const handleUpdate = async () => {
     try {
-      const response = await fetch('/api/admin/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
+      if (!config) return;
+      const response = await srv_updateConfig(config);
 
-      if (!response.ok) throw new Error('Failed to update config');
+      if (!response.success) throw new Error(response.message);
 
-      toast({
-        title: "Success",
-        description: "Tier configuration updated successfully",
-      });
+      toast.success("Tier configuration updated successfully");
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update tier configuration",
-        variant: "destructive",
-      });
+      toast.error("Failed to update tier configuration");
     }
   };
 
   const handleInputChange = (tier: string, field: string, value: string) => {
     if (!config) return;
     
-    setConfig({
+    const updatedConfig = {
       ...config,
       tierLimits: {
         ...config.tierLimits,
@@ -82,7 +67,8 @@ export function TierConfig() {
           [field]: parseInt(value) || 0
         }
       }
-    });
+    };
+    setConfig(updatedConfig as Config);
   };
 
   if (loading) {

@@ -29,19 +29,18 @@ import {
     FileText,
     MessageSquare,
     BarChart3,
-    CreditCard
+    CreditCard,
+    MapIcon
 } from 'lucide-react'
 import { ThemeControl } from '@/components/ui/themecontrol'
-import { StripeTestHelper } from '@/components/stripe-test-helper'
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
-import AiPlayground from './components/aiplayground'
 import { LoggingDashboard } from './components/logging-dashboard'
-import LatexGenerator from './components/latexgen'
+import { RoadMapPage} from './components/RoadMapPage'
 
 interface NavItem {
     title: string;
@@ -76,24 +75,14 @@ const navItems: NavItem[] = [
         component: CampaignManagement,
     },
     {
-        title: "AI Playground",
-        icon: MessageSquare,
-        component: AiPlayground,
-    },
-    {
         title: "Logging",
         icon: FileText,
         component: LoggingDashboard,
     },
     {
-        title: "LaTeX Generator",
-        icon: FileText,
-        component: LatexGenerator,
-    },
-    {
-        title: "Settings",
-        icon: Settings,
-        component: () => <div>Settings Component</div>, // Placeholder
+        title: "RoadMap",
+        icon: MapIcon,
+        component: RoadMapPage, // Placeholder
     },
 ]
 
@@ -103,6 +92,11 @@ export default function AdminDashboard() {
         return Cookies.get('adminActiveComponent') || "User Management"
     })
     const { user } = useUser()
+
+    // If user is not signed in, redirect to home
+    if (!user) {
+        window.location.href = "/";
+    }
 
     // Update cookie when activeComponent changes
     useEffect(() => {
@@ -156,7 +150,7 @@ export default function AdminDashboard() {
 
                     <div className="flex-1 overflow-auto">
                         <div className="w-full">
-                            <div className="p-3 flex items-center justify-between gap-2 items-center">
+                            <div className="p-3 flex justify-between gap-2 items-center">
                                 <div className="flex items-center gap-2">
                                     <SidebarTrigger />
                                     <p className="text-lg font-semibold">Hi {user?.firstName}!</p>

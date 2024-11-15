@@ -1,24 +1,17 @@
-export default `
-
+export default String.raw`
 \documentclass[a4paper,10pt]{article}
 \\usepackage[margin=1in]{geometry}
-\\usepackage{parskip}  % For paragraph spacing
-\\usepackage{hyperref} % For clickable links
-\\usepackage{enumitem} % For customizing lists
+\\usepackage{parskip}  
+\\usepackage{hyperref} 
+\\usepackage{enumitem} 
 
-% Custom command for consistent formatting
-\newcommand{\sectiontitle}[1]{
-  \vspace{0.4cm}
-  \textbf{#1} \\
-}
 
 \begin{document}
 
 \begin{center}
   \textbf \\
-  Ryan Vogel \\ Jacksonville, FL \\
-  P: +1 (904) 608-6893 \\
-  \href{mailto:jobs@theryanvogel.com}{jobs@theryanvogel.com} \\
+  P: Phone Number \\
+  \href{mailto:email@example.com}{email@example.com} \\
 \end{center}
 
 \vspace{0.5cm}
@@ -31,17 +24,17 @@ export default `
 Dear Hiring Manager,
 
 \sectiontitle
-I am writing to express my interest in the [Position Name] at [Company Name]. With a background in Information Technology and hands-on experience in systems administration and software development, I am eager to contribute my skills to drive the success of your organization.
+I am writing to express my interest in joining your organization. With extensive experience and demonstrated expertise in my field, I am eager to contribute my skills to drive the success of your team.
 
-In my role as Systems Administrator for the City of Neptune Beach, I managed a Windows Active Directory-based network and developed internal applications to optimize productivity. My leadership skills were further honed while handling a multi-million-dollar budget and implementing disaster recovery solutions.
+Throughout my career, I have developed strong technical abilities and leadership skills while managing complex projects and implementing innovative solutions. My track record includes optimizing processes, developing applications, and achieving measurable results that positively impact business objectives.
 
-Additionally, my entrepreneurial venture, Mandarin 3D Prints, showcases my abilities in software development and digital marketing, achieving impressive sales growth and customer satisfaction. I am passionate about problem-solving, innovation, and driving meaningful results.
+I have consistently demonstrated my ability to adapt to new challenges, work effectively in team environments, and deliver high-quality results. My passion for continuous learning and problem-solving has enabled me to stay current with industry trends and best practices.
 
-I am excited about the opportunity to bring my expertise to [Company Name] and would welcome the chance to discuss how my background aligns with your goals. Thank you for considering my application.
+I am excited about the opportunity to bring my expertise to your organization and would welcome the chance to discuss how my background aligns with your goals. Thank you for considering my application.
 
 \sectiontitle
-Sincerely, \\
-Ryan Vogel
+Sincerely, 
+Full Name
 
 \end{document}
 `;

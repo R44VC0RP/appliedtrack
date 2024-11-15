@@ -20,11 +20,6 @@ export interface IJob {
   status: JobStatus;
   website: string;
   resumeLink: string;
-  generatedResume?: {
-    url: string;
-    status: 'generating' | 'ready' | 'failed' | 'not_started';
-    dateGenerated?: string;
-  };
   jobDescription: string;
   dateApplied: string;
   coverLetterLink?: string;
@@ -78,6 +73,11 @@ export interface IJob {
   };
   isArchived?: boolean;
   coverLetter?: {
+    url: string;
+    status: 'generating' | 'ready' | 'failed' | 'not_started';
+    dateGenerated?: string;
+  };
+  resumeGenerated?: {
     url: string;
     status: 'generating' | 'ready' | 'failed' | 'not_started';
     dateGenerated?: string;
@@ -137,6 +137,14 @@ const JobSchema = new mongoose.Schema({
   },
   isArchived: Boolean,
   coverLetter: {
+    url: String,
+    status: {
+      type: String,
+      enum: ['generating', 'ready', 'failed', 'not_started']
+    },
+    dateGenerated: String
+  },
+  resumeGenerated: {
     url: String,
     status: {
       type: String,

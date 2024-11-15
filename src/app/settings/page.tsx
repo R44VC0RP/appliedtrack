@@ -8,19 +8,19 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UploadButton } from "@/utils/uploadthing";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { CircleProgress } from "@/components/ui/circle-progress";
 import { Header } from "@/components/header";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get('tab') || "personal";
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const { toast } = useToast();
+  
   const { user: clerkUser, isSignedIn } = useUser();
 
   // Personal Info State
@@ -72,11 +72,7 @@ export default function SettingsPage() {
       ]);
     } catch (error) {
       console.error('Error loading settings data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load some settings data",
-        variant: "destructive",
-      });
+      toast.error("Failed to load settings data");
     } finally {
       setIsLoading(false);
     }
@@ -142,18 +138,11 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        toast({
-          title: "Changes saved",
-          description: "Your information has been updated successfully",
-        });
+        toast.success("Changes saved");
       }
     } catch (error) {
       console.error('Error updating user details:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save changes",
-        variant: "destructive",
-      });
+      toast.error("Failed to save changes");
     }
   };
 
@@ -172,19 +161,12 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        toast({
-          title: "Resume uploaded",
-          description: "Your resume has been uploaded successfully",
-        });
+        toast.success("Resume uploaded");
         fetchResumes();
       }
     } catch (error) {
       console.error('Error saving resume:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload resume",
-        variant: "destructive",
-      });
+      toast.error("Failed to upload resume");
     }
   };
 
@@ -196,18 +178,11 @@ export default function SettingsPage() {
 
       if (response.ok) {
         fetchResumes();
-        toast({
-          title: "Resume removed",
-          description: "Your resume has been removed successfully",
-        });
+        toast.success("Resume removed");
       }
     } catch (error) {
       console.error('Error removing resume:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove resume",
-        variant: "destructive",
-      });
+      toast.error("Failed to remove resume");
     }
   };
 
@@ -230,11 +205,7 @@ export default function SettingsPage() {
       window.location.href = url;
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start subscription process",
-        variant: "destructive",
-      });
+      toast.error("Failed to start subscription process");
     } finally {
       setUpgradeLoading(false);
     }
@@ -257,11 +228,7 @@ export default function SettingsPage() {
       window.location.href = url;
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to open subscription management",
-        variant: "destructive",
-      });
+      toast.error("Failed to open subscription management");
     }
   };
 
@@ -343,11 +310,7 @@ export default function SettingsPage() {
                   onClientUploadComplete={handleResumeUpload}
                   onUploadError={(error: Error) => {
                     console.error(error);
-                    toast({
-                      title: "Error",
-                      description: "Failed to upload resume",
-                      variant: "destructive",
-                    });
+                    toast.error("Failed to upload resume");
                   }}
                 />
               </div>

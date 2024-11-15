@@ -1,21 +1,14 @@
-export default `
+export default String.raw`
 \documentclass[a4paper,10pt]{article}
-\\usepackage[margin=1in]{geometry}
-\\usepackage{parskip}  % For paragraph spacing
-\\usepackage{hyperref} % For clickable links
-\\usepackage{enumitem} % For customizing lists
-
-% Custom command for consistent formatting
-\newcommand{\sectiontitle}[1]{
-  \vspace{0.4cm}
-  \textbf{#1} \\
-}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}  
+\usepackage{hyperref} 
+\usepackage{enumitem} 
 
 \begin{document}
 
 \begin{center}
   \textbf \\
-  Full Name \\ City, State \\
   P: Phone Number \\
   \href{mailto:email@example.com}{email@example.com} \\
 \end{center}
@@ -36,10 +29,10 @@ Major in Field of Study, Minor in Secondary Field
 \textbf{Company Name}, Location \\
 Job Title  \hfill Start Date – End Date \\
 \begin{itemize}[leftmargin=*]
-  \item Key achievement or responsibility with quantifiable results
-  \item Notable project or initiative with measurable impact
-  \item Significant contribution to team or organization
-  \item Leadership experience or important skill demonstration
+\item Key achievement or responsibility with quantifiable results
+\item Notable project or initiative with measurable impact
+\item Significant contribution to team or organization
+\item Leadership experience or important skill demonstration
   \item Technical implementation or system management
   \item Process improvement or efficiency gain
 \end{itemize}
@@ -62,20 +55,14 @@ Job Title  \hfill Start Date – End Date \\
 \end{itemize}
 
 \sectiontitle{Projects}
-\textbf{Project Name}  \hfill Date Range \\
+\textbf{Project Name if any}  \hfill Date Range \\
 \begin{itemize}[leftmargin=*]
   \item Brief description of project and its impact or significance
 \end{itemize}
 
 \sectiontitle{Skills}
-\begin{itemize}[leftmargin=*]
-  \item Technical Skill 1
-  \item Technical Skill 2
-  \item Professional Skill 1
-  \item Professional Skill 2
-  \item Industry Knowledge 1
-  \item Relevant Certification
-  \item Key Competency
+\begin{itemize}[leftmargin=*] 
+  \item insert skills here
 \end{itemize}
 
 \end{document}

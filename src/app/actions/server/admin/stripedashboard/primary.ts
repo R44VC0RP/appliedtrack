@@ -1,33 +1,40 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+'use server'
+
 import Stripe from 'stripe';
 import { Logger } from '@/lib/logger';
-import { checkRole } from '@/middleware/checkRole';
+import { srv_authAdminUser } from '@/lib/useUser';
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-09-30.acacia' // Explicitly specify API version
+  apiVersion: '2024-09-30.acacia'
 });
 
-/**
- * GET /api/admin/stripe/dashboard
- * 
- * Fetches Stripe dashboard data including account mode and subscription information.
- * Restricted to admin users only.
- * 
- * @param request - Next.js request object
- * @returns Stripe dashboard data or error response
- */
-export async function GET(request: NextRequest) {
+interface StripeSubscription {
+  id: string;
+  customer: {
+    email: string | null;
+    id: string | Stripe.Customer | Stripe.DeletedCustomer;
+  };
+  plan: string;
+  status: Stripe.Subscription.Status;
+  amount: number;
+  created: number;
+}
+
+interface StripeData {
+  mode: 'test' | 'live';
+  subscriptions: StripeSubscription[];
+}
+
+export async function srv_getStripeDashboardData(): Promise<StripeData> {
   try {
-    // Check admin authorization
-    const authError = await checkRole(request, ['admin']);
-    if (authError) {
-      await Logger.warning('Unauthorized access attempt to Stripe dashboard', {
-        path: request.url,
-        ip: request.ip
+    // Verify admin access
+    const authAdminUser = await srv_authAdminUser();
+    if (!authAdminUser) {
+      await Logger.warning('Non-admin user attempted to fetch stripe dashboard data', {
+        error: "Forbidden"
       });
-      return authError;
+      throw new Error('Forbidden');
     }
 
     // Get Stripe account info
@@ -36,16 +43,16 @@ export async function GET(request: NextRequest) {
 
     // Get subscriptions with pagination
     const subscriptions = await stripe.subscriptions.list({
-      limit: 100, // Consider making this configurable
+      limit: 100,
       expand: ['data.customer'],
-      status: 'all' // Explicitly fetch all subscription statuses
+      status: 'all'
     });
 
-    // Format subscription data
+    // Format subscription data with null checks
     const formattedSubscriptions = subscriptions.data.map(sub => ({
       id: sub.id,
       customer: {
-        email: (sub.customer as Stripe.Customer).email,
+        email: (sub.customer as Stripe.Customer).email || 'No email',
         id: sub.customer,
       },
       plan: sub.items.data[0].price.nickname || 'Unknown Plan',
@@ -59,20 +66,16 @@ export async function GET(request: NextRequest) {
       mode
     });
 
-    return NextResponse.json({
+    return {
       mode,
       subscriptions: formattedSubscriptions,
-    });
+    };
 
   } catch (error) {
     await Logger.error('Error fetching Stripe dashboard data', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
-    
-    return NextResponse.json(
-      { error: 'Failed to fetch Stripe dashboard data' },
-      { status: 500 }
-    );
+    throw error;
   }
 }

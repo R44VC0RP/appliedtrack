@@ -6,12 +6,20 @@ interface TierLimits {
   contactEmails: number;
 }
 
+export interface PricingTier {
+  name: string;
+  price: string;
+  features: string[];
+}
+
+export interface PricingTierLimits {
+  free: TierLimits;
+  pro: TierLimits;
+  power: TierLimits;
+}
+
 export interface Config extends Document {
-  tierLimits: {
-    free: TierLimits;
-    pro: TierLimits;
-    power: TierLimits;
-  };
+  tierLimits: PricingTierLimits;
   dateCreated: Date;
   dateUpdated: Date;
 }

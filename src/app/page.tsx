@@ -1,10 +1,12 @@
+'use client'
 
-import Homepage from "@/components/homepage";
+import Homepage from '@/components/homepage'
+import { Suspense } from 'react'
 
-export default function Home() {
+export default function Page() {
   return (
-    <div>
+    <Suspense fallback={null}>
       <Homepage />
-    </div>
+    </Suspense>
   )
 }

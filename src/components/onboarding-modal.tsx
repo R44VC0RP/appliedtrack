@@ -3,10 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { UploadButton } from "@/utils/uploadthing";
-import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { FileText, Upload } from "lucide-react";
-
+import { toast } from "sonner";
 interface OnboardingModalProps {
   isOpen: boolean;
   onComplete: () => void;
@@ -16,7 +15,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [bio, setBio] = useState('');
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  
   const minCharacters = 200;
 
   const handleResumeUpload = async (res: any) => {
@@ -38,17 +37,10 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
       if (!response.ok) throw new Error('Failed to save resume');
       
       setResumeUploaded(true);
-      toast({
-        title: "Resume uploaded",
-        description: "Your resume has been uploaded successfully",
-      });
+      toast.success("Resume uploaded");
     } catch (error) {
       console.error('Error saving resume:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload resume. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to upload resume. Please try again.");
     }
   };
 
@@ -70,20 +62,13 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
 
       if (!response.ok) throw new Error('Failed to update user');
 
-      toast({
-        title: "Profile Complete!",
-        description: "Thanks for completing your profile. You can now start tracking your job applications.",
-      });
+      toast.success("Profile Complete! Thanks for completing your profile. You can now start tracking your job applications.");
       
       // Call the onComplete callback to close the modal
       onComplete();
     } catch (error) {
       console.error('Error updating user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to complete onboarding. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to complete onboarding. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -117,11 +102,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
                   onClientUploadComplete={handleResumeUpload}
                   onUploadError={(error: Error) => {
                     console.error(error);
-                    toast({
-                      title: "Error",
-                      description: "Failed to upload resume. Please try again.",
-                      variant: "destructive",
-                    });
+                    toast.error("Failed to upload resume. Please try again.");
                   }}
                 />
               )}

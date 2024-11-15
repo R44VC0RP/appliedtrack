@@ -1,29 +1,88 @@
-import { MongoClient } from 'mongodb';
+"use server"
 
-// Update the global declaration
-declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
+import mongoose from 'mongoose';
+import { Logger } from '@/lib/logger';
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
 }
 
-const uri = process.env.MONGODB_URI;
-const options = {};
+let cached: MongooseCache = (globalThis as any).mongoose;
 
-let client;
-let clientPromise: Promise<MongoClient>;
+if (!cached) {
+  cached = (globalThis as any).mongoose = { conn: null, promise: null };
+}
 
-if (process.env.NODE_ENV === 'development') {
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
+async function dbConnect() {
+  if (cached.conn) {
+    return cached.conn;
   }
-  clientPromise = global._mongoClientPromise!;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 30000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      connectTimeoutMS: 15000,
+    };
+
+    try {
+      cached.promise = mongoose.connect(MONGODB_URI!, opts);
+      
+      mongoose.connection.on('connected', async () => {
+        await Logger.info('MongoDB connection established', {
+          service: 'MongoDB',
+          action: 'CONNECT'
+        });
+      });
+
+      mongoose.connection.on('error', async (err) => {
+        await Logger.error('MongoDB connection error', {
+          error: err instanceof Error ? err.message : 'Unknown error',
+          service: 'MongoDB'
+        });
+      });
+
+      mongoose.connection.on('disconnected', async () => {
+        await Logger.warning('MongoDB disconnected', {
+          service: 'MongoDB',
+          action: 'DISCONNECT'
+        });
+      });
+
+      await cached.promise;
+      
+    } catch (error) {
+      await Logger.error('MongoDB connection failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        service: 'MongoDB'
+      });
+      cached.promise = null;
+      throw error;
+    }
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (error) {
+    cached.promise = null;
+    await Logger.error('MongoDB cached connection failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      service: 'MongoDB'
+    });
+    throw error;
+  }
+
+  return cached.conn;
 }
 
-export default clientPromise;
+export default dbConnect;
