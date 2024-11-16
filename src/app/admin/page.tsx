@@ -91,10 +91,10 @@ export default function AdminDashboard() {
         // Initialize from cookie or default to "User Management"
         return Cookies.get('adminActiveComponent') || "User Management"
     })
-    const { user } = useUser()
+    const { user, isLoaded } = useUser()
 
     // If user is not signed in, redirect to home
-    if (!user) {
+    if (!user && isLoaded) {
         window.location.href = "/";
     }
 
