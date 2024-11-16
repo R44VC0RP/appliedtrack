@@ -71,7 +71,7 @@ export interface IJob {
       };
     };
   };
-  isArchived?: boolean;
+  
   coverLetter?: {
     url: string;
     status: 'generating' | 'ready' | 'failed' | 'not_started';
@@ -91,10 +91,10 @@ export interface IJob {
 
 
 const JobSchema = new mongoose.Schema({
-  id: String,
-  userId: String,
-  company: String,
-  position: String,
+  id: { type: String, unique: true, required: true },
+  userId: { type: String, required: true },
+  company: { type: String, required: true },
+  position: { type: String, required: true },
   status: {
     type: String,
     enum: ['Yet to Apply', 'Applied', 'Phone Screen', 'Interview', 'Offer', 'Rejected', 'Accepted', 'Archived']
@@ -135,7 +135,6 @@ const JobSchema = new mongoose.Schema({
       params: Object
     }
   },
-  isArchived: Boolean,
   coverLetter: {
     url: String,
     status: {

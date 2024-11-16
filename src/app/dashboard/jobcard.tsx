@@ -26,6 +26,7 @@ import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { srv_archiveJob } from '../actions/server/job-board/primary';
 
 const hunterCategories: { value: HunterCategory; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -116,23 +117,6 @@ const generateCoverLetter = async (
         const data = await response.json();
 
         if (data.success) {
-            // Update to match the server's expected structure
-            // const response_update = await fetch(`/api/jobs`, {
-            //   method: 'PUT',
-            //   headers: {
-            //     'Content-Type': 'application/json'
-            //   },
-            //   body: JSON.stringify({
-            //     id: job.id,
-            //     coverLetter: {
-            //       url: data.data.pdfUrl,  // This is what we receive from genai
-            //       status: 'ready',
-            //       dateGenerated: new Date().toISOString(),
-            //       dateUpdated: new Date().toISOString()  // Add this to track updates
-            //     }
-            //   }),
-            // });
-
             // Update the local job with cover letter data
             await updateJobDetails({
                 ...job,
@@ -418,22 +402,12 @@ const JobCard = React.forwardRef(({
 
     const handleArchive = async () => {
         try {
-            const response = await fetch(`/api/jobs/${job.id}/archive`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    ...job,
-                    isArchived: true,
-                    dateUpdated: new Date().toISOString()
-                })
-            });
+            const response = await srv_archiveJob(job.id || '');
 
-            if (!response.ok) throw new Error('Failed to archive job');
+            if (!response.success) throw new Error('Failed to archive job');
 
             // Call the parent's updateJobDetails to refresh the UI
-            const updatedJob = await response.json();
+            const updatedJob = response.data;
             updateJobDetails(updatedJob);
 
             toast.success("Job Archived", {
@@ -633,7 +607,7 @@ const JobCard = React.forwardRef(({
                                             <AlertDialogAction
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleArchive();
+                                                    handleStatusChange('Archived');
                                                 }}
                                                 className="bg-red-600 hover:bg-red-700 text-white"
                                             >

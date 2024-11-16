@@ -36,7 +36,8 @@ import { User } from '@/models/User';
 import JobCard from './jobcard';
 
 // Server Actions
-import { srv_addJob, srv_getJobs, srv_updateJob } from '@/app/actions/server/job-board/primary';
+import { srv_addJob, srv_createAIRating, srv_getJobs, srv_getResumes, srv_updateJob } from '@/app/actions/server/job-board/primary';
+import { CompleteUserProfile } from '@/lib/useUser';
 
 // IMPORTANT:
 function useWindowSize() {
@@ -147,16 +148,6 @@ const getStatusColor = (status: string): string => {
   }
 }
 
-const getUserInformation = async () => {
-  const response = await fetch('/api/user');
-  if (response.ok) {
-    return await response.json();
-  }
-  return null;
-}
-
-
-
 const getInitialSortPreference = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('jobSortPreference') || 'newest';
@@ -191,7 +182,7 @@ export function useClientMediaQuery(query: string): boolean {
   return mounted ? matches : false;
 }
 
-export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, tier }: { initJobs: Job[], initResumes: { resumeId: string; fileUrl: string, fileName: string }[], onboardingComplete: boolean, role: User['role'], tier: User['tier'] }) {
+export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, tier, user }: { initJobs: Job[], initResumes: { resumeId: string; fileUrl: string, fileName: string }[], onboardingComplete: boolean, role: User['role'], tier: User['tier'], user: CompleteUserProfile | null }) {
   const [jobs, setJobs] = useState<Job[]>(initJobs)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
@@ -237,10 +228,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (!isLoaded || !userId) return;
-
       try {
-        const data = await getUserInformation();
-        setShowOnboarding(!data.onBoardingComplete);
+        setShowOnboarding(!user?.onBoardingComplete);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
       }
@@ -400,34 +389,26 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     });
 
     try {
-      const response = await fetch('/api/genai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ job, action: 'ai-rating' }),
-      });
+      const response = await srv_createAIRating(job);
 
-      if (!response.ok) {
+      if (!response.success) {
         throw new Error('Failed to generate AI rating');
       }
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         // Update the job with AI rating data
         const updatedJob = {
           ...job,
           aiRated: true,
-          aiRating: data.data.aiRating,
-          aiNotes: data.data.aiNotes,
+          aiRating: response.aiRating,
+          aiNotes: response.aiNotes,
           dateUpdated: new Date().toISOString()
         };
 
-        await updateJobDetails(updatedJob);
+        await updateJobDetails(updatedJob as Job);
 
         // Update the loading toast with success message
-        toast.success(`Your application received a ${data.data.aiRating}/100 match score.`, {
+        toast.success(`Your application received a ${response.aiRating}/100 match score.`, {
           id: loadingToast, // Update the existing toast then dismiss it after 5 seconds
           duration: 5000
         });
@@ -444,9 +425,6 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
   const filteredJobs = useMemo(() => {
-    // console.log("Filtering jobs with status:", statusFilter);
-    // console.log("Current jobs:", jobs);
-
     let filtered = jobs.filter(job => {
       // Search term filter
       const matchesSearch =
@@ -456,15 +434,20 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
       // Status filter
       let matchesStatus = true;
       if (statusFilter !== 'All') {
-        if (statusFilter === 'Archived') {
-          matchesStatus = !!job.isArchived;
-        } else {
-          matchesStatus = job.status === statusFilter && !job.isArchived;
-        }
+        // For other statuses, show non-archived jobs that match the status
+        matchesStatus = job.status === statusFilter;
       } else {
-        // When "All" is selected, show all non-archived jobs
-        matchesStatus = !job.isArchived;
+        // When "All" is selected, show only non-archived jobs
+        matchesStatus = job.status !== 'Archived';
       }
+
+      console.log('Filtering job:', {
+        company: job.company,
+        status: job.status,
+        statusFilter,
+        matchesStatus,
+        matchesSearch
+      });
 
       return matchesSearch && matchesStatus;
     });
@@ -492,20 +475,11 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     });
   }, [jobs, searchTerm, statusFilter, sortBy]);
 
-  const fetchResumes = useCallback(async () => {
-    try {
-      const response = await fetch('/api/resumes');
-      if (response.ok) {
-        const data = await response.json();
-        setResumes(data);
-      }
-    } catch (error) {
-      console.error('Error fetching resumes:', error);
-    }
-  }, []);
+  
 
   const openNewJobModal = async () => {
-    await fetchResumes();
+    const resumes = await srv_getResumes();
+    setResumes(resumes);
     setIsModalOpen(true);
   };
 
@@ -530,7 +504,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
   // Add this helper function to check for active jobs
   const hasActiveJobs = useMemo(() => {
-    return filteredJobs.some(job => !job.isArchived);
+    // return filteredJobs.some(job => job.status !== 'Archived');
+    return filteredJobs.length > 0;
   }, [filteredJobs]);
 
   // Return null or loading state during SSR
@@ -652,8 +627,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                   {jobStatuses.map(status => (
                     <SelectItem key={status} value={status}>
                       {status === 'Archived'
-                        ? `${status} (${jobs.filter(job => job.isArchived === true).length})`
-                        : `${status} (${jobs.filter(job => job.status === status && !job.isArchived).length})`
+                        ? `${status} (${jobs.filter(job => job.status === "Archived").length})`
+                        : `${status} (${jobs.filter(job => job.status === status).length})`
                       }
                     </SelectItem>
                   ))}

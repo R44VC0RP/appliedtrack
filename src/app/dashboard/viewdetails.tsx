@@ -17,6 +17,7 @@ import { Globe2 } from "lucide-react";
 import { LinkedInLogoIcon } from "@radix-ui/react-icons";
 import { Bot, Sparkles, FileText, Users } from "lucide-react";
 import JobTitleAutocomplete from "@/components/ui/job-title-autocomplete";
+import { srv_getJob } from "../actions/server/job-board/primary";
 
 const getStatusColor = (status: string): string => {
     switch (status) {
@@ -59,11 +60,8 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
         await handleAIRecommendation(job);
         // After AI recommendation is complete, fetch the latest job data
         try {
-            const response = await fetch(`/api/jobs/${job.id}`);
-            if (response.ok) {
-                const updatedJob = await response.json();
-                setSelectedJob(updatedJob);
-            }
+            const updatedJob = await srv_getJob(job.id || '');
+            setSelectedJob(updatedJob);
         } catch (error) {
             console.error('Error fetching updated job details:', error);
         }
@@ -339,7 +337,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                 className="min-h-[200px]"
                                             />
                                         ) : (
-                                            <div className={`relative ${isJobDescriptionCollapsed ? 'max-h-[100px]' : 'max-h-none'} overflow-hidden`}>
+                                            <div className={`relative ${isJobDescriptionCollapsed ? 'max-h-[200px]' : 'max-h-none'} overflow-hidden`}>
                                                 <p className="text-sm whitespace-pre-wrap">{job.jobDescription}</p>
                                                 {isJobDescriptionCollapsed && job.jobDescription && job.jobDescription.length > 300 && (
                                                     <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />

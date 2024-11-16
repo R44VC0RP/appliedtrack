@@ -2,19 +2,21 @@
 
 import { AppliedTrack } from "./appliedtrack";
 import { srv_checkUserAttributes, srv_initialData } from "@/app/actions/server/job-board/primary";
+import { CompleteUserProfile } from "@/lib/useUser";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export default async function Dashboard() {
   const { jobs, resumes } = await srv_initialData();
-  const user = await currentUser();
-  if (!user) {
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
     redirect('/sign-in');
   }
-  const { onboardingComplete, role, tier } = await srv_checkUserAttributes(user.id);
+  const user = await srv_checkUserAttributes(clerkUser.id);
+  console.log(user);
   return (
     <div>
-      <AppliedTrack initJobs={jobs} initResumes={resumes} onboardingComplete={onboardingComplete} role={role} tier={tier} />
+      <AppliedTrack initJobs={jobs} initResumes={resumes} onboardingComplete={user?.onBoardingComplete || false} role={user?.role || 'user'} tier={user?.tier || 'free'} user={user as CompleteUserProfile} />
     </div>
   )
 }

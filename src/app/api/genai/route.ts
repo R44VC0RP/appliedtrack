@@ -26,70 +26,7 @@ const latexGenerationRules = `
  * @param job - The job application data
  * @returns Promise containing the generated AI rating and notes
  */
-async function createAIRating(job: Job) {
-    const user = await getUser(job.userId);
-    const jobData = await getJob(job.id);
 
-    if (!user || !jobData) {
-        await Logger.warning('User or job not found during AI rating', {
-            userId: job.userId,
-            jobId: job.id
-        });
-        return { success: false, error: 'User or job not found' };
-    }
-
-    // Extract text from resume PDF
-    const resumeText = await Pdf.getPDFText(job.resumeLink);
-    await Logger.info('Resume text extracted successfully', {
-        jobId: job.id,
-        resumeLength: resumeText.length
-    });
-
-    const prompt_to_create_ai_rating = `
-        You are a master AI resume rating system. You are given a resume and a job description. You need to rate the resume on a scale of 1 to 100 based on how well it matches the job description.
-
-        Resume Rating Instructions:
-
-        You are going to rate ${user.name}'s resume for ${job.company}.
-
-        Here is ${user.name}'s resume: ${resumeText}
-
-        And here is ${job.company}'s job description: ${job.jobDescription}
-
-        Please rate the resume on a scale of 1 to 100 based on how well it matches the job description.
-
-        Please include your rating and notes in the response.
-
-        RULES:
-
-        1. DO NOT BE BIASED BY THE COMPANY NAME. Rate the resume based on how well it matches the job description, not the company name.
-        2. DO NOT DISCRIMINATE BASED ON THE USER'S AGE, RACE, GENDER, NATIONALITY, DISABILITY, GENETIC INFORMATION, SEXUAL ORIENTATION, RELIGION, OR ANY OTHER STATUS PROTECTED BY LAW.
-        3. DO NOT SAY THE RESUME IS "AMAZING" OR "PERFECT" OR ANY OTHER WORDS THAT WOULD BE CONSIDERED TO BE EXAGGERATED.
-        4. BE CONSTRUCTIVE AND HELPFUL, IF YOU NOTICE THAT A USER COULD IMPROVE THEIR RESUME, TELL THEM HOW TO DO SO.
-        5. IN YOUR NOTES, TELL THE USER WHAT THEY DID WELL AND WHAT THEY COULD IMPROVE ON.
-        6. IN YOUR NOTES BE CONCISE AND TO THE POINT. DO NOT WRITE MORE THAN 250 WORDS.
-        7. USE HTML TAGS IN YOUR NOTES TO FORMAT THE TEXT. ONLY USE THESE TAGS: <p>, <span>, <br>, <b>, <i>, <u>.
-        8. DO NOT ADDRESS THE USER AS THEIR NAME, JUST REFER TO THEM AS "YOU".
-    `
-
-    await Logger.info('AI resume rating prompt', {
-        jobId: job.id,
-        promptLength: prompt_to_create_ai_rating.length
-    });
-
-    // Generate cover letter using GPT
-    const { object } = await generateObject({
-        model: openai('gpt-4o-mini'),
-        schema: z.object({
-            ai_rating: z.object({
-                rating: z.number(),
-                notes: z.string(),
-            }),
-        }),
-        prompt: prompt_to_create_ai_rating,
-    });
-    return { success: true, aiRating: object.ai_rating.rating, aiNotes: object.ai_rating.notes };
-}
 
 /**
  * Generates a cover letter for a job application using AI and creates a PDF
@@ -356,17 +293,11 @@ export async function POST(req: Request) {
 
                 return Response.json({ success: true, data: result });
             case 'ai-rating':
-                await Logger.info('AI rating request received', {
+                await Logger.error('Function deprecated', {
                     jobId: job.id,
                     company: job.company
                 });
-                const aiRatingResult = await createAIRating(job);
-                await Logger.info('AI rating completed', {
-                    jobId: job.id,
-                    success: aiRatingResult.success
-                });
-                await JobModel.updateOne({ id: job.id }, { $set: { aiRating: aiRatingResult.aiRating, aiNotes: aiRatingResult.aiNotes, aiRated: true } });
-                return Response.json({ success: true, data: aiRatingResult });
+                return Response.json({ success: false, error: 'Function deprecated' }, { status: 400 });
             case 'resume':
                 await Logger.info('Resume generation request received', {
                     jobId: job.id,
