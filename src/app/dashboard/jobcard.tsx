@@ -227,10 +227,6 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
     //   setIsGenerating("ready");
     // }
 
-    if (!job.coverLetter) {
-        return null;
-    }
-
     switch (isGenerating) {
         case 'generating':
             return (
