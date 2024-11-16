@@ -322,9 +322,19 @@ const JobCard = React.forwardRef(({
     const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-    // const { toast } = useToast();
     const [selectedCategories, setSelectedCategories] = useState<Set<HunterCategory>>(new Set());
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [showQuickNote, setShowQuickNote] = useState(false);
+    const [quickNote, setQuickNote] = useState(job.notes || '');
+    const isMobile = useClientMediaQuery('(max-width: 640px)');
+    const [isConfirmStatusChangeOpen, setIsConfirmStatusChangeOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
 
     const handleStatusChange = (newStatus: string) => {
         updateJobStatus(job.id || '', newStatus as Job['status']);
@@ -439,10 +449,6 @@ const JobCard = React.forwardRef(({
         }
     };
 
-    // Add new state for quick notes
-    const [showQuickNote, setShowQuickNote] = useState(false);
-    const [quickNote, setQuickNote] = useState(job.notes || '');
-
     const handleQuickNoteSubmit = () => {
         if (quickNote.trim()) {
             const updatedJob = {
@@ -456,64 +462,52 @@ const JobCard = React.forwardRef(({
         }
     };
 
-    // Replace useMediaQuery with useClientMediaQuery
-    const isMobile = useClientMediaQuery('(max-width: 640px)');
-
-    const [isConfirmStatusChangeOpen, setIsConfirmStatusChangeOpen] = useState(false);
-
-    // Add useEffect to prevent hydration mismatch
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // Return null during SSR or before mounting
-    if (!mounted) return null;
 
     if (isMobile) {
         return (
-            <Card className="w-full">
+            <Card className="w-full hover:shadow-lg transition-shadow duration-300 ">
                 <CardContent className="p-4">
                     <div className="flex justify-between items-start">
-                        <div>
-                            {role === 'admin' && (
-                                <code>{job.id}</code>
-                            )}
-                            <h3 className="font-semibold text-lg">{job.company}</h3>
-                            <div className="flex items-center gap-2">
-                                <p className="text-sm text-gray-600">{job.position}</p>
+                        <div className="w-full">
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-semibold text-lg">{job.company}</h3>
                                 <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
                                     {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
                                 </Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm text-gray-600">{job.position}</p>
+
                             </div>
 
                         </div>
 
                     </div>
 
-                    <div className="mt-4 flex flex-col gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                            onClick={() => openJobDetails(job)}
-                        >
-                            <Pencil className="w-4 h-4" />
-                            Details
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                            onClick={() => setShowQuickNote(!showQuickNote)}
-                        >
-                            <FileText className="w-4 h-4" />
-                            Quick Note
-                        </Button>
+                    <div className="mt-4">
+                        <div className="flex gap-2 mb-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1 w-full"
+                                onClick={() => openJobDetails(job)}
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Details
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1 w-full"
+                                onClick={() => setShowQuickNote(!showQuickNote)}
+                            >
+                                <FileText className="w-4 h-4" />
+                                Quick Note
+                            </Button>
+                        </div>
                         <Select
                             value={job.status}
                             onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-
                         >
                             <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
                                 <SelectValue>{job.status}</SelectValue>
@@ -574,73 +568,179 @@ const JobCard = React.forwardRef(({
                 {role === 'admin' && (
                     <code className="text-xs">Job ID: {job.id}</code>
                 )}
-                <CardTitle className="flex justify-between items-center">
+                {layoutMode === 'list' && (
+                    <CardTitle className="flex justify-between items-center">
+                        <span className="text-2xl">{job.company}</span>
+                        <div className="flex items-center gap-2">
+                            <Badge
+                                variant="outline"
+                                className={`text-sm h-9 ${job.aiRating
+                                    ? job.aiRating >= 80
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : job.aiRating >= 60
+                                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    : ''
+                                    }`}
+                            >
+                                <Sparkles className="w-4 h-4 mr-1" />
+                                {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                            </Badge>
 
-                    <span className="text-2xl">{job.company}</span>
-                    <div className="flex items-center gap-2">
-                        <Select
-                            open={isStatusSelectOpen}
-                            onOpenChange={setIsStatusSelectOpen}
-                            value={job.status}
-                            onValueChange={handleStatusChange}
-                        >
-                            <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
-                                <SelectValue>{job.status}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {jobStatuses.map((status) => (
-                                    <SelectItem key={status} value={status}>
-                                        {status}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <TooltipProvider>
-                            <AlertDialog>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <AlertDialogTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                            <Select
+                                open={isStatusSelectOpen}
+                                onOpenChange={setIsStatusSelectOpen}
+                                value={job.status}
+                                onValueChange={handleStatusChange}
+                            >
+                                <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
+                                    <SelectValue>{job.status}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {jobStatuses.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {status}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <TooltipProvider>
+                                <AlertDialog>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                >
+                                                    <Archive className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Archive Job</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Archive Job</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to archive this job application for {job.company}?
+                                                This will remove it from your active applications list.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                                                Cancel
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchive();
+                                                }}
+                                                className="bg-red-600 hover:bg-red-700 text-white"
                                             >
-                                                <Archive className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Archive Job</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Archive Job</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Are you sure you want to archive this job application for {job.company}?
-                                            This will remove it from your active applications list.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
-                                            Cancel
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleArchive();
-                                            }}
-                                            className="bg-red-600 hover:bg-red-700 text-white"
-                                        >
-                                            Archive
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </TooltipProvider>
+                                                Archive
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TooltipProvider>
 
-                    </div>
-                </CardTitle>
+                        </div>
+                    </CardTitle>
+                )}
+                {layoutMode === 'masonry' && (
+                    <CardTitle className="">
+
+                        <div className="flex items-center gap-2 mb-2">
+
+                            {job.aiRating && (
+                                <Badge
+                                    variant="outline"
+                                    className={`text-sm h-9 ${job.aiRating
+                                        ? job.aiRating >= 80
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : job.aiRating >= 60
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        : ''
+                                        }`}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                                </Badge>
+                            )}
+                            <Select
+                                open={isStatusSelectOpen}
+                                onOpenChange={setIsStatusSelectOpen}
+                                value={job.status}
+                                onValueChange={handleStatusChange}
+                            >
+                                <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
+                                    <SelectValue>{job.status}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {jobStatuses.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {status}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <TooltipProvider>
+                                <AlertDialog>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                >
+                                                    <Archive className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Archive Job</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Archive Job</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to archive this job application for {job.company}?
+                                                This will remove it from your active applications list.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                                                Cancel
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchive();
+                                                }}
+                                                className="bg-red-600 hover:bg-red-700 text-white"
+                                            >
+                                                Archive
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TooltipProvider>
+
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl">{job.company}</span>
+                        </div>
+                    </CardTitle>
+                )}
+
             </CardHeader>
             <CardContent>
                 <div className={layoutMode === 'list' ? 'flex' : ''}>
@@ -649,20 +749,6 @@ const JobCard = React.forwardRef(({
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-xl font-semibold">{job.position}</h3>
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-sm ${job.aiRating
-                                            ? job.aiRating >= 80
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                : job.aiRating >= 60
-                                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200    '
-                                            : ''
-                                            }`}
-                                    >
-                                        <Sparkles className="w-4 h-4 mr-1" />
-                                        {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                                    </Badge>
                                 </div>
                                 <p className="text-sm text-gray-500">
                                     Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}

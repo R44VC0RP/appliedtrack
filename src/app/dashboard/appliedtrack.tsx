@@ -198,6 +198,22 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const [layoutMode, setLayoutMode] = useState<'list' | 'masonry' | 'table'>('list')
+
+  useEffect(() => {
+    const savedLayout = localStorage.getItem('layoutMode')
+    if (savedLayout && ['list', 'masonry', 'table'].includes(savedLayout)) {
+      setLayoutMode(savedLayout as 'list' | 'masonry' | 'table')
+    }
+  }, [])
+
+  
+
+  function saveLayoutMode(mode: 'list' | 'masonry' | 'table') {
+    setLayoutMode(mode)
+    localStorage.setItem('layoutMode', mode)
+  }
+
+
   const [columns, setColumns] = useState(3)
   const isTablet = useClientMediaQuery('(max-width: 1024px)')
   const isMobile = useClientMediaQuery('(max-width: 640px)')
@@ -251,7 +267,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
     const updateLayout = () => {
       if (isMobile) {
-        setLayoutMode('list');
+        saveLayoutMode('list');
         setColumns(1);
       } else if (isTablet) {
         setColumns(2);
@@ -674,7 +690,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                       <Button
                         variant={layoutMode === 'list' ? 'default' : 'ghost'}
                         size="icon"
-                        onClick={() => setLayoutMode('list')}
+                        onClick={() => saveLayoutMode('list')}
                         className="h-8 w-8"
                       >
                         <LayoutList className="h-4 w-4" />
@@ -690,7 +706,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                       <Button
                         variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
                         size="icon"
-                        onClick={() => setLayoutMode('masonry')}
+                        onClick={() => saveLayoutMode('masonry')}
                         className="h-8 w-8"
                       >
                         <LayoutGrid className="h-4 w-4" />
@@ -706,7 +722,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                       <Button
                         variant={layoutMode === 'table' ? 'default' : 'ghost'}
                         size="icon"
-                        onClick={() => setLayoutMode('table')}
+                        onClick={() => saveLayoutMode('table')}
                         className="h-8 w-8"
                       >
                         <Table2 className="h-4 w-4" />
@@ -788,7 +804,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow >
                       {columnDefs
                         .filter(col => visibleColumns.has(col.id))
                         .map((col) => (
@@ -835,7 +851,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                   </TableHeader>
                   <TableBody>
                     {sortedJobs.map((job) => (
-                      <TableRow key={job.id}>
+                      <TableRow
+                        key={job.id || `job-${job.company}-${job.position}-${job.dateApplied}`}
+                      >
                         {columnDefs
                           .filter(col => visibleColumns.has(col.id))
                           .map((col) => (
@@ -901,7 +919,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id || `job-${job.company}-${job.position}`}
+                    key={job.id || `job-${job.company}-${job.position}-${job.dateApplied}-${Date.now()}`}
                     layout
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -933,7 +951,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id || `job-${job.company}-${job.position}`}
+                    key={job.id || `job-${job.company}-${job.position}-${job.dateApplied}-${Date.now()}`}
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
