@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Search, Pencil, Settings2, Check } from 'lucide-react'
+import { Search, Pencil, Settings2, Check, Command } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch } from "@/components/ui/switch"
 import { format } from 'date-fns'
@@ -27,7 +27,7 @@ import ClearbitAutocomplete from '@/components/ui/clearbit';
 import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 import { OnboardingModal } from '@/components/onboarding-modal';
 import ViewDetailsModal from './viewdetails';
-
+import KeyboardShortcut from '@/components/ui/keyboard-shortcut';
 // Model Imports
 import { IJob as Job } from '@/models/Job';
 import { JobStatus } from '@/models/Job';
@@ -136,14 +136,14 @@ const addJobSteps: AddJobStep[] = [
 // ============= Utils =============
 const getStatusColor = (status: string): string => {
   switch (status) {
-      case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-      case 'Applied': return 'bg-blue-100 text-blue-800'
-      case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-      case 'Interview': return 'bg-purple-100 text-purple-800'
-      case 'Offer': return 'bg-green-100 text-green-800'
-      case 'Rejected': return 'bg-red-100 text-red-800'
-      case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-      default: return 'bg-gray-100 text-gray-800'
+    case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
+    case 'Applied': return 'bg-blue-100 text-blue-800'
+    case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
+    case 'Interview': return 'bg-purple-100 text-purple-800'
+    case 'Offer': return 'bg-green-100 text-green-800'
+    case 'Rejected': return 'bg-red-100 text-red-800'
+    case 'Accepted': return 'bg-emerald-100 text-emerald-800'
+    default: return 'bg-gray-100 text-gray-800'
   }
 }
 
@@ -282,6 +282,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'n') {
+        // This opens the modal to add a new job
         e.preventDefault()
         // Open modal to add new job
         setSelectedJob({
@@ -306,8 +307,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         setIsModalOpen(true)
       }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 5000);
+        // This focuses the search box
+        e.preventDefault()
+        document.getElementById('searchBox')?.focus()
       }
     }
 
@@ -459,9 +461,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         case 'rating_desc':
           return b.aiRating - a.aiRating;
         case 'newest':
-          return new Date(b.dateCreated || '').getTime() - new Date(a.dateCreated || '').getTime();
+          return new Date(b.dateCreated || b.dateUpdated || '').getTime() - new Date(a.dateCreated || a.dateUpdated || '').getTime();
         case 'oldest':
-          return new Date(a.dateCreated || '').getTime() - new Date(b.dateCreated || '').getTime();
+          return new Date(a.dateCreated || a.dateUpdated || '').getTime() - new Date(b.dateCreated || b.dateUpdated || '').getTime();
         case 'updated':
           return new Date(b.dateUpdated || '').getTime() - new Date(a.dateUpdated || '').getTime();
         case 'company':
@@ -537,7 +539,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   };
 
   return (
-    <>
+    <div className="dark:bg-gray-950">
       {showConfetti && (
         <ReactConfetti
           width={width}
@@ -601,13 +603,14 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
       <SignedOut>
         <SignedOutCallback />
       </SignedOut>
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4 dark:bg-gray-950">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
           <div className="relative w-full sm:w-64">
             <Input
               type="text"
               placeholder="Search jobs..."
               value={searchTerm}
+              id="searchBox"
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
@@ -616,6 +619,14 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           {/* Hide layout controls on mobile */}
           {!isMobile && (
             <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={openNewJobModal}
+                className="flex items-center gap-2"
+              >
+                Add New Job
+                <KeyboardShortcut text="N" />
+              </Button>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
@@ -915,9 +926,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="grid gap-6"
+                className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 [column-fill:_balance]"
                 style={{
-                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                  columnCount: columns,
                 }}
               >
                 {filteredJobs.map((job) => (
@@ -928,6 +939,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3 }}
+                    className="break-inside-avoid-column"
                   >
                     <JobCard
                       job={job}
@@ -953,12 +965,12 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           resumes={resumes}
         />
 
-        <Button
+        {/* <Button
           className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
           onClick={openNewJobModal}
         >
           +
-        </Button>
+        </Button> */}
 
         <ViewDetailsModal
           isOpen={isViewDetailsModalOpen}
@@ -973,7 +985,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
       </div>
-    </>
+    </div>
   )
 }
 
@@ -1060,6 +1072,27 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
     onClose();
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if modal is not open
+      if (!isOpen) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft' && currentStep > 0) {
+        e.preventDefault();
+        handleBack();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentStep, handleNext, handleBack, onClose]);
+
   const currentStepConfig = addJobSteps[currentStep];
 
   return (
@@ -1127,7 +1160,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     onClick={handleBack}
                     className="w-full sm:w-1/2"
                   >
-                    Back
+                    <span className="flex items-center gap-2">
+                      Back <KeyboardShortcut text="left" />
+                    </span>
                   </Button>
                 ) : <div className="hidden sm:block sm:w-1/2" />}
 
@@ -1136,7 +1171,10 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   className="w-full sm:w-1/2"
                   disabled={!formData[currentStepConfig.field]}
                 >
-                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                  <span className="flex items-center gap-2">
+                    {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                    <KeyboardShortcut text="cmd + enter" />
+                  </span>
                 </Button>
               </div>
             </div>
@@ -1152,12 +1190,23 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
             <div className="py-4">
               {currentStepConfig.type === 'textarea' ? (
-                <Textarea
-                  placeholder={currentStepConfig.placeholder}
-                  value={formData[currentStepConfig.field] as string || ''}
-                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
-                  className="min-h-[150px] sm:min-h-[200px] w-full"
-                />
+                // Click to paste button
+                <>
+                  <Button variant="outline" className="mb-2" onClick={() => {
+                    navigator.clipboard.readText().then(text => {
+                      setFormData({ ...formData, [currentStepConfig.field]: text });
+                    });
+                  }}>
+                    Click to paste from clipboard
+                  </Button>
+                  <Textarea
+                    placeholder={currentStepConfig.placeholder}
+                    value={formData[currentStepConfig.field] as string || ''}
+                    onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
+                    className="min-h-[150px] sm:min-h-[200px] w-full"
+                    autoFocus
+                  />
+                </>
               ) : currentStepConfig.type === 'resume-date' ? (
                 <div className="space-y-4 w-full">
                   <div>
@@ -1223,7 +1272,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     onClick={handleBack}
                     className="w-full sm:w-1/2 order-2 sm:order-1"
                   >
-                    Back
+                    <span className="flex items-center gap-2">
+                      Back <KeyboardShortcut text="left" />
+                    </span>
                   </Button>
                 ) : <div className="hidden sm:block sm:w-1/2" />}
 
@@ -1232,7 +1283,10 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   className="w-full sm:w-1/2 order-1 sm:order-2"
                   disabled={!formData[currentStepConfig.field]}
                 >
-                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                  <span className="flex items-center gap-2">
+                    {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                    <KeyboardShortcut text="cmd + enter" />
+                  </span>
                 </Button>
               </div>
             </div>

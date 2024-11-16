@@ -45,14 +45,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      const { default: dbConnect } = await import('@/lib/mongodb')
-      await dbConnect()
-    } catch (error) {
-      console.warn('MongoDB connection failed during build:', error)
-    }
+
+  try {
+    const { default: dbConnect } = await import('@/lib/mongodb')
+    await dbConnect()
+  } catch (error) {
+    console.warn('MongoDB connection failed during build:', error)
   }
+
 
   return (
     <ClerkProvider>
@@ -64,11 +64,11 @@ export default async function RootLayout({
             strategy="lazyOnload"
           />
         </head>
-        <body className={inter.className} suppressHydrationWarning>
-          <ThemeProvider 
-            attribute="class" 
-            defaultTheme="system" 
-            enableSystem 
+        <body className={`${inter.className} dark:bg-gray-950`} suppressHydrationWarning>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
             disableTransitionOnChange
           >
             {children}

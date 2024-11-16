@@ -164,7 +164,7 @@ export async function srv_addJob(job: Job) {
         await Logger.warning('Unauthorized add job attempt', { job });
         return;
     }
-    const newJob = await JobModel.create({ ...job, userId: user.id });
+    const newJob = await JobModel.create({ ...job, userId: user.id, dateCreated: new Date().toISOString() });
     return plain(newJob);
 }
 

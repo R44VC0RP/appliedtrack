@@ -175,7 +175,7 @@ export default function Homepage() {
               detectRetina: true,
             }}
           />
-          <div className="container relative mx-auto px-4 md:px-6 flex flex-col items-center text-center">
+          <div className="container relative mx-auto px-4 md:px-6 flex flex-col items-center text-center ">
             <div className="mb-6">
               <span className="px-3 py-1 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-1">
                 <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
@@ -350,7 +350,7 @@ export default function Homepage() {
                     <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
                       <MailCheck className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">InsightLink&trade; Contacts<br/><span className='text-xs text-gray-500'>Powered by Hunter.io</span></CardTitle>
+                    <CardTitle className="dark:text-white">InsightLink&trade; Contacts<br /><span className='text-xs text-gray-500'>Powered by Hunter.io</span></CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -367,7 +367,7 @@ export default function Homepage() {
                     <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-white">
                       <Calendar className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">ATS Review<br/><span className='text-xs text-gray-500'>Coming Soon</span></CardTitle>
+                    <CardTitle className="dark:text-white">ATS Review<br /><span className='text-xs text-gray-500'>Coming Soon</span></CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -428,7 +428,7 @@ export default function Homepage() {
           {/* Background decoration */}
           <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
           <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent dark:from-gray-900 dark:to-transparent" />
-          
+
           <div className="container relative mx-auto px-4 md:px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -471,10 +471,9 @@ export default function Homepage() {
                       </span>
                     </div>
                   )}
-                  
-                  <Card className={`h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 ${
-                    tier.name === 'Pro' ? 'border-primary shadow-lg scale-105' : ''
-                  }`}>
+
+                  <Card className={`h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 ${tier.name === 'Pro' ? 'border-primary shadow-lg scale-105' : ''
+                    }`}>
                     <CardHeader>
                       <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
                       <CardDescription className="flex items-baseline mt-4">
@@ -501,6 +500,94 @@ export default function Homepage() {
           </div>
         </section>
 
+        {/* Testimonials Section */}
+        <section className="w-full py-24 bg-white dark:bg-gray-950 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
+          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent dark:from-gray-950 dark:to-transparent" />
+
+          <div className="container relative mx-auto px-4 md:px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                Loved by Job Seekers
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                See what our users are saying about their experience with AppliedTrack
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {[
+                {
+                  name: "Sarah Chen",
+                  role: "Software Engineer",
+                  company: "Recently hired at Microsoft",
+                  content: "AppliedTrack's AI-powered resume optimization helped me land interviews at top tech companies. The personalized insights were game-changing!",
+                  image: "https://d2pasa6bkzkrjd.cloudfront.net/_resize/consensus2024/speaker/300/site/consensus2024/images/userfiles/speakers/e344eea533f9623cc91fefd17a915b5d.jpg"
+                },
+                {
+                  name: "Michael Rodriguez",
+                  role: "Marketing Manager",
+                  company: "Landed role at HubSpot",
+                  content: "The automated cover letter generator saved me hours of time, and the quality was impressive. Each letter felt personal and tailored to the role.",
+                  image: "https://www.leehealth.org/getmedia/9671f1ff-2aaa-4856-a770-58588d4f7faf/Rodriquez-Michael-Psy-D_480x480.jpg?width=479&height=479&ext=.jpg"
+                },
+                {
+                  name: "Emily Thompson",
+                  role: "Product Manager",
+                  company: "Hired at Stripe",
+                  content: "The job matching insights helped me focus on roles where I had the best chance. Landed my dream job in half the time I expected!",
+                  image: "https://pbs.twimg.com/profile_images/1460356790131040258/e62OCGsm_400x400.jpg"
+                }
+              ].map((testimonial, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <Card className="h-full dark:bg-gray-900/50 dark:border-gray-800 relative overflow-hidden">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4 mb-4">
+                        <img
+                          src={testimonial.image}
+                          alt={testimonial.name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                        <div>
+                          <h3 className="font-semibold dark:text-white">{testimonial.name}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{testimonial.role}</p>
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                        <span className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <FaRocket
+                              key={i}
+                              className="w-4 h-4 text-yellow-400"
+                            />
+                          ))}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-300 italic">"{testimonial.content}"</p>
+                      <div className="mt-4 pt-4 border-t dark:border-gray-800">
+                        <p className="text-sm text-primary dark:text-primary/80">{testimonial.company}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* FAQ Section */}
         <section id="faq" className="w-full py-24 bg-gray-50 dark:bg-gray-900">
           <div className="container mx-auto px-4 md:px-6">
@@ -512,7 +599,7 @@ export default function Homepage() {
                 Everything you need to know about AppliedTrack
               </p>
             </div>
-            
+
             <div className="max-w-3xl mx-auto">
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="item-1">
@@ -592,25 +679,25 @@ export default function Homepage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <span className="flex h-2 w-2 bg-green-500 rounded-full" />
-                    Current Quarter (Q2 2024)
+                    {`Current Quarter (Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()})`}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="text-left">
-                        Enhanced Job Search Integration
+                        Job Auto-Add with LinkedIn and Indeed
                       </AccordionTrigger>
                       <AccordionContent>
-                        Direct integration with major job boards and company career pages for seamless application tracking.
+                        Automatically add jobs from LinkedIn and Indeed to your dashboard for easy tracking.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="item-2">
                       <AccordionTrigger className="text-left">
-                        AI Resume Optimization
+                        Filtered Job Search
                       </AccordionTrigger>
                       <AccordionContent>
-                        Advanced AI-powered resume tailoring for specific job postings and improved ATS compatibility.
+                        Filter jobs by location, company, and more to find the perfect fit, also fiters out all the BS spam jobs.
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -623,25 +710,25 @@ export default function Homepage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <span className="flex h-2 w-2 bg-blue-500 rounded-full" />
-                    Next Quarter (Q3 2024)
+                    {`Next Quarter (Q${((Math.ceil((new Date().getMonth() + 1) / 3) + 1) % 4) || 4} ${new Date().getFullYear() + (Math.ceil((new Date().getMonth() + 1) / 3) + 1 > 4 ? 1 : 0)})`}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="text-left">
-                        Interview Preparation Tools
+                        Hiring Tools
                       </AccordionTrigger>
                       <AccordionContent>
-                        AI-powered interview practice sessions with industry-specific questions and feedback.
+                        Hiring tools to help you add potential candidates, that seem most suited for your open positions.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="item-2">
                       <AccordionTrigger className="text-left">
-                        Network Analytics
+                        Job Posting
                       </AccordionTrigger>
                       <AccordionContent>
-                        Advanced networking features with LinkedIn integration and connection tracking.
+                        Post Jobs directly to AppliedTrack, and track applications all in one place.
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -685,7 +772,7 @@ export default function Homepage() {
         {/* Footer */}
         <footer className="w-full py-6 border-t dark:border-gray-700">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between">
-            <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 AppliedTrack. All rights reserved.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">© {new Date().getFullYear()} AppliedTrack. All rights reserved.</p>
             <nav className="flex gap-4 sm:gap-6 mt-4 sm:mt-0">
               <Link
                 href="/terms"

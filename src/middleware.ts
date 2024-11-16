@@ -1,5 +1,4 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { EdgeLogger } from "@/lib/edge-logger";
 
 export default clerkMiddleware(async (auth, req) => {
   // Log the request without blocking

@@ -59,14 +59,14 @@ type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 
 
 const getStatusColor = (status: string): string => {
     switch (status) {
-        case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-        case 'Applied': return 'bg-blue-100 text-blue-800'
-        case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-        case 'Interview': return 'bg-purple-100 text-purple-800'
-        case 'Offer': return 'bg-green-100 text-green-800'
-        case 'Rejected': return 'bg-red-100 text-red-800'
-        case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-        default: return 'bg-gray-100 text-gray-800'
+        case 'Yet to Apply': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case 'Applied': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case 'Phone Screen': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        case 'Interview': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+        case 'Offer': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        case 'Rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        case 'Accepted': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
 }
 
@@ -170,7 +170,7 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
                 <Button
                     variant="outline"
                     size="sm"
-                    className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                    className="inline-flex items-center gap-2 text-blue-600 dark:text-white bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
                     onClick={() => {
                         console.log(job.resumeGenerated)
                         window.open(job.resumeGenerated?.url, '_blank');
@@ -245,7 +245,7 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
                 <Button
                     variant="outline"
                     size="sm"
-                    className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
+                    className="inline-flex items-center gap-2 text-blue-600 dark:text-white bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
                     onClick={() => {
                         console.log(job.coverLetter);
                         window.open(job.coverLetter?.url, '_blank');
@@ -482,7 +482,7 @@ const JobCard = React.forwardRef(({
                             <h3 className="font-semibold text-lg">{job.company}</h3>
                             <div className="flex items-center gap-2">
                                 <p className="text-sm text-gray-600">{job.position}</p>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
                                     {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
                                 </Badge>
                             </div>
@@ -653,10 +653,10 @@ const JobCard = React.forwardRef(({
                                         variant="outline"
                                         className={`text-sm ${job.aiRating
                                             ? job.aiRating >= 80
-                                                ? 'bg-green-100 text-green-800'
+                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                                 : job.aiRating >= 60
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-red-100 text-red-800'
+                                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200    '
                                             : ''
                                             }`}
                                     >

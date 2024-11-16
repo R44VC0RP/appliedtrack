@@ -1,7 +1,28 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
-        domains: ['clearbit.com', 'autocomplete.clearbit.com', 'uploadthing.com', 'utfs.io', 'logo.clearbit.com'],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'clearbit.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'autocomplete.clearbit.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'uploadthing.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'utfs.io',
+            },
+            {
+                protocol: 'https',
+                hostname: 'logo.clearbit.com',
+            },
+        ],
         formats: ['image/avif', 'image/webp'],
         deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
         minimumCacheTTL: 60,
