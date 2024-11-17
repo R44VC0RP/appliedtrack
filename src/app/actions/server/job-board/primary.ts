@@ -6,6 +6,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from "@/lib/logger";
 import { UserModel, User } from "@/models/User";
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser";
+import { srv_addGenAIAction } from "@/lib/useGenAI";
 import { ConfigModel } from "@/models/Config";
 import { UserQuotaModel } from "@/models/UserQuota";
 import { plain } from "@/lib/plain";
@@ -28,7 +29,6 @@ export async function srv_checkUserAttributes(userId: string): Promise<CompleteU
   const user = await srv_getCompleteUserProfile(userId);
   return plain(user);
 }
-
 
 export async function srv_func_verifyTiers(userId: string, action: ActionType): Promise<QuotaCheck> {
   try {
@@ -300,7 +300,7 @@ export async function srv_createAIRating(job: Job) {
   });
 
   // Generate cover letter using GPT
-  const { object } = await generateObject({
+  const { object, usage } = await generateObject({
     model: openai('gpt-4o-mini'),
     schema: z.object({
       ai_rating: z.object({
@@ -310,5 +310,78 @@ export async function srv_createAIRating(job: Job) {
     }),
     prompt: prompt_to_create_ai_rating,
   });
+
+  const GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS = 15;
+  const GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS = 60;
+
+  const totalCostInCents = 
+    (usage.promptTokens / 1_000_000) * GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS +
+    (usage.completionTokens / 1_000_000) * GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS;
+
+  await srv_addGenAIAction('createAIResumeRating', usage.promptTokens, usage.completionTokens, totalCostInCents);
+
+  console.log(usage);
+
   return { success: true, aiRating: object.ai_rating.rating, aiNotes: object.ai_rating.notes };
+}
+
+function isValidDomain(domain: string): boolean {
+  const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+  const domainPattern = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+  return domainPattern.test(cleanDomain);
+}
+
+export async function srv_hunterDomainSearch(domain: string, departments: string[], limit: number) {
+  const hunterDepartments = ['executive', 'it', 'finance', 'management', 'sales', 'legal', 'support', 'hr', 'marketing', 'communication', 'education', 'design', 'health', 'operations'];
+  if (departments.length > 0 && !departments.every(dep => hunterDepartments.includes(dep))) {
+    await Logger.warning('Invalid department specified in Hunter search', {
+      domain,
+      invalidDepartments: departments.filter(dep => !hunterDepartments.includes(dep))
+    });
+    throw new Error('Invalid department');
+  }
+
+  if (limit < 1 || limit > 30) {
+    console.error('Invalid amount:', limit);
+    throw new Error('Invalid amount');
+  }
+
+  const hunterApiKey = process.env.HUNTER_API_KEY;
+  let allEmails: any[] = [];
+
+  try {
+    await Logger.info('Hunter domain search initiated', {
+      domain,
+      limit,
+      departments
+    });
+    
+    // First request to get total results
+    const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}`;
+    console.log('Initial URL:', initialUrl);
+    const initialResponse = await fetch(initialUrl);
+    if (!initialResponse.ok) {
+      throw new Error(`Hunter API error: ${initialResponse.statusText}`);
+    }
+    const dataResponse = await initialResponse.json();
+    const totalResults = dataResponse.meta.results;
+
+    // Sanitize all emails
+    
+
+    await Logger.info('Hunter domain search completed', {
+      domain,
+      totalResults,
+      resultsReturned: limit
+    });
+
+    return { data: dataResponse, total_results: totalResults };
+  } catch (error) {
+    await Logger.error('Hunter API request failed', {
+      domain,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
 }

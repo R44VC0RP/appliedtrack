@@ -4,6 +4,8 @@ interface TierLimits {
   jobs: number;
   coverLetters: number;
   contactEmails: number;
+  aiResumes: number;
+  aiResumeRatings: number;
 }
 
 export interface PricingTier {
@@ -25,9 +27,11 @@ export interface Config extends Document {
 }
 
 const TierLimitsSchema = new Schema({
-  jobs: { type: Number, required: true },
-  coverLetters: { type: Number, required: true },
-  contactEmails: { type: Number, required: true }
+  jobs: { type: Number, required: true, default: 0 },
+  coverLetters: { type: Number, required: true, default: 0 },
+  contactEmails: { type: Number, required: true, default: 0 },
+  aiResumes: { type: Number, required: true, default: 0 },
+  aiResumeRatings: { type: Number, required: true, default: 0 }
 });
 
 const ConfigSchema: Schema = new Schema({

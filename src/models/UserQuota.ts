@@ -15,7 +15,8 @@ const UserQuotaSchema = new Schema({
   emailsUsed: { type: Number, default: 0 },
   aiCoverLettersUsed: { type: Number, default: 0 },
   aiResumesUsed: { type: Number, default: 0 },
-  dateCreated: { type: Date, default: Date.now },
+  aiResumeRatingsUsed: { type: Number, default: 0 },
+  dateCreated: { type: Date, default: Date.now }, 
   dateUpdated: { type: Date, default: Date.now },
   quotaResetDate: { type: Date, required: true }
 });

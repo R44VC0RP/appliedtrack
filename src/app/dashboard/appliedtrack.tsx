@@ -385,7 +385,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   const handleAIRecommendation = async (job: Job) => {
     // Create a loading toast that we can update later
     const loadingToast = toast.loading("Analyzing job application...", {
-      duration: Infinity // Keep the toast until we dismiss it
+      duration: 5000
     });
 
     try {
@@ -409,8 +409,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
         // Update the loading toast with success message
         toast.success(`Your application received a ${response.aiRating}/100 match score.`, {
-          id: loadingToast, // Update the existing toast then dismiss it after 5 seconds
-          duration: 5000
+          id: loadingToast, // Update the existing toast
+          duration: 5000, // Keep the toast for 5 seconds
         });
       }
     } catch (error) {
