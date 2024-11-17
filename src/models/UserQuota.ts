@@ -2,9 +2,9 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface UserQuota extends Document {
   userId: string;
-  emailsUsed: number;
-  aiCoverLettersUsed: number;
-  aiResumesUsed: number;
+  usage: {
+    [serviceKey: string]: number;
+  };
   dateCreated: Date;
   dateUpdated: Date;
   quotaResetDate: Date;
@@ -12,11 +12,12 @@ export interface UserQuota extends Document {
 
 const UserQuotaSchema = new Schema({
   userId: { type: String, required: true, unique: true },
-  emailsUsed: { type: Number, default: 0 },
-  aiCoverLettersUsed: { type: Number, default: 0 },
-  aiResumesUsed: { type: Number, default: 0 },
-  aiResumeRatingsUsed: { type: Number, default: 0 },
-  dateCreated: { type: Date, default: Date.now }, 
+  usage: {
+    type: Map,
+    of: Number,
+    default: {}
+  },
+  dateCreated: { type: Date, default: Date.now },
   dateUpdated: { type: Date, default: Date.now },
   quotaResetDate: { type: Date, required: true }
 });

@@ -30,7 +30,10 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
   try {
     // Fetch user data in parallel
     const [clerkUser, dbUser] = await Promise.all([
-      clerkClient.users.getUser(userId),
+      clerkClient.users.getUser(userId).catch(async (error) => {
+        await Logger.warning('Clerk user not found', { userId });
+        return null;
+      }),
       UserModel.findOne({ userId })
     ]);
 
@@ -83,6 +86,15 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
     });
     throw error;
   }
+}
+
+export async function srv_getAllCompleteUserProfiles(): Promise<CompleteUserProfile[]> {
+  const users = await UserModel.find({}).lean();
+  const completeUserProfiles = await Promise.all(users.map(async user => {
+    const profile = await srv_getCompleteUserProfile(user.userId);
+    return profile ? profile : null;
+  }));
+  return completeUserProfiles.filter(profile => profile !== null) as CompleteUserProfile[];
 }
 
 export async function srv_authAdminUser(): Promise<boolean> {

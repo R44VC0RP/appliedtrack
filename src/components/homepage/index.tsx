@@ -29,7 +29,7 @@ import {
 
 // Import Server Actions and Types
 import { srv_handleWaitlistSignup, srv_recordPageVisit, srv_getHomepageData } from '@/app/actions/server/homepage/primary'
-import { PricingTier } from '@/models/Config'
+import { srv_getServiceQuota } from '@/lib/tierlimits'
 
 
 
@@ -42,7 +42,7 @@ export default function Homepage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dailySignups, setDailySignups] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
+  const [pricingTiers, setPricingTiers] = useState<any[] | null>(null)
   const particlesInit = useCallback(async (engine: Engine): Promise<void> => {
     await loadFull(engine)
   }, [])
@@ -454,7 +454,7 @@ export default function Homepage() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">              
               {pricingTiers?.map((tier, index) => (
                 <motion.div
                   key={index}
@@ -485,7 +485,10 @@ export default function Homepage() {
                     </CardHeader>
                     <CardContent className="flex-grow">
                       <ul className="space-y-4">
-                        {tier.features.map((feature, featureIndex) => (
+                        {
+                          console.log('features', tier)
+                        }
+                        {tier.features.map((feature: string, featureIndex: number) => (
                           <li key={featureIndex} className="flex items-center space-x-3">
                             <CheckCircle2 className="w-5 h-5 text-primary" />
                             <span className="dark:text-gray-300">{feature}</span>

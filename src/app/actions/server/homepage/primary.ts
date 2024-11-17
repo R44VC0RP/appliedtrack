@@ -1,8 +1,10 @@
 "use server"
 
-import { ConfigModel, PricingTierLimits } from "@/models/Config"
+import { ConfigModel } from "@/models/Config"
 import { WaitlistUserModel } from "@/models/WaitlistUser"
 import { CampaignModel } from "@/models/Campaign"
+import { srv_getServiceQuota } from "@/lib/tierlimits"
+import { Logger } from "@/lib/logger"
 
 async function checkIfEmailIsAlreadyOnWaitlist(email: string) {
     const waitlistUser = await WaitlistUserModel.findOne({ email })
@@ -43,45 +45,73 @@ export async function srv_handleWaitlistSignup(email: string, ref: string) {
 }
 
 export async function srv_getHomepageData() {
-    const config = await ConfigModel.findOne({})
-    const dailySignups = Math.floor(Math.random() * (50 - 35 + 1)) + 35
-    const pricingTierLimits = config?.tierLimits
-    const pricingTiers = [
-        { 
-          name: "Basic", 
-          price: 'Free', 
-          features: [
-            `Up to ${pricingTierLimits?.free?.jobs ?? 15} job applications`,
-            'Unlimited resumes',
-            `Up to ${pricingTierLimits?.free?.coverLetters ?? 5} personalized cover letters/month`,
-            `${pricingTierLimits?.free?.contactEmails ?? 5} email domain lookups/month`
-          ] 
-        },
-        { 
-          name: 'Pro', 
-          price: '$10', 
-          features: [
-            `Up to ${pricingTierLimits?.pro?.jobs ?? 100} job applications`,
-            'Unlimited resumes',
-            `Up to ${pricingTierLimits?.pro?.coverLetters ?? 25} personalized cover letters/month`,
-            `${pricingTierLimits?.pro?.contactEmails ?? 25} email domain lookups/month`,
-            'Priority support'
-          ] 
-        },
-        { 
-          name: 'Power', 
-          price: '$30', 
-          features: [
-            'Unlimited applications',
-            'Unlimited resumes',
-            'Unlimited cover letters',
-            `${pricingTierLimits?.power?.contactEmails ?? 50} email domain lookups/month`
-          ]
+    try {
+        const config = await ConfigModel.findOne({});
+        if (!config) {
+            await Logger.error('Failed to fetch config for homepage data', {
+                action: 'GET_HOMEPAGE_DATA'
+            });
+            throw new Error('Configuration not found');
         }
-    ]
-    return {
-        pricingTiers,
-        dailySignups
+
+        const dailySignups = Math.floor(Math.random() * (50 - 35 + 1)) + 35;
+
+        // Helper function to format feature text
+        const formatFeature = (serviceName: string, limit: number): string => {
+            if (limit === -1) return `Unlimited ${serviceName}`;
+            return `Up to ${limit} ${serviceName}/month`;
+        };
+
+        // Generate pricing tiers dynamically
+        const pricingTiers = [
+            {
+              name: "Free",
+              price: "Free",
+              features: [
+                "5 AI Resume Generations",
+                "5 AI Cover Letter Generations",
+                "5 JobMatch Reviews",
+                "5 Hunter Email Searches "
+              ]
+            },
+            {
+              name: "Pro",
+              price: "$10",
+              features: [
+                "20 AI Resume Generations",
+                "20 AI Cover Letter Generations",
+                "20 JobMatch Reviews",
+                "10 Hunter Email Searches"
+              ]
+            },
+            {
+              name: "Power",
+              price: "$30",
+              features: [
+                "50 AI Resume Generations",
+                "50 AI Cover Letter Generations",
+                "50 JobMatch Reviews",
+                "20 Hunter Email Searches"
+              ]
+            }
+          ];
+
+        await Logger.info('Homepage data generated successfully', {
+            numberOfServices: Object.keys(config.services).length,
+            tiers: pricingTiers.map(tier => tier.name)
+        });
+
+        return {
+            pricingTiers,
+            dailySignups
+        };
+
+    } catch (error) {
+        await Logger.error('Failed to generate homepage data', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined
+        });
+        throw error;
     }
 }
 

@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Pdf from "@/lib/pdf-helper";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
+import { srv_addServiceUsage } from "@/lib/tierlimits";
 type ActionType = 'job' | 'coverLetter' | 'resume' | 'email';
 
 export interface QuotaCheck {
@@ -30,7 +31,7 @@ export async function srv_checkUserAttributes(userId: string): Promise<CompleteU
   return plain(user);
 }
 
-export async function srv_func_verifyTiers(userId: string, action: ActionType): Promise<QuotaCheck> {
+export async function srv_func_verifyTiers(userId: string, serviceKey: string): Promise<QuotaCheck> {
   try {
     // Get user and their tier
     const user = await UserModel.findOne({ userId });
@@ -46,6 +47,16 @@ export async function srv_func_verifyTiers(userId: string, action: ActionType): 
       throw new Error('Config not found');
     }
 
+    // Check if service exists and is active
+    const service = config.services[serviceKey];
+    if (!service || !service.active) {
+      await Logger.warning('Invalid or inactive service requested', {
+        userId,
+        serviceKey
+      });
+      throw new Error('Service not available');
+    }
+
     // Get user's current quota
     const quota = await UserQuotaModel.findOne({ userId });
     if (!quota) {
@@ -55,56 +66,20 @@ export async function srv_func_verifyTiers(userId: string, action: ActionType): 
 
     // Get tier limits based on user's tier
     const tierLimits = config.tierLimits[user.tier];
+    const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
+    const currentUsage = quota.usage[serviceKey] || 0;
 
     // Initialize quota check result
-    let quotaCheck: QuotaCheck = {
-      allowed: false,
-      remaining: 0,
-      limit: 0,
-      used: 0
+    const quotaCheck: QuotaCheck = {
+      allowed: serviceLimit === -1 || currentUsage < serviceLimit,
+      remaining: serviceLimit === -1 ? -1 : Math.max(0, serviceLimit - currentUsage),
+      limit: serviceLimit,
+      used: currentUsage
     };
-
-    // Check limits based on action type
-    switch (action) {
-      case 'job':
-        const jobCount = await JobModel.countDocuments({ userId });
-        quotaCheck = {
-          allowed: tierLimits.jobs === -1 || jobCount < tierLimits.jobs,
-          remaining: tierLimits.jobs === -1 ? -1 : Math.max(0, tierLimits.jobs - jobCount),
-          limit: tierLimits.jobs,
-          used: jobCount
-        };
-        break;
-
-      case 'coverLetter':
-        quotaCheck = {
-          allowed: tierLimits.coverLetters === -1 || quota.aiCoverLettersUsed < tierLimits.coverLetters,
-          remaining: tierLimits.coverLetters === -1 ? -1 : Math.max(0, tierLimits.coverLetters - quota.aiCoverLettersUsed),
-          limit: tierLimits.coverLetters,
-          used: quota.aiCoverLettersUsed
-        };
-        break;
-
-      case 'email':
-        quotaCheck = {
-          allowed: tierLimits.contactEmails === -1 || quota.emailsUsed < tierLimits.contactEmails,
-          remaining: tierLimits.contactEmails === -1 ? -1 : Math.max(0, tierLimits.contactEmails - quota.emailsUsed),
-          limit: tierLimits.contactEmails,
-          used: quota.emailsUsed
-        };
-        break;
-
-      default:
-        await Logger.warning('Invalid action type for tier verification', {
-          userId,
-          action
-        });
-        throw new Error('Invalid action type');
-    }
 
     await Logger.info('Tier verification completed', {
       userId,
-      action,
+      serviceKey,
       tier: user.tier,
       quotaCheck
     });
@@ -114,7 +89,7 @@ export async function srv_func_verifyTiers(userId: string, action: ActionType): 
   } catch (error) {
     await Logger.error('Error during tier verification', {
       userId,
-      action,
+      serviceKey,
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
@@ -250,6 +225,20 @@ export async function srv_updateJobStatus(jobId: string, newStatus: Job['status'
 
 export async function srv_createAIRating(job: Job) {
   const user = await srv_getCompleteUserProfile(job.userId || '') as CompleteUserProfile;
+  
+  // Check quota before proceeding
+  const quotaCheck = await srv_func_verifyTiers(user.id, 'AI_RESUME_RATING');
+  if (!quotaCheck.allowed) {
+    await Logger.warning('AI rating quota exceeded', {
+      userId: user.id,
+      quotaCheck
+    });
+    return { 
+      success: false, 
+      error: `Quota exceeded. Used: ${quotaCheck.used}/${quotaCheck.limit}` 
+    };
+  }
+
   const jobData = await srv_getJob(job.id || '');
 
   if (!user || !jobData) {
@@ -258,6 +247,13 @@ export async function srv_createAIRating(job: Job) {
       jobId: job.id
     });
     return { success: false, error: 'User or job not found' };
+  }
+
+  if (!await srv_addServiceUsage(user.id, 'GENAI_JOBMATCH', 1)) {
+    await Logger.warning('AI job match quota exceeded', {
+      userId: user.id,
+    });
+    return { success: false, error: 'AI job match quota exceeded' };
   }
 
   // Extract text from resume PDF
@@ -321,6 +317,9 @@ export async function srv_createAIRating(job: Job) {
   await srv_addGenAIAction('createAIResumeRating', usage.promptTokens, usage.completionTokens, totalCostInCents);
 
   console.log(usage);
+
+  // After successful generation, update usage
+  
 
   return { success: true, aiRating: object.ai_rating.rating, aiNotes: object.ai_rating.notes };
 }
