@@ -38,6 +38,7 @@ import JobCard from './jobcard';
 // Server Actions
 import { srv_addJob, srv_createAIRating, srv_getJobs, srv_getResumes, srv_updateJob } from '@/app/actions/server/job-board/primary';
 import { CompleteUserProfile } from '@/lib/useUser';
+import { UploadButton } from "@/utils/uploadthing";
 
 // IMPORTANT:
 function useWindowSize() {
@@ -960,6 +961,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           onClose={() => setIsModalOpen(false)}
           onSubmit={addNewJob}
           resumes={resumes}
+          setResumes={setResumes}
         />
 
         {/* <Button
@@ -1001,11 +1003,12 @@ const SignedOutCallback = () => {
 // ============= Card Components =============
 
 // ============= Modal Components =============
-function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
+function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (job: Job) => void;
   resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
+  setResumes: (resumes: { resumeId: string; fileUrl: string; fileName: string; }[]) => void;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Partial<Job>>({
@@ -1234,8 +1237,22 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                         ))}
                       </SelectContent>
                     </Select>
+                    <UploadButton
+                      endpoint="pdfUploader"
+                      onClientUploadComplete={(data: any) => {
+                        setResumes([...resumes, { resumeId: data[0].key, fileUrl: data[0].url, fileName: data[0].name }]);
+                        formData.resumeLink = data[0].url;
+                      }}
+                      onUploadError={(error: any) => {
+                        toast.error(`Error uploading resume: ${error.message}`);
+                      }}
+                      className="mt-2 ut-button:w-full ut-button:h-9 ut-button:bg-secondary ut-button:hover:bg-secondary/80 ut-button:text-secondary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
+                      appearance={{
+                        button: "Upload New Resume"
+                      }}
+                    />
                   </div>
-                </div>
+                </div>  
               ) : (
                 <Input
                   type={currentStepConfig.type}
