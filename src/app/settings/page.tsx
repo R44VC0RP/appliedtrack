@@ -43,20 +43,6 @@ export default function SettingsPage() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchQuotaData = useCallback(async () => {
-    if (isSignedIn) {
-      try {
-        const response = await fetch('/api/quota');
-        if (response.ok) {
-          const data = await response.json();
-          setQuotaData(data);
-        }
-      } catch (error) {
-        console.error('Error fetching quota:', error);
-      }
-    }
-  }, [isSignedIn]);
-
   const fetchAllData = async () => {
     if (!isSignedIn) {
       setIsLoading(false);
@@ -67,8 +53,7 @@ export default function SettingsPage() {
       await Promise.all([
         fetchUserDetails(),
         fetchResumes(),
-        fetchSubscription(),
-        fetchQuotaData()
+        fetchSubscription()
       ]);
     } catch (error) {
       console.error('Error loading settings data:', error);

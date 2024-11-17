@@ -597,7 +597,9 @@ export async function srv_generateResume(job: Job) {
     await fs.writeFile(jsonPath, JSON.stringify(generatedResume, null, 2));
 
     // Generate HTML from JSON resume
-    const html = await render(generatedResume, theme);
+    // const html = await render(generatedResume, theme);
+
+    const html = "<h1>Hello</h1>";
 
     console.log(html);
 
