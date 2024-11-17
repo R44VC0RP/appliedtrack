@@ -350,7 +350,11 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
       if (!response) {
         throw new Error('Failed to add new job');
       }
-      setJobs([...jobs, response]);
+      if (!response.success) {
+        toast.error(response.error);
+        return;
+      }
+      setJobs([...jobs, response.data]);
       setIsModalOpen(false);
       toast.success("Job Added")
     } catch (error) {

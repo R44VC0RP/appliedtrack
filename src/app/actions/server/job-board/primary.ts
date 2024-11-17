@@ -17,6 +17,7 @@ import Pdf from "@/lib/pdf-helper";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { srv_addServiceUsage } from "@/lib/tierlimits";
+import { createInitialQuota } from "@/models/UserQuota";
 type ActionType = 'job' | 'coverLetter' | 'resume' | 'email';
 
 export interface QuotaCheck {
@@ -47,8 +48,19 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string): 
       throw new Error('Config not found');
     }
 
+    // Convert to plain objects
+    const plainConfig = plain(config);
+    
     // Check if service exists and is active
-    const service = config.services[serviceKey];
+    const service = plainConfig.services[serviceKey];
+    
+    await Logger.info('Service check', { 
+      serviceKey,
+      serviceExists: !!service,
+      serviceActive: service?.active,
+      services: plainConfig.services
+    });
+    
     if (!service || !service.active) {
       await Logger.warning('Invalid or inactive service requested', {
         userId,
@@ -58,18 +70,39 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string): 
     }
 
     // Get user's current quota
-    const quota = await UserQuotaModel.findOne({ userId });
+    let quota = await UserQuotaModel.findOne({ userId });
     if (!quota) {
-      await Logger.warning('Quota not found during tier verification', { userId });
-      throw new Error('Quota not found');
+      await Logger.info('Creating initial quota for user', { userId });
+      try {
+        quota = await createInitialQuota(userId);
+        await Logger.info('Initial quota created', { userId, quota });
+      } catch (error) {
+        await Logger.error('Failed to create initial quota', {
+          userId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        throw new Error('Failed to create quota');
+      }
     }
 
-    // Get tier limits based on user's tier
-    const tierLimits = config.tierLimits[user.tier];
-    const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
-    const currentUsage = quota.usage[serviceKey] || 0;
+    quota = plain(quota);
 
-    // Initialize quota check result
+    // Get tier limits based on user's tier using object access
+    const tierLimits = plainConfig.tierLimits[user.tier];
+    if (!tierLimits) {
+      await Logger.error('Tier limits not found for user tier', {
+        userId,
+        userTier: user.tier,
+        availableTiers: Object.keys(plainConfig.tierLimits)
+      });
+      throw new Error('Invalid tier configuration');
+    }
+
+    // Access service limit using object notation
+    const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
+    const currentUsage = quota?.usage[serviceKey] || 0;
+
     const quotaCheck: QuotaCheck = {
       allowed: serviceLimit === -1 || currentUsage < serviceLimit,
       remaining: serviceLimit === -1 ? -1 : Math.max(0, serviceLimit - currentUsage),
@@ -150,13 +183,20 @@ export async function srv_initialData() {
 
 export async function srv_addJob(job: Job) {
   const user = await currentUser();
+
   if (!user) {
     await Logger.warning('Unauthorized add job attempt', { job });
     return;
   }
+  const quotaCheck = await srv_func_verifyTiers(user.id, 'JOBS_COUNT');
+  if (!quotaCheck.allowed) {
+    await Logger.warning('Job creation quota exceeded', { userId: user.id, quotaCheck });
+    return { success: false, error: `Job creation quota exceeded. Used: ${quotaCheck.used}/${quotaCheck.limit}` };
+  }
+
   const jobID = uuidv4();
   const newJob = await JobModel.create({ ...job, id: jobID, userId: user.id, dateCreated: new Date().toISOString() });
-  return plain(newJob);
+  return { success: true, data: plain(newJob) };
 }
 
 export async function srv_updateJob(job: Job) {

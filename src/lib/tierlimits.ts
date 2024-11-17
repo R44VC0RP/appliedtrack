@@ -182,15 +182,15 @@ export async function srv_resetAllQuotas() {
   }
 }
 
-// Schedule the reset to run at midnight (00:00) on the first day of each month
-export function initQuotaResetSchedule() {
-  // '0 0 1 * *' = At 00:00 on day-of-month 1
-  schedule.scheduleJob('0 0 1 * *', async () => {
-    await srv_resetAllQuotas();
-  });
+// // Schedule the reset to run at midnight (00:00) on the first day of each month
+// export function initQuotaResetSchedule() {
+//   // '0 0 1 * *' = At 00:00 on day-of-month 1
+//   schedule.scheduleJob('0 0 1 * *', async () => {
+//     await srv_resetAllQuotas();
+//   });
 
-  Logger.info('Quota reset scheduler initialized', {
-    schedule: '0 0 1 * *',
-    description: 'Monthly quota reset scheduled for midnight on the first of each month'
-  });
-}
+//   Logger.info('Quota reset scheduler initialized', {
+//     schedule: '0 0 1 * *',
+//     description: 'Monthly quota reset scheduled for midnight on the first of each month'
+//   });
+// }
