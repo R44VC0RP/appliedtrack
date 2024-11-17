@@ -26,7 +26,7 @@ import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { srv_archiveJob, srv_hunterDomainSearch } from '../actions/server/job-board/primary';
+import { srv_archiveJob, srv_generateResume, srv_hunterDomainSearch } from '../actions/server/job-board/primary';
 
 const hunterCategories: { value: HunterCategory; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -79,18 +79,20 @@ const generateResume = async (
     updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
     try {
-        const response = await fetch('/api/genai', {
-            method: 'POST',
-            body: JSON.stringify({ job, action: 'resume' }),
-        });
+        // const response = await fetch('/api/genai', {
+        //     method: 'POST',
+        //     body: JSON.stringify({ job, action: 'resume' }),
+        // });
 
-        const data = await response.json();
+        const response = await srv_generateResume(job);
 
-        if (data.success) {
+        // const data = await response.json();
+
+        if (response.success) {
             // Update job with generated resume
             await updateJobDetails({
                 ...job,
-                resumeGenerated: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
+                resumeGenerated: { url: response.pdfUrl || '', status: 'ready', dateGenerated: new Date().toISOString() }
             });
 
             toast.success("Resume generated successfully");

@@ -15,9 +15,29 @@ import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
 import Pdf from "@/lib/pdf-helper";
 import { openai } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { generateObject, JSONParseError, TypeValidationError } from "ai";
 import { srv_addServiceUsage } from "@/lib/tierlimits";
 import { createInitialQuota } from "@/models/UserQuota";
+import { promises as fs } from 'fs';
+import puppeteer from 'puppeteer';
+import { render } from 'resumed';
+import { join } from 'path';
+import { UTApi } from "uploadthing/server";
+import theme from 'jsonresume-theme-dev-ats';
+
+const utapi = new UTApi();
+
+interface FileEsque {
+  name: string;
+  [Symbol.toStringTag]: string;
+  stream: () => ReadableStream;
+  text: () => Promise<string>;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+  slice: () => Blob;
+  size: number;
+  type: string;
+}
+
 type ActionType = 'job' | 'coverLetter' | 'resume' | 'email';
 
 export interface QuotaCheck {
@@ -48,21 +68,21 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
       throw new Error('Config not found');
     }
 
-    
+
 
     // Convert to plain objects
     const plainConfig = plain(config);
-    
+
     // Check if service exists and is active
     const service = plainConfig.services[serviceKey];
-    
-    await Logger.info('Service check', { 
+
+    await Logger.info('Service check', {
       serviceKey,
       serviceExists: !!service,
       serviceActive: service?.active,
       services: plainConfig.services
     });
-    
+
     if (!service || !service.active) {
       await Logger.warning('Invalid or inactive service requested', {
         userId,
@@ -108,17 +128,17 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
     // If action is increment, update the usage
     if (action === "increment") {
       const newUsage = currentUsage + 1;
-      
+
       // Only increment if within limits or if limit is -1 (unlimited)
       if (serviceLimit === -1 || newUsage <= serviceLimit) {
         await UserQuotaModel.findOneAndUpdate(
           { userId },
-          { 
+          {
             $inc: { [`usage.${serviceKey}`]: 1 },
             dateUpdated: new Date().toISOString()
           }
         );
-        
+
         await Logger.info('Service usage incremented', {
           userId,
           serviceKey,
@@ -290,7 +310,7 @@ export async function srv_updateJobStatus(jobId: string, newStatus: Job['status'
 
 export async function srv_createAIRating(job: Job) {
   const user = await srv_getCompleteUserProfile(job.userId || '') as CompleteUserProfile;
-  
+
   // Check quota before proceeding
   const quotaCheck = await srv_func_verifyTiers(user.id, 'GENAI_JOBMATCH');
   if (!quotaCheck.allowed) {
@@ -298,9 +318,9 @@ export async function srv_createAIRating(job: Job) {
       userId: user.id,
       quotaCheck
     });
-    return { 
-      success: false, 
-      error: `Quota exceeded. Used: ${quotaCheck.used}/${quotaCheck.limit}` 
+    return {
+      success: false,
+      error: `Quota exceeded. Used: ${quotaCheck.used}/${quotaCheck.limit}`
     };
   }
 
@@ -375,7 +395,7 @@ export async function srv_createAIRating(job: Job) {
   const GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS = 15;
   const GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS = 60;
 
-  const totalCostInCents = 
+  const totalCostInCents =
     (usage.promptTokens / 1_000_000) * GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS +
     (usage.completionTokens / 1_000_000) * GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS;
 
@@ -384,7 +404,7 @@ export async function srv_createAIRating(job: Job) {
   console.log(usage);
 
   // After successful generation, update usage
-  
+
 
   return { success: true, aiRating: object.ai_rating.rating, aiNotes: object.ai_rating.notes };
 }
@@ -434,7 +454,7 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
       limit,
       departments
     });
-    
+
     // First request to get total results
     const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}`;
     console.log('Initial URL:', initialUrl);
@@ -444,7 +464,7 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
     }
     const dataResponse = await initialResponse.json();
     const totalResults = dataResponse.meta.results;
-    
+
 
     await Logger.info('Hunter domain search completed', {
       domain,
@@ -459,6 +479,225 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
+    throw error;
+  }
+}
+
+export async function srv_generateResume(job: Job) {
+  await Logger.info('Starting resume generation', {
+    jobId: job.id,
+    company: job.company,
+    userId: job.userId
+  });
+
+  const user = await srv_getCompleteUserProfile(job.userId || '');
+  const jobData = await srv_getJob(job.id || '');
+
+  if (!user || !jobData) {
+    await Logger.warning('User or job not found during resume generation', {
+      userId: job.userId,
+      jobId: job.id
+    });
+    return { success: false, error: 'User or job not found' };
+  }
+
+  // Extract text from resume PDF
+  const resumeText = await Pdf.getPDFText(job.resumeLink);
+  
+  const resumeSchema = z.object({
+    basics: z.object({
+      name: z.string(),
+      label: z.string().optional(),
+      email: z.string().optional(),
+      phone: z.string().optional(),
+      url: z.string().optional(),
+      summary: z.string(),
+      location: z.object({
+        address: z.string().optional(),
+        postalCode: z.string().optional(),
+        city: z.string().optional(),
+        countryCode: z.string().optional(),
+        region: z.string().optional()
+      }).optional(),
+      profiles: z.array(z.object({
+        network: z.string(),
+        username: z.string(),
+        url: z.string()
+      })).optional()
+    }),
+    work: z.array(z.object({
+      name: z.string(),
+      position: z.string(),
+      url: z.string().optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      summary: z.string(),
+      highlights: z.array(z.string())
+    })).optional(),
+    education: z.array(z.object({
+      institution: z.string(),
+      url: z.string().optional(),
+      area: z.string(),
+      studyType: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      score: z.string().optional(),
+      courses: z.array(z.string()).optional()
+    })).optional(),
+    skills: z.array(z.object({
+      name: z.string(),
+      level: z.string().optional(),
+      keywords: z.array(z.string())
+    })).optional(),
+    languages: z.array(z.object({
+      language: z.string(),
+      fluency: z.string()
+    })).optional(),
+    projects: z.array(z.object({
+      name: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      description: z.string(),
+      highlights: z.array(z.string()).optional(),
+      url: z.string().optional()
+    })).optional()
+  });
+
+  try {
+    const { object: generatedResume, usage } = await generateObject({
+      model: openai('gpt-4-turbo'),
+      schema: resumeSchema,
+      schemaName: 'JSONResume',
+      schemaDescription: 'A structured resume format optimized for the target job position',
+      prompt: `
+        Generate a professional resume in JSON Resume format for ${user.firstName + ' ' + user.lastName} 
+        applying to ${job.company} for the position of ${job.position}.
+        
+        Original Resume Text: ${resumeText}
+        Personal Statement: ${user.about}
+        Target Job Description: ${job.jobDescription}
+
+        Instructions:
+        1. Only include sections where you have reliable information from the provided resume and personal statement
+        2. Do not fabricate or assume any information
+        3. Tailor the content to highlight skills and experience relevant to ${job.position} at ${job.company}
+        4. Use clear, professional language
+        5. Include quantifiable achievements where possible
+        6. Format dates as YYYY-MM-DD if available, otherwise omit
+        7. Ensure all generated content is factual and based on the provided information
+      `
+    });
+
+    // Create temporary directory
+    const tempDir = join(process.cwd(), 'tmp');
+    await fs.mkdir(tempDir, { recursive: true });
+
+    // Save JSON resume to temporary file
+    const jsonPath = join(tempDir, `${job.id}-resume.json`);
+    await fs.writeFile(jsonPath, JSON.stringify(generatedResume, null, 2));
+
+    // Generate HTML from JSON resume
+    const html = await render(generatedResume, theme);
+
+    console.log(html);
+
+    // Launch puppeteer and generate PDF
+    const browser = await puppeteer.launch({
+      headless: true
+    });
+    const page = await browser.newPage();
+
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfPath = join(tempDir, `${job.id}-resume.pdf`);
+    await page.pdf({ 
+      path: pdfPath, 
+      format: 'a4', 
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '20mm',
+        bottom: '20mm',
+        left: '20mm'
+      }
+    });
+    await browser.close();
+
+    // Read the generated PDF
+    const pdfBuffer = await fs.readFile(pdfPath);
+
+    if (!pdfBuffer.length) {
+      throw new Error('No PDF content generated');
+    }
+
+    // Prepare file for uploadthing
+    const fileName = `resume-${Date.now()}-${uuidv4()}.pdf`;
+    const pdfFile: FileEsque = {
+      name: fileName,
+      [Symbol.toStringTag]: 'Blob',
+      stream: () => new ReadableStream({
+        start(controller) {
+          controller.enqueue(pdfBuffer);
+          controller.close();
+        }
+      }),
+      text: () => Promise.resolve(''),
+      arrayBuffer: async () => pdfBuffer,
+      slice: () => new Blob([pdfBuffer], { type: 'application/pdf' }),
+      size: pdfBuffer.length,
+      type: 'application/pdf'
+    };
+
+    // Upload to uploadthing
+    const uploadResponse = await utapi.uploadFiles([pdfFile]);
+
+    // Clean up temporary files
+    await Promise.all([
+      fs.unlink(jsonPath),
+      fs.unlink(pdfPath)
+    ]).catch(error => {
+      Logger.warning('Failed to clean up temporary files', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        files: [jsonPath, pdfPath]
+      });
+    });
+
+    // Track costs and usage
+    const GPT_4_TURBO_INPUT_COST_PER_1M_TOKENS_IN_CENTS = 15;
+    const GPT_4_TURBO_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS = 60;
+
+    const totalCostInCents =
+      (usage.promptTokens / 1_000_000) * GPT_4_TURBO_INPUT_COST_PER_1M_TOKENS_IN_CENTS +
+      (usage.completionTokens / 1_000_000) * GPT_4_TURBO_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS;
+
+    await srv_addGenAIAction('generateResume', usage.promptTokens, usage.completionTokens, totalCostInCents);
+
+    await Logger.info('Resume generated and uploaded successfully', {
+      jobId: job.id,
+      sections: Object.keys(generatedResume),
+      pdfUrl: uploadResponse[0].data?.url || ''
+    });
+
+    return { 
+      success: true, 
+      resume: generatedResume,
+      pdfUrl: uploadResponse[0].data?.url || ''
+    };
+
+  } catch (error) {
+    if (error instanceof JSONParseError || error instanceof TypeValidationError) {
+      await Logger.error('Resume generation structured data error', {
+        jobId: job.id,
+        error: error.message,
+        errorType: error instanceof JSONParseError ? 'JSONParseError' : 'TypeValidationError',
+        details: error instanceof JSONParseError ? error.text : error.value
+      });
+    } else {
+      await Logger.error('Resume generation failed', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
     throw error;
   }
 }
