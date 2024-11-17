@@ -54,6 +54,17 @@ export function TierConfig() {
   const [userQuotas, setUserQuotas] = useState<UserQuotaInfo[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tierConfigActiveTab') || 'limits';
+    }
+    return 'limits';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tierConfigActiveTab', activeTab);
+  }, [activeTab]);
+
   useEffect(() => {
     fetchConfig();
     fetchUserQuotas();
@@ -117,8 +128,6 @@ export function TierConfig() {
     setConfig(updatedConfig);
   };
 
-  const [activeTab, setActiveTab] = useState("limits");
-  
   const handleAddService = async (serviceKey: string, serviceName: string, description: string) => {
     try {
       const response = await srv_addService(serviceKey, serviceName, description);

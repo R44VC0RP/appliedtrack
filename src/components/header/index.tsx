@@ -54,8 +54,8 @@ export function Header({ onNotificationClick }: HeaderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [headerData, setHeaderData] = useState<HeaderData | null>(null);
   const user = clerkUser as UserMetadata;
-  
-  
+
+
 
   useEffect(() => {
     if (isSignedIn) {
@@ -63,7 +63,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
         setHeaderData(data)
         setIsLoading(false)
       })
-    } 
+    }
   }, [isSignedIn])
 
   return (
@@ -81,7 +81,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
             <Link href="/dashboard" className="flex items-center space-x-2">
               <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
               <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
-              { headerData?.role === 'admin' && !isLoading && (
+              {headerData?.role === 'admin' && !isLoading && (
                 <Badge >
                   ADMIN
                 </Badge>
@@ -90,9 +90,9 @@ export function Header({ onNotificationClick }: HeaderProps) {
           </SignedIn>
         </div>
         <div className="flex items-center space-x-4">
-          
-            <TooltipProvider>
-            { headerData?.role === 'admin' && !isLoading && (
+
+          <TooltipProvider>
+            {headerData?.role === 'admin' && !isLoading && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link href="/admin" className="focus:outline-none">
@@ -104,20 +104,20 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </TooltipContent>
               </Tooltip>
             )}
-            { headerData?.tier !== 'free' && isSignedIn && !isLoading && (
+            {headerData?.tier === 'free' && isSignedIn && !isLoading && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <SignedIn>
-                      <Button
-                        variant="outline"
-                        className="hidden sm:flex items-center gap-2 border-yellow-500/50 hover:border-yellow-500 text-yellow-500 hover:text-yellow-600"
-                        onClick={() => {
-                          window.location.href = '/settings?tab=subscription';
-                        }}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        <span>Upgrade to Pro</span>
-                      </Button> 
+                    <Button
+                      variant="outline"
+                      className="hidden sm:flex items-center gap-2 border-yellow-500/50 hover:border-yellow-500 text-yellow-500 hover:text-yellow-600"
+                      onClick={() => {
+                        window.location.href = '/settings?tab=subscription';
+                      }}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <span>Upgrade to Pro</span>
+                    </Button>
                   </SignedIn>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -125,9 +125,23 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </TooltipContent>
               </Tooltip>
             )}
-            </TooltipProvider>
+          </TooltipProvider>
           <SignedIn>
             <TooltipProvider>
+              {headerData?.tier === 'free' ? (
+                <Badge>
+                  Free
+                </Badge>
+              ) : headerData?.tier === 'pro' ? (
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  Pro
+                </Badge>
+              ) : headerData?.tier === 'power' ? (
+                <Badge className="bg-yellow-500 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-200">
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  Power
+                </Badge>
+              ) : null}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link href="/dashboard" className="focus:outline-none">

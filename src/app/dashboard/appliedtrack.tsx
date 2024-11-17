@@ -446,14 +446,6 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         matchesStatus = job.status !== 'Archived';
       }
 
-      console.log('Filtering job:', {
-        company: job.company,
-        status: job.status,
-        statusFilter,
-        matchesStatus,
-        matchesSearch
-      });
-
       return matchesSearch && matchesStatus;
     });
 

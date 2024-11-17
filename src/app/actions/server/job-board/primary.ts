@@ -32,7 +32,7 @@ export async function srv_checkUserAttributes(userId: string): Promise<CompleteU
   return plain(user);
 }
 
-export async function srv_func_verifyTiers(userId: string, serviceKey: string): Promise<QuotaCheck> {
+export async function srv_func_verifyTiers(userId: string, serviceKey: string, action: string = "increment"): Promise<QuotaCheck> {
   try {
     // Get user and their tier
     const user = await UserModel.findOne({ userId });
@@ -47,6 +47,8 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string): 
       await Logger.warning('Config not found during tier verification', { userId });
       throw new Error('Config not found');
     }
+
+    
 
     // Convert to plain objects
     const plainConfig = plain(config);
@@ -102,6 +104,29 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string): 
     // Access service limit using object notation
     const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
     const currentUsage = quota?.usage[serviceKey] || 0;
+
+    // If action is increment, update the usage
+    if (action === "increment") {
+      const newUsage = currentUsage + 1;
+      
+      // Only increment if within limits or if limit is -1 (unlimited)
+      if (serviceLimit === -1 || newUsage <= serviceLimit) {
+        await UserQuotaModel.findOneAndUpdate(
+          { userId },
+          { 
+            $inc: { [`usage.${serviceKey}`]: 1 },
+            dateUpdated: new Date().toISOString()
+          }
+        );
+        
+        await Logger.info('Service usage incremented', {
+          userId,
+          serviceKey,
+          previousUsage: currentUsage,
+          newUsage
+        });
+      }
+    }
 
     const quotaCheck: QuotaCheck = {
       allowed: serviceLimit === -1 || currentUsage < serviceLimit,
@@ -267,7 +292,7 @@ export async function srv_createAIRating(job: Job) {
   const user = await srv_getCompleteUserProfile(job.userId || '') as CompleteUserProfile;
   
   // Check quota before proceeding
-  const quotaCheck = await srv_func_verifyTiers(user.id, 'AI_RESUME_RATING');
+  const quotaCheck = await srv_func_verifyTiers(user.id, 'GENAI_JOBMATCH');
   if (!quotaCheck.allowed) {
     await Logger.warning('AI rating quota exceeded', {
       userId: user.id,
@@ -371,6 +396,12 @@ function isValidDomain(domain: string): boolean {
 }
 
 export async function srv_hunterDomainSearch(domain: string, departments: string[], limit: number) {
+  const user = await currentUser();
+  if (!user) {
+    await Logger.warning('Unauthorized Hunter domain search attempt', { domain });
+    return { success: false, error: 'Unauthorized' };
+  }
+
   const hunterDepartments = ['executive', 'it', 'finance', 'management', 'sales', 'legal', 'support', 'hr', 'marketing', 'communication', 'education', 'design', 'health', 'operations'];
   if (departments.length > 0 && !departments.every(dep => hunterDepartments.includes(dep))) {
     await Logger.warning('Invalid department specified in Hunter search', {
@@ -383,6 +414,15 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
   if (limit < 1 || limit > 30) {
     console.error('Invalid amount:', limit);
     throw new Error('Invalid amount');
+  }
+
+  const actionAllowed = await srv_func_verifyTiers(user.id, 'HUNTER_EMAILSEARCH');
+  if (!actionAllowed.allowed) {
+    await Logger.warning('Hunter search quota exceeded', {
+      userId: user.id,
+      quotaCheck: actionAllowed
+    });
+    throw new Error('Hunter search quota exceeded');
   }
 
   const hunterApiKey = process.env.HUNTER_API_KEY;
@@ -404,8 +444,6 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
     }
     const dataResponse = await initialResponse.json();
     const totalResults = dataResponse.meta.results;
-
-    // Sanitize all emails
     
 
     await Logger.info('Hunter domain search completed', {
@@ -414,7 +452,7 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
       resultsReturned: limit
     });
 
-    return { data: dataResponse, total_results: totalResults };
+    return { success: true, data: dataResponse, total_results: totalResults };
   } catch (error) {
     await Logger.error('Hunter API request failed', {
       domain,

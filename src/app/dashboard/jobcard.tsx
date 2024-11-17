@@ -26,7 +26,7 @@ import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { srv_archiveJob } from '../actions/server/job-board/primary';
+import { srv_archiveJob, srv_hunterDomainSearch } from '../actions/server/job-board/primary';
 
 const hunterCategories: { value: HunterCategory; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -327,19 +327,18 @@ const JobCard = React.forwardRef(({
             const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
 
             // Updated API call with new parameters
-            const response = await fetch(`/api/hunter?action=domainSearch&domain=${domain}&departments=${Array.from(selectedCategories).join(',')}&limit=10`);
+            console.log(Array.from(selectedCategories));
+            const { success, data, total_results } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10);
 
-            if (!response.ok) throw new Error('Failed to fetch Hunter data');
+            if (!success) throw new Error('Failed to fetch Hunter data');
 
-            const hunterResult = await response.json();
-
-            // console.log(hunterResult.data.data.data);
+            const hunterResult = data.data;           
 
             // Update the job with the hunter data
             const updatedJob = {
                 ...job,
                 hunterData: {
-                    ...hunterResult.data.data.data,
+                    ...hunterResult,
                     dateUpdated: new Date().toISOString()
                 }
             };
@@ -347,7 +346,7 @@ const JobCard = React.forwardRef(({
             await updateJobDetails(updatedJob);
 
             toast.success("Hunter Data Updated", {
-                description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`
+                description: `Found ${hunterResult.emails?.length || 0} email patterns for ${domain}`
             });
 
             setIsCategoryModalOpen(false);
@@ -540,7 +539,22 @@ const JobCard = React.forwardRef(({
                 )}
                 {layoutMode === 'list' && (
                     <CardTitle className="flex justify-between items-center">
-                        <span className="text-2xl">{job.company}</span>
+                        <div className="flex items-center gap-2">
+                            {job.company && (
+                                <Image
+                                    src={`https://logo.clearbit.com/${job.website}`}
+                                    alt={job.company}
+                                    width={32}
+                                    height={32}
+                                    className="rounded-md"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            )}
+                            <span className="text-2xl">{job.company}</span>
+                        </div>
+                        
                         <div className="flex items-center gap-2">
                             <Badge
                                 variant="outline"
