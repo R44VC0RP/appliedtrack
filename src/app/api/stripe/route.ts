@@ -1,109 +1,83 @@
 'use server';
 
 import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { Logger } from '@/lib/logger';
 import Stripe from 'stripe';
 import { UserModel } from '@/models/User';
-import { User } from '@/models/User';
-import { getUserEmail } from '@/app/api/clerk/helper';
-import { Logger } from '@/lib/logger';
+import { redirect } from 'next/navigation';
+import { currentUser } from '@clerk/nextjs/server';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const PRICE_IDS = {
-  pro: process.env.STRIPE_PRO_PRICE_ID!,
-  power: process.env.STRIPE_POWER_PRICE_ID!
-};
-
-/**
- * Handles Stripe checkout session creation for subscription purchases
- * @param {NextRequest} request - The incoming request object containing tier information
- * @returns {Promise<NextResponse>} JSON response with checkout URL or error message
- * @throws Will throw an error if stripe session creation fails
- */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    await Logger.info('Starting Stripe checkout process', {
-      service: 'Stripe',
-      action: 'CREATE_CHECKOUT_SESSION'
-    });
-    
-    const { userId } = getAuth(request);
-    if (!userId) {
-      await Logger.warning('Unauthorized stripe checkout attempt', {
-        path: request.url,
-        method: request.method
+    const searchParams = request.nextUrl.searchParams;
+    const sessionId = searchParams.get('session_id');
+
+    if (!sessionId) {
+      await Logger.warning('Missing session_id in Stripe callback', {
+        url: request.url
       });
-      return new NextResponse("Unauthorized", { status: 401 });
+      return redirect('/settings?tab=subscription&error=missing_session');
     }
 
-    const { tier } = await request.json();
-    await Logger.info('Stripe checkout tier requested', {
-      userId,
-      tier,
-      path: request.url
-    });
-    
-    const priceId = PRICE_IDS[tier as keyof typeof PRICE_IDS];
-    if (!priceId) {
-      await Logger.warning('Invalid subscription tier requested', {
-        userId,
-        invalidTier: tier,
-        availableTiers: Object.keys(PRICE_IDS)
-      });
-      return new NextResponse("Invalid tier", { status: 400 });
-    }
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const user = await currentUser();
 
-    const user = await UserModel.findOne({ userId }) as User;
     if (!user) {
-      await Logger.error('User not found during stripe checkout', {
-        userId,
-        tier,
-        action: 'STRIPE_CHECKOUT'
+      await Logger.warning('No authenticated user found in Stripe callback', {
+        sessionId
       });
-      return new NextResponse("User not found", { status: 404 });
-    } 
+      return redirect('/settings?tab=subscription&error=unauthorized');
+    }
 
-    const email = await getUserEmail(userId);
-    await Logger.info('Processing stripe checkout', {
-      userId,
-      tier,
-      email: email // Only logging email for tracking purposes
-    });
+    // Verify session metadata
+    if (session.metadata?.userId !== user.id) {
+      await Logger.warning('User ID mismatch in Stripe callback', {
+        sessionUserId: session.metadata?.userId,
+        currentUserId: user.id
+      });
+      return redirect('/settings?tab=subscription&error=invalid_session');
+    }
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      customer_email: email,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true&tier=${tier}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?canceled=true`,
-      metadata: {
-        userId,
-        tier,
+    // Get subscription details from Stripe
+    const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+
+    // Update user with new subscription details
+    const updateData = {
+      tier: session.metadata.tier,
+      stripeCustomerId: session.customer as string,
+      subscriptionDetails: {
+        status: subscription.status,
+        tier: session.metadata.tier,
+        startDate: new Date(subscription.current_period_start * 1000).toISOString(),
+        endDate: new Date(subscription.current_period_end * 1000).toISOString(),
+        subscriptionId: subscription.id,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end
       },
+      dateUpdated: new Date().toISOString()
+    };
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { userId: user.id },
+      updateData,
+      { new: true }
+    );
+
+    await Logger.info('Subscription updated successfully', {
+      userId: user.id,
+      tier: session.metadata.tier,
+      stripeSessionId: sessionId,
+      isUpgrade: session.metadata.isUpgrade === 'true',
+      subscriptionId: subscription.id
     });
 
-    await Logger.info('Stripe checkout session created', {
-      userId,
-      tier,
-      sessionId: session.id
-    });
-
-    return NextResponse.json({ url: session.url });
+    return redirect(`/settings?tab=subscription&success=true&tier=${session.metadata.tier}`);
   } catch (error) {
-    await Logger.error('Stripe checkout session creation failed', {
+    await Logger.error('Error processing Stripe success callback', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      service: 'Stripe',
-      action: 'CREATE_CHECKOUT_SESSION'
+      stack: error instanceof Error ? error.stack : undefined
     });
-    
-    return new NextResponse("Error creating checkout session", { status: 500 });
+    return redirect('/settings?tab=subscription&error=processing_failed');
   }
 }

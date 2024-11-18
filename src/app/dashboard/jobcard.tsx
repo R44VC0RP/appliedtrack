@@ -334,7 +334,7 @@ const JobCard = React.forwardRef(({
 
             if (!success) throw new Error('Failed to fetch Hunter data');
 
-            const hunterResult = data.data;           
+            const hunterResult = data.data;
 
             // Update the job with the hunter data
             const updatedJob = {
@@ -556,7 +556,7 @@ const JobCard = React.forwardRef(({
                             )}
                             <span className="text-2xl">{job.company}</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                             <Badge
                                 variant="outline"
@@ -720,8 +720,20 @@ const JobCard = React.forwardRef(({
                             </TooltipProvider>
 
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
+                            {job.company && (
+                                <Image
+                                    src={`https://logo.clearbit.com/${job.website}`}
+                                    alt={job.company}
+                                    width={32}
+                                    height={32}
+                                    className="rounded-md"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            )}
                             <span className="text-2xl">{job.company}</span>
                         </div>
                     </CardTitle>

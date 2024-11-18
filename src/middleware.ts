@@ -22,6 +22,7 @@ export const config = {
     '/((?!.+\\.[\\w]+$|_next).*)',
     '/',
     '/(api|trpc)(.*)',
-    '/api/log'
+    '/api/log',
+    '/settings/(.*)'
   ]
 };

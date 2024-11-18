@@ -70,14 +70,13 @@ export function Header({ onNotificationClick }: HeaderProps) {
     <header className="container mx-auto p-4 mt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <SignedOut>
+          {!isSignedIn && (
             <Link href="/" className="flex items-center space-x-2">
               <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
               <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
             </Link>
-
-          </SignedOut>
-          <SignedIn>
+          )}
+          {isSignedIn && (
             <Link href="/dashboard" className="flex items-center space-x-2">
               <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
               <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
@@ -87,7 +86,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </Badge>
               )}
             </Link>
-          </SignedIn>
+          )}
         </div>
         <div className="flex items-center space-x-4">
 
@@ -107,7 +106,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
             {headerData?.tier === 'free' && isSignedIn && !isLoading && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <SignedIn>
+                  {isSignedIn && (
                     <Button
                       variant="outline"
                       className="hidden sm:flex items-center gap-2 border-yellow-500/50 hover:border-yellow-500 text-yellow-500 hover:text-yellow-600"
@@ -118,7 +117,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                       <Sparkles className="h-4 w-4" />
                       <span>Upgrade to Pro</span>
                     </Button>
-                  </SignedIn>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Unlock unlimited applications, emails, and more!</p>
@@ -126,7 +125,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
               </Tooltip>
             )}
           </TooltipProvider>
-          <SignedIn>
+          {isSignedIn && (
             <TooltipProvider>
               {headerData?.tier === 'free' ? (
                 <Badge>
@@ -153,8 +152,8 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </SignedIn>
-          <SignedIn>
+          )}
+          {isSignedIn && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -164,21 +163,21 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </TooltipTrigger>
               </Tooltip>
             </TooltipProvider>
-          </SignedIn>
+          )}
           <ThemeControl />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center">
-                  <SignedOut>
+                  {!isSignedIn && (
                     <SignInButton>
                       <Button>Get Started</Button>
                     </SignInButton>
-                  </SignedOut>
-                  <SignedIn>
+                  )}
+                  {isSignedIn && (
                     <UserButton>
                     </UserButton>
-                  </SignedIn>
+                  )}
                 </div>
               </TooltipTrigger>
               <TooltipContent>

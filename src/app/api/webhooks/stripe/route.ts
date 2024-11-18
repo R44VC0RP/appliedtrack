@@ -3,6 +3,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { UserModel } from '@/models/User';
+import { Logger } from '@/lib/logger';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -13,11 +14,19 @@ export async function POST(request: NextRequest) {
     const body = await request.text();
     const signature = request.headers.get('stripe-signature')!;
 
+    
+
     const event = stripe.webhooks.constructEvent(
       body,
       signature,
       webhookSecret
     );
+
+    Logger.info('Stripe webhook received for ' + event.type, {
+      body,
+      signature,
+      webhookSecret
+    });
 
     switch (event.type) {
       case 'checkout.session.completed': {
