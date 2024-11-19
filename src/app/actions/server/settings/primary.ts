@@ -10,6 +10,9 @@ import { z } from "zod";
 import { UTApi } from "uploadthing/server";
 import { ConfigModel } from "@/models/Config";
 import Stripe from 'stripe';
+import { UserTier, StripeCheckoutOptions } from '@/types/subscription';
+import { resetQuota, checkQuotaLimits, notifyQuotaStatus, createInitialQuota } from '@/models/UserQuota';
+import { UserQuotaModel } from "@/models/UserQuota";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -36,13 +39,49 @@ export async function srv_getUserDetails() {
       return null;
     }
 
-    const userDetails = await UserModel.findOne({ userId: user.id });
+    // Get user details and quota information
+    console.log('Fetching details for user:', user.id);
+    
+    const [userDetails, userQuota] = await Promise.all([
+      UserModel.findOne({ userId: user.id }),
+      UserQuotaModel.findOne({ userId: user.id })
+    ]);
 
-    await Logger.info('User details retrieved successfully', {
-      userId: user.id
-    });
+    console.log('Raw userDetails:', userDetails);
+    console.log('Raw userQuota:', userQuota);
 
-    return plain(userDetails);
+    if (!userQuota) {
+      console.log('No quota found for user, creating initial quota');
+      const newQuota = await createInitialQuota(user.id);
+      console.log('Created new quota:', newQuota);
+    } else {
+      console.log('Found existing quota:', userQuota);
+    }
+
+    // First convert userDetails to plain object
+    const plainUserDetails = plain(userDetails);
+    
+    // Then attach the quota data
+    if (userDetails && userQuota) {
+      // Convert Map to plain object for usage and clean up any duplicate keys
+      const plainUsage = plain(userQuota.usage);
+      
+      // If we have both 'jobs' and 'JOBS_COUNT', use JOBS_COUNT
+      if ('jobs' in plainUsage && 'JOBS_COUNT' in plainUsage) {
+        delete plainUsage['jobs'];
+      }
+      
+      console.log('Plain usage after cleanup:', plainUsage);
+
+      plainUserDetails.quotas = {
+        usage: plainUsage,
+        quotaResetDate: userQuota.quotaResetDate,
+        notifications: userQuota.notifications
+      };
+    }
+
+    console.log('Final plainUserDetails:', plainUserDetails);
+    return plainUserDetails;
   } catch (error) {
     await Logger.error('Error fetching user details', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -203,7 +242,7 @@ export async function srv_removeResume(resumeId: string) {
   }
 }
 
-export async function srv_createStripeCheckout(tier: string) {
+export async function srv_createStripeCheckout(tier: Exclude<UserTier, 'free'>) {
   try {
     const user = await currentUser();
     if (!user) {
@@ -215,9 +254,19 @@ export async function srv_createStripeCheckout(tier: string) {
       power: process.env.STRIPE_POWER_PRICE_ID!
     };
 
-    const priceId = PRICE_IDS[tier as keyof typeof PRICE_IDS];
+    const priceId = PRICE_IDS[tier];
     if (!priceId) {
       throw new Error('Invalid tier');
+    }
+
+    const userDetails = await UserModel.findOne({ userId: user.id });
+    if (!userDetails) {
+      throw new Error('User details not found');
+    }
+
+    // Check if user is already on this tier
+    if (userDetails.tier === tier) {
+      throw new Error('Already subscribed to this tier');
     }
 
     if (!user.emailAddresses[0].emailAddress) {
@@ -232,11 +281,7 @@ export async function srv_createStripeCheckout(tier: string) {
     const session = await stripe.checkout.sessions.create({
       customer_email: user.emailAddresses[0].emailAddress,
       ...(user.emailAddresses[0].emailAddress.endsWith('.edu') ? {
-        discounts: [
-          {
-            coupon: promotionCode
-          }
-        ]
+        discounts: [{ coupon: promotionCode }]
       } : {}),
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
@@ -245,8 +290,15 @@ export async function srv_createStripeCheckout(tier: string) {
       metadata: {
         userId: user.id,
         tier,
-        sessionId
+        sessionId,
+        previousTier: userDetails.tier
       },
+    });
+
+    await Logger.info('Created checkout session', {
+      userId: user.id,
+      tier,
+      sessionId
     });
 
     return { url: session.url, sessionId };
@@ -254,6 +306,75 @@ export async function srv_createStripeCheckout(tier: string) {
     await Logger.error('Error creating checkout session', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
+}
+
+export async function srv_handleSubscriptionChange(
+  clerkUserId: string,
+  stripeCustomerId: string,
+  newTier: UserTier,
+  periodEnd: Date
+) {
+  try {
+    // First try to find by Clerk user ID
+    let user = await UserModel.findOne({ userId: clerkUserId });
+    
+    await Logger.info('Looking up user for subscription change', {
+      clerkUserId,
+      stripeCustomerId,
+      foundByClerkId: !!user
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const previousTier = user.tier;
+
+    // Update user's tier
+    await UserModel.findOneAndUpdate(
+      { userId: clerkUserId },
+      { 
+        tier: newTier,
+        dateUpdated: new Date(),
+        ...(newTier !== 'free' ? {
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false
+        } : {
+          currentPeriodEnd: undefined,
+          cancelAtPeriodEnd: undefined
+        })
+      }
+    );
+
+    // Reset quotas based on new tier
+    await resetQuota({
+      userId: clerkUserId,
+      tier: newTier,
+      resetDate: periodEnd
+    });
+
+    await Logger.info('Subscription changed', {
+      userId: clerkUserId,
+      previousTier,
+      newTier,
+      periodEnd
+    });
+
+    // Check quota limits after change
+    const notifications = await checkQuotaLimits(clerkUserId, newTier);
+    if (notifications.length > 0) {
+      await notifyQuotaStatus(notifications);
+    }
+
+    return true;
+  } catch (error) {
+    await Logger.error('Error handling subscription change', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: clerkUserId
     });
     throw error;
   }

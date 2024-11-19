@@ -77,15 +77,24 @@ export function Header({ onNotificationClick }: HeaderProps) {
             </Link>
           )}
           {isSignedIn && (
-            <Link href="/dashboard" className="flex items-center space-x-2">
-              <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
-              <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
+            <>
+              <Link href="/dashboard" className="flex items-center space-x-2">
+                <Image src={logo} alt="Job Tracker Logo" width={40} height={40} className="rounded-md" />
+                <h1 className="text-3xl font-bold hidden sm:block">AppliedTrack</h1>
+
+              </Link>
               {headerData?.role === 'admin' && !isLoading && (
-                <Badge >
+
+                <Button
+                  onClick={() => navigator.clipboard.writeText(clerkUser.id)}
+                >
+
                   ADMIN
-                </Badge>
+
+                </Button>
+
               )}
-            </Link>
+            </>
           )}
         </div>
         <div className="flex items-center space-x-4">

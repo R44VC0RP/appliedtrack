@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 
 import ReactConfetti from 'react-confetti';
-
+import { SubscriptionStatus } from '../components/subscription-status';
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -592,7 +592,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         <SignedOutCallback />
       </SignedOut>
       <div className="container mx-auto p-4 dark:bg-gray-950">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+      <SubscriptionStatus user={user as CompleteUserProfile} />
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 mt-4">
           <div className="relative w-full sm:w-64">
             <Input
               type="text"

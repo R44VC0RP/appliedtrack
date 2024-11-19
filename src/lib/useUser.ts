@@ -16,6 +16,8 @@ export interface CompleteUserProfile {
   createdAt: Date | null;
   
   // MongoDB data
+  _id: string;
+  userId: string;
   tier: User['tier'];
   role: User['role'];
   about: string;
@@ -24,6 +26,9 @@ export interface CompleteUserProfile {
   dateUpdated: Date;
   stripeCustomerId?: string;
   subscriptionId?: string;
+  currentPeriodEnd?: Date;
+  cancelAtPeriodEnd?: boolean;
+
 }
 
 export async function srv_getCompleteUserProfile(userId: string): Promise<CompleteUserProfile | null> {
@@ -68,6 +73,8 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       lastSignInAt: clerkUser.lastSignInAt ? new Date(clerkUser.lastSignInAt) : null,
       createdAt: clerkUser.createdAt ? new Date(clerkUser.createdAt) : null,
       // MongoDB data
+      // _id: mongoUser._id.toString(),
+      userId: mongoUser.userId,
       tier: mongoUser.tier,
       role: mongoUser.role,
       about: mongoUser.about,
@@ -75,7 +82,9 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       dateCreated: mongoUser.dateCreated,
       dateUpdated: mongoUser.dateUpdated,
       stripeCustomerId: mongoUser.stripeCustomerId,
-      subscriptionId: mongoUser.subscriptionId
+      subscriptionId: mongoUser.subscriptionId,
+      currentPeriodEnd: mongoUser.currentPeriodEnd,
+      cancelAtPeriodEnd: mongoUser.cancelAtPeriodEnd
     });
 
   } catch (error) {

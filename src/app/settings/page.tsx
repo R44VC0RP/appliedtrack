@@ -21,8 +21,8 @@ import Confetti from 'react-dom-confetti';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { canDowngradeTier } from '@/lib/subscription';
-import { getSubscriptionStatusDisplay } from "@/lib/subscription";
+import { UserTier, QuotaNotification } from '@/types/subscription';
+import { Progress } from "@/components/ui/progress";
 
 import {
   srv_getUserDetails,
@@ -51,7 +51,8 @@ export default function SettingsPage() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-
+  const [quotaNotifications, setQuotaNotifications] = useState<QuotaNotification[]>([]);
+  
   // Simplified fetch functions using server actions
   const fetchAllData = useCallback(async () => {
     if (!isSignedIn) {
@@ -60,18 +61,17 @@ export default function SettingsPage() {
     }
 
     try {
-      const [userDetails, userResumes, config] = await Promise.all([
-        srv_getUserDetails(),
+      const userDetails = await srv_getUserDetails();
+      const [userResumes, config] = await Promise.all([
         srv_getResumes(),
         srv_getConfigTiers()
       ]);
-
-      console.log('userDetails', userDetails);
 
       setUserDetails(userDetails);
       setResumes(userResumes);
       setConfigData(config as ConfigData);
     } catch (error) {
+      console.error('Error fetching data:', error);
       toast.error("Failed to load settings data");
     } finally {
       setIsLoading(false);
@@ -179,70 +179,60 @@ export default function SettingsPage() {
     colors: ["#a864fd", "#29cdff", "#78ff44", "#ff718d", "#fdff6a"]
   };
 
-  function SubscriptionStatus({ userDetails }: { userDetails: User | null }) {
-    const [status, setStatus] = useState<string>('');
+  const getQuotaUsage = useCallback((serviceKey: string) => {
+    if (!userDetails?.quotas?.usage || !configData?.tierLimits?.[userDetails.tier]?.[serviceKey]) {
+      return { usage: 0, limit: configData?.tierLimits?.[userDetails?.tier || 'free']?.[serviceKey]?.limit || 0, percentage: 0 };
+    }
 
-    useEffect(() => {
-      async function fetchStatus() {
-        if (!userDetails) return;
-        
-        const displayStatus = await getSubscriptionStatusDisplay({
-          tier: userDetails.tier,
-          isCanceled: userDetails.cancelAtPeriodEnd || false,
-          currentPeriodEnd: userDetails.currentPeriodEnd,
-        });
-        setStatus(displayStatus);
-      }
-      fetchStatus();
-    }, [userDetails]);
+    // Map service keys to their quota keys
+    const quotaKey = serviceKey === 'JOBS_COUNT' ? 'JOBS_COUNT' : serviceKey;
+    const usage = Number(userDetails.quotas.usage[quotaKey]) || 0;
+    const limit = configData.tierLimits[userDetails.tier][serviceKey].limit;
+    const percentage = limit > 0 ? (usage / limit) * 100 : 0;
+
+    return { usage, limit, percentage };
+  }, [userDetails, configData]);
+
+  function QuotaUsageIndicator({ serviceKey }: { serviceKey: string }) {
+    const { usage, limit, percentage } = getQuotaUsage(serviceKey);
+    const service = configData?.services?.[serviceKey];
+
+    if (!service || limit === 0) return null;
+
+    const getVariant = () => {
+      if (percentage >= 100) return 'destructive';
+      if (percentage >= 80) return 'warning';
+      return 'default';
+    };
 
     return (
-      <p className="text-sm text-muted-foreground">
-        {status || (userDetails?.tier || 'Free')}
-      </p>
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span>{service.name}</span>
+          <span>
+            {limit === -1 ? `${usage} / Unlimited` : `${usage} / ${limit}`}
+            {serviceKey === 'JOBS_COUNT' && (
+              <span className="text-xs text-muted-foreground ml-1">
+                (active jobs)
+              </span>
+            )}
+          </span>
+        </div>
+        {limit !== -1 && (
+          <Progress
+            value={Math.min(percentage, 100)}
+            className={`h-2 ${
+              getVariant() === 'destructive' 
+                ? 'bg-destructive/20' 
+                : getVariant() === 'warning'
+                ? 'bg-warning/20'
+                : ''
+            }`}
+          />
+        )}
+      </div>
     );
   }
-
-  const SubscriptionLoadingPlaceholder = () => (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-8 w-48 mb-2" />
-        <Skeleton className="h-4 w-72" />
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <Skeleton className="h-6 w-32" />
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-        </div>
-        
-        <div className="space-y-4">
-          <Skeleton className="h-6 w-32" />
-          <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-24" />
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {[1, 2, 3, 4].map((j) => (
-                      <div key={j} className="flex justify-between">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-4 w-16" />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
 
   if (isLoading) {
     return (
@@ -413,60 +403,61 @@ export default function SettingsPage() {
           {/* Subscription tab content remains largely the same but with updated styling */}
           <TabsContent value="subscription">
             {isLoadingConfig ? (
-              <SubscriptionLoadingPlaceholder />
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-4 w-72" />
+                <div className="space-y-4">
+                  <Skeleton className="h-6 w-32" />
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-10 w-32" />
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <Skeleton className="h-6 w-32" />
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i}>
+                        <CardHeader>
+                          <Skeleton className="h-6 w-24" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            {[1, 2, 3, 4].map((j) => (
+                              <div key={j} className="flex justify-between">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-4 w-16" />
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
               <Card>
                 <CardHeader>
                   <CardTitle>Subscription Management</CardTitle>
                   <CardDescription>
-                    Manage your subscription and billing details
-                    <br />
-                    <span className="text-xs text-muted-foreground">
-                      <em>Note: If you are a student, you must have your .edu email as the primary email on your account. 
-                        <br />
-                        <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-primary hover:underline"
-                          onClick={() => {
-                            setActiveTab('personal');
-                            document.getElementById('user-profile')?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                        >
-                          Click here to change your email
-                        </Button>
-                      </em>
-                    </span>
+                    Manage your subscription and view your usage
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Current Plan Section */}
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium">Subscription Plan</h3>
-                        <SubscriptionStatus userDetails={userDetails} />
-                      </div>
-                    </div>
                     <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-                      <div className="space-y-1">
-                        <p className="font-medium capitalize">{userDetails?.tier || 'Free'} Plan</p>
-                        {userDetails?.stripeCustomerId && (
-                          <Badge>Active</Badge>
-                        )}
-                      </div>
-                      {userDetails?.stripeCustomerId ? (
-                        <div className="space-x-4">
-                          {userDetails.tier === 'free' && (
-                            <>
-                            <Button 
+                      <SubscriptionStatus userDetails={userDetails} />
+                      <div className="space-x-2">
+                        {userDetails?.tier === 'free' && (
+                          <>
+                            <Button
                               onClick={async () => {
                                 try {
                                   const { url } = await srv_createStripeCheckout('pro');
-                                  if (url) {
-                                    window.location.href = url;
-                                  } else {
-                                    toast.error("Failed to start checkout");
-                                  }
+                                  if (url) window.location.href = url;
                                 } catch (error) {
                                   toast.error("Failed to start checkout");
                                 }
@@ -474,15 +465,12 @@ export default function SettingsPage() {
                             >
                               Upgrade to Pro
                             </Button>
-                            <Button 
+                            <Button
+                              variant="outline"
                               onClick={async () => {
                                 try {
                                   const { url } = await srv_createStripeCheckout('power');
-                                  if (url) {
-                                    window.location.href = url;
-                                  } else {
-                                    toast.error("Failed to start checkout");
-                                  }
+                                  if (url) window.location.href = url;
                                 } catch (error) {
                                   toast.error("Failed to start checkout");
                                 }
@@ -490,31 +478,29 @@ export default function SettingsPage() {
                             >
                               Upgrade to Power
                             </Button>
-                            </>
-                          )}
-                          {userDetails.tier === 'pro' && (
-                            <Button 
-                              onClick={async () => {
-                                try {
-                                  const { url } = await srv_createStripeCheckout('power');
-                                  if (url) {
-                                    window.location.href = url;
-                                  } else {
-                                    toast.error("Failed to start checkout");
-                                  }
-                                } catch (error) {
-                                  toast.error("Failed to start checkout");
-                                }
-                              }}
-                            >
-                              Upgrade to Power
-                            </Button>
-                          )}
-                          <Button 
+                          </>
+                        )}
+                        {userDetails?.tier === 'pro' && (
+                          <Button
+                            onClick={async () => {
+                              try {
+                                const { url } = await srv_createStripeCheckout('power');
+                                if (url) window.location.href = url;
+                              } catch (error) {
+                                toast.error("Failed to start checkout");
+                              }
+                            }}
+                          >
+                            Upgrade to Power
+                          </Button>
+                        )}
+                        {userDetails?.stripeCustomerId && (
+                          <Button
+                            variant="outline"
                             onClick={async () => {
                               try {
                                 const { url } = await srv_createCustomerPortal();
-                                window.location.href = url;
+                                if (url) window.location.href = url;
                               } catch (error) {
                                 toast.error("Failed to access billing portal");
                               }
@@ -522,87 +508,77 @@ export default function SettingsPage() {
                           >
                             Manage Subscription
                           </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <Button
-                              onClick={async () => {
-                                try {
-                                  const { url } = await srv_createStripeCheckout('pro');
-                                  if (url) {
-                                    window.location.href = url;
-                                  } else {
-                                    toast.error("Failed to start checkout");
-                                  }
-                                } catch (error) {
-                                  toast.error("Failed to start checkout");
-                                }
-                              }}
-                            >
-                              Upgrade to Pro
-                            </Button>
-                            <Button
-                              onClick={async () => {
-                                try {
-                                  const { url } = await srv_createStripeCheckout('power');
-                                  if (url) {
-                                    window.location.href = url;
-                                  } else {
-                                    toast.error("Failed to start checkout");
-                                  }
-                                } catch (error) {
-                                  toast.error("Failed to start checkout");
-                                }
-                              }}
-                            >
-                              Upgrade to Power
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Plan Features Section */}
+                  {/* Quota Usage Section */}
+                  {userDetails && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Current Usage</h3>
+                      <div className="grid gap-4">
+                        {configData?.services && Object.keys(configData.services).map((serviceKey) => (
+                          <QuotaUsageIndicator key={serviceKey} serviceKey={serviceKey} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quota Notifications */}
+                  {quotaNotifications.length > 0 && (
+                    <div className="space-y-2">
+                      {quotaNotifications.map((notification, index) => (
+                        <Alert
+                          key={index}
+                          variant={notification.type === 'exceeded' ? 'destructive' : 'default'}
+                          className="bg-white dark:bg-gray-800"
+                        >
+                          <AlertTitle>
+                            {notification.type === 'exceeded' ? 'Quota Exceeded' : 'Quota Warning'}
+                          </AlertTitle>
+                          <AlertDescription>{notification.message}</AlertDescription>
+                        </Alert>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Plan Comparison */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Plan Features</h3>
+                    <h3 className="text-lg font-medium">Plan Comparison</h3>
                     <div className="grid gap-4 md:grid-cols-3">
                       {['free', 'pro', 'power'].map((tier) => (
-                        <Card key={tier} className={tier.toLowerCase() === userDetails?.tier?.toLowerCase() ? "border-2 border-blue-500 shadow-lg" : ""}>
+                        <Card 
+                          key={tier} 
+                          className={`
+                            ${tier === userDetails?.tier ? 'border-2 border-primary shadow-lg' : ''}
+                            ${tier === 'power' ? 'bg-muted/50' : ''}
+                          `}
+                        >
                           <CardHeader>
                             <CardTitle className="capitalize">{tier}</CardTitle>
+                            {tier === userDetails?.tier && (
+                              <Badge variant="secondary">Current Plan</Badge>
+                            )}
                           </CardHeader>
                           <CardContent>
-                            <ul className="space-y-2">
+                            <div className="space-y-4">
                               {configData?.services && Object.entries(configData.services).map(([key, service]) => {
-                                const limit = configData.tierLimits[tier]?.[key]?.limit;
+                                const limit = configData.tierLimits[tier as UserTier]?.[key]?.limit;
                                 return (
-                                  <li key={key} className="flex items-center justify-between text-sm">
+                                  <div key={key} className="flex justify-between text-sm">
                                     <span>{service.name}</span>
-                                    <Badge variant="secondary">
+                                    <Badge variant="outline">
                                       {limit === -1 ? 'Unlimited' : limit}
                                     </Badge>
-                                  </li>
+                                  </div>
                                 );
                               })}
-                            </ul>
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
-                    
-                    {/* Service Descriptions */}
-                    {/* <div className="mt-8">
-                      <h3 className="text-lg font-semibold mb-4">Service Descriptions</h3>
-                      <div className="grid gap-4">
-                        {configData?.services && Object.entries(configData.services).map(([key, service]) => (
-                          <div key={key} className="p-4 rounded-lg bg-muted">
-                            <h4 className="font-medium">{service.name}</h4>
-                          </div>
-                        ))}
-                      </div>
-                    </div> */}
                   </div>
                 </CardContent>
               </Card>
@@ -611,5 +587,38 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </>
+  );
+}
+
+function SubscriptionStatus({ userDetails }: { userDetails: User | null }) {
+  if (!userDetails) return null;
+
+  const getStatusDisplay = () => {
+    if (userDetails.cancelAtPeriodEnd && userDetails.currentPeriodEnd) {
+      return `Cancels on ${new Date(userDetails.currentPeriodEnd).toLocaleDateString()}`;
+    }
+    
+    if (userDetails.tier === 'free') {
+      return 'Free Plan';
+    }
+    
+    if (userDetails.currentPeriodEnd) {
+      return `${userDetails.tier.charAt(0).toUpperCase() + userDetails.tier.slice(1)} Plan · Renews ${new Date(userDetails.currentPeriodEnd).toLocaleDateString()}`;
+    }
+
+    return `${userDetails.tier.charAt(0).toUpperCase() + userDetails.tier.slice(1)} Plan`;
+  };
+
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium">{getStatusDisplay()}</p>
+      {userDetails.tier !== 'free' && (
+        <p className="text-xs text-muted-foreground">
+          Next billing date: {userDetails.currentPeriodEnd 
+            ? new Date(userDetails.currentPeriodEnd).toLocaleDateString()
+            : 'N/A'}
+        </p>
+      )}
+    </div>
   );
 }

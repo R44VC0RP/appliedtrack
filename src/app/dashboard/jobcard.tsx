@@ -330,9 +330,19 @@ const JobCard = React.forwardRef(({
 
             // Updated API call with new parameters
             console.log(Array.from(selectedCategories));
-            const { success, data, total_results } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10);
+            const { success, data, total_results, quotaExceeded, error } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10);
 
-            if (!success) throw new Error('Failed to fetch Hunter data');
+            if (quotaExceeded){
+                setIsLoading(false);
+                toast.error(error);
+                return;
+            }
+
+            if (!success) {
+                setIsLoading(false);
+                toast.error(data);
+                return;
+            }
 
             const hunterResult = data.data;
 
@@ -353,8 +363,9 @@ const JobCard = React.forwardRef(({
 
             setIsCategoryModalOpen(false);
         } catch (error) {
-            console.error('Error fetching Hunter data:', error);
-            toast.error("Failed to fetch Hunter data. Please check the domain and try again.");
+            console.error('Error fetching InsightLink&trade; data:', error);
+            
+            toast.error("Failed to fetch InsightLink&trade; data. Please check the domain and try again.");
         } finally {
             setIsLoading(false);
         }
@@ -851,7 +862,7 @@ const JobCard = React.forwardRef(({
                         <div className="w-[30%] pl-4 border-l" id="hunter-section">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center">
-                                    <Image src={hunterLogo} alt={job.company} className="w-[100px] h-auto" />
+                                    <span className="text-lg font-bold bg-clip-text bg-gradient-to-r from-[#ff7a00] to-[#ff3399] text-transparent">InsightLink&trade;</span>
                                 </div>
                                 <div className="flex items-center">
                                     {!job.hunterData?.emails?.length && (
@@ -955,7 +966,7 @@ const JobCard = React.forwardRef(({
                                 </div>
                             ) : (
                                 <div className="text-center text-gray-500 py-4">
-                                    <p className="text-sm">No Hunter data available</p>
+                                    <p className="text-sm">No InsightLink&trade; data available</p>
                                     <p className="text-xs mt-1">Click search to find email patterns</p>
                                 </div>
                             )}

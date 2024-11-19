@@ -13,6 +13,17 @@ export interface User extends Document {
   cancelAtPeriodEnd?: boolean;
   currentPeriodEnd?: Date;
   onBoardingComplete: boolean;
+  quotas?: {
+    usage: { [key: string]: number };
+    quotaResetDate: Date;
+    notifications: Array<{
+      type: 'warning' | 'exceeded';
+      quotaKey: string;
+      currentUsage: number;
+      limit: number;
+      message: string;
+    }>;
+  };
 }
 
 const UserSchema: Schema = new Schema({

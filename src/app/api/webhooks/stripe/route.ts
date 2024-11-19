@@ -7,6 +7,8 @@ import { Logger } from '@/lib/logger';
 import { UserQuotaModel, resetQuota, createInitialQuota } from '@/models/UserQuota';
 import { WebhookEventModel } from '@/models/WebhookEvent';
 import mongoose from 'mongoose';
+import { UserTier } from '@/types/subscription';
+import { srv_handleSubscriptionChange } from '@/app/actions/server/settings/primary';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -18,7 +20,7 @@ const MAX_RETRY_ATTEMPTS = 3;
 async function updateUserSubscription(
   stripeCustomerId: string,
   updates: {
-    tier?: 'free' | 'pro' | 'power';
+    tier?: UserTier;
     subscriptionId?: string | null;
     subscriptionStatus?: string;
     cancelAtPeriodEnd?: boolean;
@@ -35,18 +37,23 @@ async function updateUserSubscription(
       { new: true }
     );
 
-    if (user && updates.currentPeriodEnd) {
+    if (user && updates.currentPeriodEnd && updates.tier) {
       // Handle quota reset
       const quota = await UserQuotaModel.findOne({ userId: user.userId });
       if (quota) {
-        await resetQuota(user.userId, updates.currentPeriodEnd);
+        await resetQuota({ 
+          userId: user.userId, 
+          tier: updates.tier, 
+          resetDate: updates.currentPeriodEnd 
+        });
       } else {
         await createInitialQuota(user.userId, updates.currentPeriodEnd);
       }
 
       await Logger.info('User quota reset for new billing period', {
         userId: user.userId,
-        newResetDate: updates.currentPeriodEnd
+        newResetDate: updates.currentPeriodEnd,
+        tier: updates.tier
       });
     }
 
@@ -58,10 +65,9 @@ async function updateUserSubscription(
 
     return user;
   } catch (error) {
-    await Logger.error('Failed to update user subscription', {
-      stripeCustomerId,
-      updates,
-      error: error instanceof Error ? error.message : 'Unknown error'
+    await Logger.error('Error updating user subscription', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stripeCustomerId
     });
     throw error;
   }
@@ -92,7 +98,7 @@ async function handleSubscriptionCancellation(
       // Reset quota
       const quota = await UserQuotaModel.findOne({ userId: user.userId });
       if (quota) {
-        await resetQuota(user.userId, new Date(new Date().setDate(new Date().getDate() + 30)));
+        await resetQuota({ userId: user.userId, tier: 'free', resetDate: new Date(new Date().setDate(new Date().getDate() + 30)) });
         await Logger.info('User quota reset to free tier', {
           userId: user.userId,
           oldTier: user.tier,
@@ -144,31 +150,135 @@ async function processWebhookEvent(event: Stripe.Event) {
     // Process the webhook based on event type
     switch (event.type) {
       case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
+      case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        const updates: {
-          tier?: 'free' | 'pro' | 'power';
-          subscriptionId: string;
-          subscriptionStatus: string;
-          cancelAtPeriodEnd: boolean;
-          currentPeriodEnd: Date;
-        } = {
-          subscriptionId: subscription.id,
-          subscriptionStatus: subscription.status,
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000)
-        };
+        const customerId = subscription.customer as string;
 
-        // Determine tier from price ID
-        const priceId = subscription.items.data[0].price.id;
-        if (priceId === process.env.STRIPE_PRO_PRICE_ID) {
-          updates.tier = 'pro';
-        } else if (priceId === process.env.STRIPE_POWER_PRICE_ID) {
-          updates.tier = 'power';
+        console.log('Subscription webhook received:', {
+          status: subscription.status,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          current_period_end: subscription.current_period_end
+        });
+
+        // Find user by Stripe customer ID
+        const user = await UserModel.findOne({ stripeCustomerId: customerId });
+        if (!user) {
+          await Logger.warning('User not found for subscription update', {
+            customerId
+          });
+          break;
         }
 
-        await updateUserSubscription(subscription.customer as string, updates);
+        // If there's an existing subscription that's different from this one,
+        // cancel it to avoid multiple active subscriptions
+        if (user.subscriptionId && user.subscriptionId !== subscription.id) {
+          try {
+            await stripe.subscriptions.cancel(user.subscriptionId, {
+              prorate: true
+            });
+            await Logger.info('Cancelled previous subscription during upgrade/downgrade', {
+              userId: user.userId,
+              oldSubscriptionId: user.subscriptionId,
+              newSubscriptionId: subscription.id
+            });
+          } catch (error) {
+            // If the subscription doesn't exist anymore, that's fine
+            if ((error as any).code !== 'resource_missing') {
+              await Logger.error('Error cancelling previous subscription', {
+                error,
+                subscriptionId: user.subscriptionId
+              });
+            }
+          }
+        }
+
+        // Determine new tier from price ID
+        const priceId = subscription.items.data[0].price.id;
+        let newTier: UserTier = 'free';
+        
+        if (priceId === process.env.STRIPE_PRO_PRICE_ID) {
+          newTier = 'pro';
+        } else if (priceId === process.env.STRIPE_POWER_PRICE_ID) {
+          newTier = 'power';
+        }
+
+        // If subscription is marked for cancellation but still active,
+        // keep the current tier until the end of the period
+        const isActive = subscription.status === 'active';
+        const isCanceled = subscription.cancel_at_period_end;
+        const periodEnd = new Date(subscription.current_period_end * 1000);
+
+        // Only downgrade to free if subscription is actually ended
+        const effectiveTier = isActive ? newTier : 'free';
+
+        // Update user's subscription details
+        await UserModel.findOneAndUpdate(
+          { _id: user._id },
+          {
+            $set: {
+              tier: effectiveTier,
+              cancelAtPeriodEnd: isCanceled,
+              currentPeriodEnd: periodEnd,
+              subscriptionId: subscription.id, // Always update to the latest subscription ID
+              dateUpdated: new Date()
+            }
+          }
+        );
+
+        await Logger.info('Subscription updated', {
+          userId: user.userId,
+          customerId,
+          tier: effectiveTier,
+          status: subscription.status,
+          cancelAtPeriodEnd: isCanceled,
+          currentPeriodEnd: periodEnd,
+          subscriptionId: subscription.id
+        });
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+
+        // Find user by Stripe customer ID
+        const user = await UserModel.findOne({ stripeCustomerId: customerId });
+        if (!user) {
+          await Logger.warning('User not found for subscription cancellation', {
+            customerId
+          });
+          break;
+        }
+
+        // When subscription is fully deleted (not just marked for cancellation),
+        // immediately move to free tier and update end date
+        const periodEnd = new Date(subscription.current_period_end * 1000);
+
+        // Update user's subscription status
+        await UserModel.findOneAndUpdate(
+          { _id: user._id },
+          {
+            $set: {
+              cancelAtPeriodEnd: false, // Reset since subscription is now deleted
+              currentPeriodEnd: periodEnd
+            }
+          }
+        );
+
+        // Handle subscription change with correct parameter order
+        await srv_handleSubscriptionChange(
+          user.userId,        // Clerk user ID
+          customerId,        // Stripe customer ID
+          'free',
+          periodEnd
+        );
+
+        await Logger.info('Subscription cancelled', {
+          userId: user.userId,
+          customerId,
+          subscriptionId: subscription.id,
+          currentPeriodEnd: periodEnd
+        });
         break;
       }
 
@@ -184,49 +294,42 @@ async function processWebhookEvent(event: Stripe.Event) {
         break;
       }
 
-      case 'invoice.payment_succeeded':
-      case 'invoice.paid':
-      case 'payment_intent.succeeded':
-      case 'charge.succeeded': {
-        // These events indicate successful payment, log them
-        await Logger.info('Payment successful', {
-          eventType: event.type,
-          eventId: event.id
-        });
-        break;
-      }
-
-      case 'customer.created':
-      case 'customer.updated':
-      case 'payment_method.attached': {
-        // Customer-related events, log them
-        await Logger.info('Customer event processed', {
-          eventType: event.type,
-          eventId: event.id
-        });
-        break;
-      }
-
-      case 'billing_portal.session.created': {
-        await Logger.info('Billing portal session created', {
-          customerId: (event.data.object as any).customer
-        });
-        break;
-      }
-
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        const { userId, tier } = session.metadata!;
+        const { userId, tier, previousTier } = session.metadata!;
 
         // Get subscription details
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
 
-        await updateUserSubscription(session.customer as string, {
-          tier: tier as 'free' | 'pro' | 'power',
-          subscriptionId: session.subscription as string,
-          subscriptionStatus: subscription.status,
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end
+        // Get customer details
+        const customer = await stripe.customers.retrieve(session.customer as string);
+        const stripeCustomerId = customer.id;
+        
+        await srv_handleSubscriptionChange(
+          userId,
+          stripeCustomerId,
+          tier as UserTier,
+          new Date(subscription.current_period_end * 1000)
+        );
+
+        await Logger.info('Checkout completed', {
+          userId,
+          previousTier,
+          newTier: tier,
+          subscriptionId: subscription.id
+        });
+        break;
+      }
+
+      // Log other important events
+      case 'invoice.payment_succeeded':
+      case 'invoice.paid':
+      case 'payment_intent.succeeded':
+      case 'charge.succeeded': {
+        await Logger.info('Payment successful', {
+          eventType: event.type,
+          eventId: event.id,
+          metadata: event.data.object
         });
         break;
       }
@@ -254,7 +357,8 @@ async function processWebhookEvent(event: Stripe.Event) {
     await Logger.error('Failed to process webhook event', {
       eventId: event.id,
       type: event.type,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     });
     
     throw error;

@@ -4,7 +4,6 @@ import { NextResponse, NextRequest } from 'next/server';
 import { Logger } from '@/lib/logger';
 import Stripe from 'stripe';
 import { UserModel } from '@/models/User';
-import { redirect } from 'next/navigation';
 import { currentUser } from '@clerk/nextjs/server';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -18,7 +17,7 @@ export async function GET(request: NextRequest) {
       await Logger.warning('Missing session_id in Stripe callback', {
         url: request.url
       });
-      return redirect('/settings?tab=subscription&error=missing_session');
+      return NextResponse.json({ error: 'Missing session_id' }, { status: 400 });
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
       await Logger.warning('No authenticated user found in Stripe callback', {
         sessionId
       });
-      return redirect('/settings?tab=subscription&error=unauthorized');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Verify session metadata
@@ -37,7 +36,7 @@ export async function GET(request: NextRequest) {
         sessionUserId: session.metadata?.userId,
         currentUserId: user.id
       });
-      return redirect('/settings?tab=subscription&error=invalid_session');
+      return NextResponse.json({ error: 'Invalid session' }, { status: 400 });
     }
 
     // Get subscription details from Stripe
@@ -72,12 +71,12 @@ export async function GET(request: NextRequest) {
       subscriptionId: subscription.id
     });
 
-    return redirect(`/settings?tab=subscription&success=true&tier=${session.metadata.tier}`);
+    return NextResponse.json({ success: true });
   } catch (error) {
     await Logger.error('Error processing Stripe success callback', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
-    return redirect('/settings?tab=subscription&error=processing_failed');
+    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
   }
 }

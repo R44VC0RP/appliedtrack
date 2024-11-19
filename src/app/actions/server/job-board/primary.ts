@@ -68,7 +68,11 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
       throw new Error('Config not found');
     }
 
-
+    // Get active job count
+    const activeJobCount = await JobModel.countDocuments({ 
+      userId, 
+      archived: { $ne: true } 
+    });
 
     // Convert to plain objects
     const plainConfig = plain(config);
@@ -108,7 +112,19 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
       }
     }
 
-    quota = plain(quota);
+    // Update the quota with current active job count
+    if (serviceKey === 'JOBS_COUNT') {
+      await UserQuotaModel.findOneAndUpdate(
+        { userId },
+        { 
+          $set: { 'usage.JOBS_COUNT': activeJobCount },
+          dateUpdated: new Date().toISOString()
+        }
+      );
+      quota = await UserQuotaModel.findOne({ userId });
+    }
+
+    const plainQuota = plain(quota);
 
     // Get tier limits based on user's tier using object access
     const tierLimits = plainConfig.tierLimits[user.tier];
@@ -123,10 +139,10 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
 
     // Access service limit using object notation
     const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
-    const currentUsage = quota?.usage[serviceKey] || 0;
+    const currentUsage = plainQuota?.usage?.[serviceKey] || 0;
 
-    // If action is increment, update the usage
-    if (action === "increment") {
+    // If action is increment and not jobs service (since jobs are tracked separately)
+    if (action === "increment" && serviceKey !== 'JOBS_COUNT') {
       const newUsage = currentUsage + 1;
 
       // Only increment if within limits or if limit is -1 (unlimited)
@@ -184,7 +200,48 @@ export async function srv_getJobs() {
     });
     return [];
   }
+
+  // Get all jobs and count active ones
   const jobs = await JobModel.find({ userId: user.id });
+  const activeJobCount = jobs.filter(job => !job.status || job.status !== 'Archived').length;
+
+  // Get or create quota
+  let quota = await UserQuotaModel.findOne({ userId: user.id });
+  if (!quota) {
+    try {
+      quota = await createInitialQuota(user.id);
+      await Logger.info('Created initial quota for user', {
+        userId: user.id,
+        quota: plain(quota)
+      });
+    } catch (error) {
+      await Logger.error('Failed to create initial quota', {
+        userId: user.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+  }
+
+  const plainQuota = plain(quota);
+  const currentQuotaUsage = plainQuota?.usage?.JOBS_COUNT || 0;
+
+  // Update quota if it doesn't match active job count
+  if (quota && currentQuotaUsage !== activeJobCount) {
+    await UserQuotaModel.findOneAndUpdate(
+      { userId: user.id },
+      {
+        $set: { 'usage.JOBS_COUNT': activeJobCount },
+        dateUpdated: new Date().toISOString()
+      }
+    );
+    await Logger.info('Updated jobs quota to match active count', {
+      userId: user.id,
+      previousCount: currentQuotaUsage,
+      newCount: activeJobCount
+    });
+  }
+  
   return plain(jobs);
 }
 
@@ -442,7 +499,11 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
       userId: user.id,
       quotaCheck: actionAllowed
     });
-    throw new Error('Hunter search quota exceeded');
+    return {
+      success: false,
+      quotaExceeded: true,
+      error: `Quota exceeded for InsightLink&trade; email search. Used: ${actionAllowed.used}/${actionAllowed.limit}. Consider upgrading your tier to access this feature.`
+    };
   }
 
   const hunterApiKey = process.env.HUNTER_API_KEY;

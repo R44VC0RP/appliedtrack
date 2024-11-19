@@ -5,8 +5,9 @@ import { srv_checkUserAttributes, srv_initialData } from "@/app/actions/server/j
 import { CompleteUserProfile } from "@/lib/useUser";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { SubscriptionStatus } from '../components/subscription-status';
 
-export default async function Dashboard() {
+export default async function DashboardPage() {
   const { jobs, resumes } = await srv_initialData();
   const clerkUser = await currentUser();
   if (!clerkUser) {
@@ -20,4 +21,3 @@ export default async function Dashboard() {
     </div>
   )
 }
-

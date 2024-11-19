@@ -55,11 +55,11 @@ export async function GET(request: NextRequest) {
 
     console.log('new tierLimits', tierLimits)
 
-    let limit = tierLimits.tierLimits?.free?.jobs || 10; // Default limit for free tier
+    let limit = tierLimits.tierLimits?.free?.JOBS_COUNT || 10; // Default limit for free tier
     if (user.tier === 'pro') {
-      limit = tierLimits.tierLimits?.pro?.jobs || 50;
+      limit = tierLimits.tierLimits?.pro?.JOBS_COUNT || 50;
     } else if (user.tier === 'power') {
-      limit = tierLimits.tierLimits?.power?.jobs || 0; // No limit
+      limit = tierLimits.tierLimits?.power?.JOBS_COUNT || 0; // No limit
     }
     const jobs = await JobModel.find({ userId })
       .limit(limit)
