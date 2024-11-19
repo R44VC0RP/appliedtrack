@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,12 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { User } from "@/models/User";
 import { ConfigData, ServiceConfig, TierLimits } from "@/models/Config";
-import { Input } from "@/components/ui/input";
 import { UserProfile } from "@clerk/nextjs";
 import Confetti from 'react-dom-confetti';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { canDowngradeTier } from '@/lib/subscription';
+import { getSubscriptionStatusDisplay } from "@/lib/subscription";
 
 import {
   srv_getUserDetails,
@@ -30,11 +30,11 @@ import {
   srv_getResumes,
   srv_addResume,
   srv_removeResume,
-  srv_createStripeCheckout,
   srv_createCustomerPortal,
   srv_getConfigTiers,
-  srv_updateUserEmail
+  srv_createStripeCheckout
 } from "@/app/actions/server/settings/primary";
+
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
@@ -178,6 +178,30 @@ export default function SettingsPage() {
     height: "10px",
     colors: ["#a864fd", "#29cdff", "#78ff44", "#ff718d", "#fdff6a"]
   };
+
+  function SubscriptionStatus({ userDetails }: { userDetails: User | null }) {
+    const [status, setStatus] = useState<string>('');
+
+    useEffect(() => {
+      async function fetchStatus() {
+        if (!userDetails) return;
+        
+        const displayStatus = await getSubscriptionStatusDisplay({
+          tier: userDetails.tier,
+          isCanceled: userDetails.cancelAtPeriodEnd || false,
+          currentPeriodEnd: userDetails.currentPeriodEnd,
+        });
+        setStatus(displayStatus);
+      }
+      fetchStatus();
+    }, [userDetails]);
+
+    return (
+      <p className="text-sm text-muted-foreground">
+        {status || (userDetails?.tier || 'Free')}
+      </p>
+    );
+  }
 
   const SubscriptionLoadingPlaceholder = () => (
     <Card>
@@ -417,7 +441,12 @@ export default function SettingsPage() {
                 <CardContent className="space-y-6">
                   {/* Current Plan Section */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Current Plan</h3>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium">Subscription Plan</h3>
+                        <SubscriptionStatus userDetails={userDetails} />
+                      </div>
+                    </div>
                     <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
                       <div className="space-y-1">
                         <p className="font-medium capitalize">{userDetails?.tier || 'Free'} Plan</p>
@@ -427,6 +456,42 @@ export default function SettingsPage() {
                       </div>
                       {userDetails?.stripeCustomerId ? (
                         <div className="space-x-4">
+                          {userDetails.tier === 'free' && (
+                            <>
+                            <Button 
+                              onClick={async () => {
+                                try {
+                                  const { url } = await srv_createStripeCheckout('pro');
+                                  if (url) {
+                                    window.location.href = url;
+                                  } else {
+                                    toast.error("Failed to start checkout");
+                                  }
+                                } catch (error) {
+                                  toast.error("Failed to start checkout");
+                                }
+                              }}
+                            >
+                              Upgrade to Pro
+                            </Button>
+                            <Button 
+                              onClick={async () => {
+                                try {
+                                  const { url } = await srv_createStripeCheckout('power');
+                                  if (url) {
+                                    window.location.href = url;
+                                  } else {
+                                    toast.error("Failed to start checkout");
+                                  }
+                                } catch (error) {
+                                  toast.error("Failed to start checkout");
+                                }
+                              }}
+                            >
+                              Upgrade to Power
+                            </Button>
+                            </>
+                          )}
                           {userDetails.tier === 'pro' && (
                             <Button 
                               onClick={async () => {

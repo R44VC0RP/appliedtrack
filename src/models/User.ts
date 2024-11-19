@@ -9,6 +9,9 @@ export interface User extends Document {
   dateUpdated: Date;
   stripeCustomerId: string;
   subscriptionId: string;
+  subscriptionStatus?: string;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: Date;
   onBoardingComplete: boolean;
 }
 
@@ -32,6 +35,9 @@ const UserSchema: Schema = new Schema({
   dateUpdated: { type: Date, default: Date.now },
   stripeCustomerId: { type: String },
   subscriptionId: { type: String },
+  subscriptionStatus: { type: String },
+  cancelAtPeriodEnd: { type: Boolean },
+  currentPeriodEnd: { type: Date }
 });
 
 // Check if the model already exists before compiling
