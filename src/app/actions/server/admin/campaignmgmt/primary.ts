@@ -1,12 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache';
-import { CampaignModel } from '@/models/Campaign';
-import { UserModel } from '@/models/User';
 import { Logger } from '@/lib/logger';
-import { currentUser } from '@clerk/nextjs/server';
 import { srv_authAdminUser } from '@/lib/useUser';
-import { plain } from '@/lib/plain';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 interface CreateCampaignInput {
   name: string;
@@ -41,17 +40,32 @@ export async function srv_createCampaign(data: CreateCampaignInput): Promise<Cam
       };
     }
 
-    const campaign = await CampaignModel.create({
-      ...data,
-      dateCreated: new Date(),
-      dateUpdated: new Date(),
-      visits: 0,
-      signups: 0,
-      isActive: true
+    // Check if ref already exists
+    const existingCampaign = await prisma.campaign.findUnique({
+      where: { ref: data.ref }
+    });
+
+    if (existingCampaign) {
+      return {
+        success: false,
+        message: 'Campaign reference code already exists',
+        error: 'Duplicate reference code'
+      };
+    }
+
+    const campaign = await prisma.campaign.create({
+      data: {
+        name: data.name,
+        ref: data.ref,
+        description: data.description,
+        visits: 0,
+        signups: 0,
+        isActive: true
+      }
     });
 
     await Logger.info('campaign_created', {
-      campaignId: campaign._id,
+      campaignId: campaign.id,
       campaignName: campaign.name
     });
 
@@ -60,7 +74,7 @@ export async function srv_createCampaign(data: CreateCampaignInput): Promise<Cam
     return {
       success: true,
       message: 'Campaign created successfully',
-      data: plain(campaign)
+      data: campaign
     };
   } catch (error) {
     await Logger.error('campaign_creation_error', {
@@ -87,15 +101,16 @@ export async function srv_getCampaigns(): Promise<CampaignResponse> {
       };
     }
 
-    const campaigns = await CampaignModel.find()
-      .sort({ dateCreated: -1 })
-      .lean()
-      .exec();
+    const campaigns = await prisma.campaign.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
 
     return {
       success: true,
       message: 'Campaigns fetched successfully',
-      data: campaigns.map(campaign => plain(campaign))
+      data: campaigns
     };
   } catch (error) {
     await Logger.error('campaign_fetch_error', {
@@ -122,9 +137,12 @@ export async function srv_deleteCampaign(campaignId: string): Promise<CampaignRe
       };
     }
 
-    const deletedCampaign = await CampaignModel.findByIdAndDelete(campaignId);
+    // Check if campaign exists
+    const existingCampaign = await prisma.campaign.findUnique({
+      where: { id: campaignId }
+    });
 
-    if (!deletedCampaign) {
+    if (!existingCampaign) {
       return {
         success: false,
         message: 'Campaign not found',
@@ -132,21 +150,24 @@ export async function srv_deleteCampaign(campaignId: string): Promise<CampaignRe
       };
     }
 
+    await prisma.campaign.delete({
+      where: { id: campaignId }
+    });
+
     await Logger.info('campaign_deleted', {
-      campaignId,
-      campaignName: deletedCampaign.name
+      campaignId
     });
 
     revalidatePath('/admin/campaigns');
 
     return {
       success: true,
-      message: 'Campaign deleted successfully',
-      data: plain(campaignId)
+      message: 'Campaign deleted successfully'
     };
   } catch (error) {
     await Logger.error('campaign_deletion_error', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      campaignId
     });
 
     return {

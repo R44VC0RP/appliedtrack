@@ -8,17 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { srv_getRoadmapData, srv_updateRoadmap, srv_createRoadmap, srv_deleteRoadmap } from '@/app/actions/server/admin/roadmap/primary'
-import { Roadmap } from '@/models/Roadmap'
+import { srv_getRoadmapData, srv_updateRoadmap, srv_createRoadmap, srv_deleteRoadmap, srv_migrateMongoRoadmapData } from '@/app/actions/server/admin/roadmap/primary'
+import { TRoadmap, RoadmapStatus, toBackendStatus, toFrontendStatus } from '@/types/roadmap'
 import { FaTrash } from 'react-icons/fa'
 import { PiKeyReturnLight } from 'react-icons/pi'
 
-type Status = 'not-started' | 'in-progress' | 'completed'
-
+type DisplayStatus = 'not-started' | 'in-progress' | 'completed'
 
 export function RoadMapPage() {
-    const [items, setItems] = useState<Roadmap[]>([])
-    const [editItem, setEditItem] = useState<Roadmap | null>(null)
+    const [items, setItems] = useState<TRoadmap[]>([])
+    const [editItem, setEditItem] = useState<TRoadmap | null>(null)
     const [newItem, setNewItem] = useState({ title: '', description: '' })
     const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -34,7 +33,6 @@ export function RoadMapPage() {
     const handleDragEnd = async (result: any) => {
         const { source, destination, draggableId } = result
 
-        // If there's no destination, or the item was dropped in its original position
         if (!destination || 
             (destination.droppableId === source.droppableId && 
              destination.index === source.index)) {
@@ -42,51 +40,43 @@ export function RoadMapPage() {
         }
 
         try {
-            // Find the item being dragged
             const draggedItem = items.find(item => item.id === draggableId)
             if (!draggedItem) return
 
-            // Create a new array of items
             const newItems = Array.from(items)
-            
-            // Remove the item from its source
             const [removed] = newItems.splice(
-                newItems.findIndex(item => item.id === draggableId),
+                source.index,
                 1
             )
 
-            // Update the status immediately for optimistic update
             if (source.droppableId !== destination.droppableId) {
-                removed.status = destination.droppableId as Status
+                removed.status = toBackendStatus(destination.droppableId)
             }
 
-            // Find the correct insertion index and insert
             const insertIndex = destination.index
             newItems.splice(insertIndex, 0, removed)
-
-            // Update UI immediately
+            
             setItems(newItems)
 
-            // Then sync with server in the background
             if (source.droppableId !== destination.droppableId) {
                 const response = await srv_updateRoadmap(
                     draggableId,
                     draggedItem.title,
                     draggedItem.description,
-                    destination.droppableId as Status
+                    toBackendStatus(destination.droppableId)
                 )
 
-                if (response.error) {
-                    toast.error(response.error)
+                if (!response.id) {
+                    toast.error("Failed to update item")
+                    fetchItems()
+                    return
                 }
             }
             
             toast.success("Item moved successfully")
         } catch (error) {
-            console.error('Error during drag and drop:', error)
+            console.error('Error moving item:', error)
             toast.error("Failed to move item")
-            // Revert to original state
-            fetchItems()
         }
     }
 
@@ -99,29 +89,29 @@ export function RoadMapPage() {
         ))
         setEditItem(null)
 
-        await srv_updateRoadmap(editItem.id, editItem.title, editItem.description, editItem.status)
+        await srv_updateRoadmap(editItem.id, editItem.title, editItem.description, toBackendStatus(toFrontendStatus(editItem.status)))
 
         toast.success("Item updated successfully")
     }
 
     const handleCreateItem = async () => {
-        if (!newItem.title.trim()) return  // Prevent empty submissions
-        
-        const response = await srv_createRoadmap(newItem.title, newItem.description, 'not-started')
+        if (!newItem.title.trim()) return
 
-        if (response.error) {
-            toast.error(response.error)
+        const response = await srv_createRoadmap(
+            newItem.title, 
+            newItem.description, 
+            'not_started'
+        )
+
+        if (!response.id) {
+            toast.error("Failed to create item")
             return
         }
 
         setNewItem({ title: '', description: '' })
         fetchItems()
-
-        toast.success("New item created successfully")
-
-        // Close the dialog after creating the item
         setDialogOpen(false)
-
+        toast.success("Item created successfully")
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -134,14 +124,26 @@ export function RoadMapPage() {
     const handleDeleteItem = async (id: string) => {
         try {
             await srv_deleteRoadmap(id)
-            setItems(items.filter(item => item.id !== id))
             toast.success("Item deleted successfully")
+            fetchItems()
         } catch (error) {
             toast.error("Failed to delete item")
         }
     }
 
-    const columns: Status[] = ['not-started', 'in-progress', 'completed']
+    const handleMigration = async () => {
+        try {
+            
+            await srv_migrateMongoRoadmapData()
+            toast.success("Migration completed successfully")
+            fetchItems()
+        } catch (error) {
+            console.error('Migration error:', error)
+            toast.error("Migration failed")
+        }
+    }
+
+    const displayColumns: DisplayStatus[] = ['not-started', 'in-progress', 'completed']
     const columnTitles = {
         'not-started': 'Not Started',
         'in-progress': 'In Progress',
@@ -152,42 +154,47 @@ export function RoadMapPage() {
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Roadmap</h2>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild >
-                        <Button>Add New Item</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create New Item</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 flex flex-col">
-                            <Input
-                                placeholder="Title"
-                                value={newItem.title}
-                                onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-                                onKeyDown={handleKeyDown}
-                            />
-                            <Textarea
-                                placeholder="Description"
-                                className="h-32"
-                                value={newItem.description}
-                                onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                                onKeyDown={handleKeyDown}
-                            />
-                            <Button 
-                                onClick={handleCreateItem}
-                            >
-                                Create
-                                <PiKeyReturnLight className="ml-2 h-5 w-5" />
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                <div className="flex gap-2">
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild >
+                            <Button>Add New Item</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New Item</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 flex flex-col">
+                                <Input
+                                    placeholder="Title"
+                                    value={newItem.title}
+                                    onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+                                    onKeyDown={handleKeyDown}
+                                />
+                                <Textarea
+                                    placeholder="Description"
+                                    className="h-32"
+                                    value={newItem.description}
+                                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                                    onKeyDown={handleKeyDown}
+                                />
+                                <Button 
+                                    onClick={handleCreateItem}
+                                >
+                                    Create
+                                    <PiKeyReturnLight className="ml-2 h-5 w-5" />
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" onClick={handleMigration}>
+                        Migrate from MongoDB
+                    </Button>
+                </div>
             </div>
 
             <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="grid grid-cols-3 gap-4">
-                    {columns.map(status => (
+                    {displayColumns.map(status => (
                         <div key={status} className="bg-muted/50 rounded-lg p-4 min-h-[500px]">
                             <h3 className="font-semibold mb-4">{columnTitles[status]}</h3>
                             <Droppable droppableId={status}>
@@ -200,7 +207,7 @@ export function RoadMapPage() {
                                         }`}
                                     >
                                         {items
-                                            .filter(item => item.status === status)
+                                            .filter(item => toFrontendStatus(item.status) === status)
                                             .map((item, index) => (
                                                 <Draggable
                                                     key={item.id}
@@ -215,9 +222,9 @@ export function RoadMapPage() {
                                                             className={`p-4 cursor-pointer transition-shadow relative group ${
                                                                 snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
                                                             } ${
-                                                                item.status === 'not-started' 
+                                                                toFrontendStatus(item.status) === 'not-started' 
                                                                     ? 'bg-red-500/10 hover:bg-red-500/20' 
-                                                                    : item.status === 'in-progress'
+                                                                    : toFrontendStatus(item.status) === 'in-progress'
                                                                     ? 'bg-yellow-500/10 hover:bg-yellow-500/20'
                                                                     : 'bg-green-500/10 hover:bg-green-500/20'
                                                             }`}

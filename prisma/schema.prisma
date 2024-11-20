@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String          @id @default(uuid())
+  tier               UserTier        @default(free)
+  role               UserRole        @default(user)
+  about              String?         @db.Text
+  onboardingComplete Boolean         @default(false)
+  stripeCustomerId   String?
+  subscriptionId     String?
+  subscriptionStatus String?
+  cancelAtPeriodEnd  Boolean?
+  currentPeriodEnd   DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  hunterCompanies    HunterCompany[]
+  jobs               Job[]
+  notifications      Notification[]
+  roadmaps           RoadmapItem[]
+  userQuota          UserQuota?
+
+  @@index([id])
+}
+
+model Job {
+  id              String          @id @default(uuid())
+  userId          String
+  company         String
+  position        String
+  status          JobStatus
+  website         String?
+  jobDescription  String?         @db.Text
+  dateApplied     DateTime?
+  notes           String?         @db.Text
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  interviewDate   DateTime?
+  salary          Decimal?        @db.Decimal(10, 2)
+  location        String?
+  remoteType      RemoteType?
+  jobType         JobType?
+  flag            String?
+  aiRated         Boolean         @default(false)
+  aiNotes         String?         @db.Text
+  aiRating        Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  hunterCompanies HunterCompany[]
+  user            User            @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([company])
+  @@index([status])
+}
+
+model UserQuota {
+  id                     String       @id @default(uuid())
+  userId                 String       @unique
+  quotaResetDate         DateTime
+  stripeCurrentPeriodEnd DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  quotaUsage             QuotaUsage[]
+  user                   User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model QuotaUsage {
+  id          String    @id @default(uuid())
+  userQuotaId String
+  quotaKey    String
+  usageCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userQuota   UserQuota @relation(fields: [userQuotaId], references: [id])
+
+  @@unique([userQuotaId, quotaKey])
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  name        String
+  ref         String   @unique
+  description String?
+  visits      Int      @default(0)
+  signups     Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ref])
+}
+
+model WaitlistUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  campaignRef  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  dateSignedUp DateTime @default(now())
+  isNotified   Boolean  @default(false)
+  source       String   @default("website")
+
+  @@index([email])
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  type      NotificationType
+  status    NotificationStatus @default(UNREAD)
+  title     String
+  message   String             @db.Text
+  link      String?
+  metadata  Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model HunterCompany {
+  id        String        @id @default(uuid())
+  userId    String
+  jobId     String
+  domain    String
+  name      String?
+  industry  String?
+  type      String?
+  country   String?
+  locality  String?
+  employees Int?
+  linkedin  String?
+  twitter   String?
+  facebook  String?
+  metadata  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  job       Job           @relation(fields: [jobId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+  emails    HunterEmail[]
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([domain])
+}
+
+model HunterEmail {
+  id            String        @id @default(uuid())
+  companyId     String
+  email         String
+  firstName     String?
+  lastName      String?
+  position      String?
+  seniority     String?
+  department    String?
+  confidence    Int?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  hunterCompany HunterCompany @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([email])
+}
+
+
+model RoadmapItem {
+  id          String        @id @default(uuid())
+  title       String
+  description String        @db.Text
+  status      RoadmapStatus @map("status")
+  dateCreated DateTime      @default(now())
+  dateUpdated DateTime      @updatedAt
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "RoadmapItemI_userId_fkey")
+	@@map("Roadmap")
+}
+
+enum JobStatus {
+  YET_TO_APPLY
+  APPLIED
+  PHONE_SCREEN
+  INTERVIEW
+  OFFER
+  REJECTED
+  ACCEPTED
+  ARCHIVED
+}
+
+enum UserTier {
+  free
+  pro
+  power
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum RemoteType {
+  onsite
+  remote
+  hybrid
+}
+
+enum JobType {
+  full_time
+  part_time
+  contract
+  internship
+}
+
+enum NotificationType {
+  JOB_STATUS_CHANGE
+  QUOTA_WARNING
+  QUOTA_EXCEEDED
+  RESUME_GENERATED
+  COVER_LETTER_GENERATED
+  HUNTER_DATA_READY
+  SYSTEM_UPDATE
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum RoadmapStatus {
+  not_started @map("not-started")
+  in_progress @map("in-progress")
+  completed
+}
