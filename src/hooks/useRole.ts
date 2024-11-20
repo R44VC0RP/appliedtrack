@@ -1,5 +1,6 @@
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
+import { srv_getUserRole } from "@/app/actions/server/job-board/primary";
 
 interface UserRole {
   isAdmin: boolean;
@@ -23,12 +24,10 @@ export function useRole(): UserRole {
       }
 
       try {
-        const response = await fetch('/api/user');
-        const data = await response.json();
-        // console.log("data", data);
+        const data = await srv_getUserRole();
         setRole({
           isAdmin: data.role === 'admin',
-          tier: data.tier || 'free',
+          tier: data.tier,
           loading: false
         });
       } catch (error) {

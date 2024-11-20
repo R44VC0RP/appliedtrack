@@ -18,29 +18,29 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-  const fetchSuggestions = async (searchQuery: string) => {
-    if (searchQuery.length === 0) {
-      setSuggestions([]);
-      setHighlightedIndex(0);
-      return;
-    }
+  // const fetchSuggestions = async (searchQuery: string) => {
+  //   if (searchQuery.length === 0) {
+  //     setSuggestions([]);
+  //     setHighlightedIndex(0);
+  //     return;
+  //   }
 
-    try {
-      const response = await fetch(`/api/job-titles?query=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) throw new Error(response.statusText);
-      const data = await response.json();
-      setSuggestions(data);
-      setHighlightedIndex(0);
-    } catch (err) {
-      console.error(err);
-      setSuggestions([]);
-    }
-  };
+  //   try {
+  //     const response = await fetch(`/api/job-titles?query=${encodeURIComponent(searchQuery)}`);
+  //     if (!response.ok) throw new Error(response.statusText);
+  //     const data = await response.json();
+  //     setSuggestions(data);
+  //     setHighlightedIndex(0);
+  //   } catch (err) {
+  //     console.error(err);
+  //     setSuggestions([]);
+  //   }
+  // };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
-    fetchSuggestions(value);
+    // fetchSuggestions(value);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

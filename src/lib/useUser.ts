@@ -58,10 +58,10 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       about: ''
     });
 
-    await Logger.info('Complete user profile fetched', {
-      userId,
-      hasDbRecord: !!dbUser
-    });
+    // await Logger.info('Complete user profile fetched', {
+    //   userId,
+    //   hasDbRecord: !!dbUser
+    // });
 
     return plain({
       // Clerk data

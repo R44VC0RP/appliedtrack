@@ -6,6 +6,8 @@ import { UploadButton } from "@/utils/uploadthing";
 import { Progress } from "@/components/ui/progress";
 import { FileText, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { srv_updateUserOnboarding } from '@/app/actions/server/job-board/primary';
+
 interface OnboardingModalProps {
   isOpen: boolean;
   onComplete: () => void;
@@ -49,19 +51,8 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
     
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/user', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          about: bio,
-          onBoardingComplete: true,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update user');
-
+      await srv_updateUserOnboarding(bio);
+      
       toast.success("Profile Complete! Thanks for completing your profile. You can now start tracking your job applications.");
       
       // Call the onComplete callback to close the modal

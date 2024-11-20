@@ -625,126 +625,43 @@ export async function srv_generateResume(job: Job) {
   });
 
   try {
-    const { object: generatedResume, usage } = await generateObject({
-      model: openai('gpt-4-turbo'),
-      schema: resumeSchema,
-      schemaName: 'JSONResume',
-      schemaDescription: 'A structured resume format optimized for the target job position',
-      prompt: `
-        Generate a professional resume in JSON Resume format for ${user.firstName + ' ' + user.lastName} 
-        applying to ${job.company} for the position of ${job.position}.
+    // const { object: generatedResume, usage } = await generateObject({
+    //   model: openai('gpt-4-turbo'),
+    //   schema: resumeSchema,
+    //   schemaName: 'JSONResume',
+    //   schemaDescription: 'A structured resume format optimized for the target job position',
+    //   prompt: `
+    //     Generate a professional resume in JSON Resume format for ${user.firstName + ' ' + user.lastName} 
+    //     applying to ${job.company} for the position of ${job.position}.
         
-        Original Resume Text: ${resumeText}
-        Personal Statement: ${user.about}
-        Target Job Description: ${job.jobDescription}
+    //     Original Resume Text: ${resumeText}
+    //     Personal Statement: ${user.about}
+    //     Target Job Description: ${job.jobDescription}
 
-        Instructions:
-        1. Only include sections where you have reliable information from the provided resume and personal statement
-        2. Do not fabricate or assume any information
-        3. Tailor the content to highlight skills and experience relevant to ${job.position} at ${job.company}
-        4. Use clear, professional language
-        5. Include quantifiable achievements where possible
-        6. Format dates as YYYY-MM-DD if available, otherwise omit
-        7. Ensure all generated content is factual and based on the provided information
-      `
-    });
+    //     Instructions:
+    //     1. Only include sections where you have reliable information from the provided resume and personal statement
+    //     2. Do not fabricate or assume any information
+    //     3. Tailor the content to highlight skills and experience relevant to ${job.position} at ${job.company}
+    //     4. Use clear, professional language
+    //     5. Include quantifiable achievements where possible
+    //     6. Format dates as YYYY-MM-DD if available, otherwise omit
+    //     7. Ensure all generated content is factual and based on the provided information
+    //   `
+    // });
 
-    // Create temporary directory
-    const tempDir = join(process.cwd(), 'tmp');
-    await fs.mkdir(tempDir, { recursive: true });
+    // // Create temporary directory
+    // const tempDir = join(process.cwd(), 'tmp');
+    // await fs.mkdir(tempDir, { recursive: true });
 
-    // Save JSON resume to temporary file
-    const jsonPath = join(tempDir, `${job.id}-resume.json`);
-    await fs.writeFile(jsonPath, JSON.stringify(generatedResume, null, 2));
+    // // Save JSON resume to temporary file
+    // const jsonPath = join(tempDir, `${job.id}-resume.json`);
+    // await fs.writeFile(jsonPath, JSON.stringify(generatedResume, null, 2));
 
-    // Generate HTML from JSON resume
-    // const html = await render(generatedResume, theme);
+    console.log("User Details:", user);
+    console.log("Job Details:", job);
+    console.log("Resume Text:", resumeText);
 
-    const html = "<h1>Hello</h1>";
-
-    console.log(html);
-
-    // Launch puppeteer and generate PDF
-    const browser = await puppeteer.launch({
-      headless: true
-    });
-    const page = await browser.newPage();
-
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfPath = join(tempDir, `${job.id}-resume.pdf`);
-    await page.pdf({ 
-      path: pdfPath, 
-      format: 'a4', 
-      printBackground: true,
-      margin: {
-        top: '20mm',
-        right: '20mm',
-        bottom: '20mm',
-        left: '20mm'
-      }
-    });
-    await browser.close();
-
-    // Read the generated PDF
-    const pdfBuffer = await fs.readFile(pdfPath);
-
-    if (!pdfBuffer.length) {
-      throw new Error('No PDF content generated');
-    }
-
-    // Prepare file for uploadthing
-    const fileName = `resume-${Date.now()}-${uuidv4()}.pdf`;
-    const pdfFile: FileEsque = {
-      name: fileName,
-      [Symbol.toStringTag]: 'Blob',
-      stream: () => new ReadableStream({
-        start(controller) {
-          controller.enqueue(pdfBuffer);
-          controller.close();
-        }
-      }),
-      text: () => Promise.resolve(''),
-      arrayBuffer: async () => pdfBuffer,
-      slice: () => new Blob([pdfBuffer], { type: 'application/pdf' }),
-      size: pdfBuffer.length,
-      type: 'application/pdf'
-    };
-
-    // Upload to uploadthing
-    const uploadResponse = await utapi.uploadFiles([pdfFile]);
-
-    // Clean up temporary files
-    await Promise.all([
-      fs.unlink(jsonPath),
-      fs.unlink(pdfPath)
-    ]).catch(error => {
-      Logger.warning('Failed to clean up temporary files', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        files: [jsonPath, pdfPath]
-      });
-    });
-
-    // Track costs and usage
-    const GPT_4_TURBO_INPUT_COST_PER_1M_TOKENS_IN_CENTS = 15;
-    const GPT_4_TURBO_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS = 60;
-
-    const totalCostInCents =
-      (usage.promptTokens / 1_000_000) * GPT_4_TURBO_INPUT_COST_PER_1M_TOKENS_IN_CENTS +
-      (usage.completionTokens / 1_000_000) * GPT_4_TURBO_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS;
-
-    await srv_addGenAIAction('generateResume', usage.promptTokens, usage.completionTokens, totalCostInCents);
-
-    await Logger.info('Resume generated and uploaded successfully', {
-      jobId: job.id,
-      sections: Object.keys(generatedResume),
-      pdfUrl: uploadResponse[0].data?.url || ''
-    });
-
-    return { 
-      success: true, 
-      resume: generatedResume,
-      pdfUrl: uploadResponse[0].data?.url || ''
-    };
+    return { success: true };
 
   } catch (error) {
     if (error instanceof JSONParseError || error instanceof TypeValidationError) {
@@ -761,6 +678,57 @@ export async function srv_generateResume(job: Job) {
         stack: error instanceof Error ? error.stack : undefined
       });
     }
+    throw error;
+  }
+}
+
+export async function srv_updateUserOnboarding(about: string) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { userId: user.id },
+      { 
+        $set: { 
+          about,
+          onBoardingComplete: true 
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      throw new Error('User not found');
+    }
+
+    return plain(updatedUser);
+  } catch (error) {
+    await Logger.error('Error updating user onboarding', { error });
+    throw error;
+  }
+}
+
+export async function srv_getUserRole() {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return { role: 'user', tier: 'free' };
+    }
+
+    const dbUser = await UserModel.findOne({ userId: user.id });
+    if (!dbUser) {
+      return { role: 'user', tier: 'free' };
+    }
+
+    return {
+      role: dbUser.role || 'user',
+      tier: dbUser.tier || 'free'
+    };
+  } catch (error) {
+    await Logger.error('Error fetching user role', { error });
     throw error;
   }
 }
