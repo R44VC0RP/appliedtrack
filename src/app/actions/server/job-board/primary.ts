@@ -23,9 +23,10 @@ import puppeteer from 'puppeteer';
 import { render } from 'resumed';
 import { join } from 'path';
 import { UTApi } from "uploadthing/server";
-import theme from 'jsonresume-theme-dev-ats';
+import { PrismaClient, JobStatus } from '@prisma/client'
 
 const utapi = new UTApi();
+const prisma = new PrismaClient()
 
 interface FileEsque {
   name: string;
@@ -69,9 +70,11 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
     }
 
     // Get active job count
-    const activeJobCount = await JobModel.countDocuments({ 
-      userId, 
-      archived: { $ne: true } 
+    const activeJobCount = await prisma.job.count({
+      where: { 
+        userId, 
+        status: { not: 'ARCHIVED' } 
+      }
     });
 
     // Convert to plain objects
@@ -201,58 +204,267 @@ export async function srv_getJobs() {
     return [];
   }
 
-  // Get all jobs and count active ones
-  const jobs = await JobModel.find({ userId: user.id });
-  const activeJobCount = jobs.filter(job => !job.status || job.status !== 'Archived').length;
+  try {
+    // Get all jobs
+    const jobs = await prisma.job.findMany({
+      where: { userId: user.id },
+      include: {
+        generatedResumes: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        },
+        generatedCoverLetters: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        }
+      }
+    });
 
-  // Get or create quota
-  let quota = await UserQuotaModel.findOne({ userId: user.id });
-  if (!quota) {
-    try {
-      quota = await createInitialQuota(user.id);
-      await Logger.info('Created initial quota for user', {
+    // Transform the response to flatten the most recent resume
+    const transformedJobs = jobs.map(job => ({
+      ...job,
+      latestGeneratedResume: job.generatedResumes[0] || null,
+      latestGeneratedCoverLetter: job.generatedCoverLetters[0] || null,
+      generatedResumes: undefined, // Remove the full array since we only need the latest
+      generatedCoverLetters: undefined
+    }));
+
+    // Count active jobs (not archived)
+    const activeJobCount = transformedJobs.filter(job => job.status !== 'ARCHIVED').length;
+
+    // Get or create quota
+    let quota = await UserQuotaModel.findOne({ userId: user.id });
+    if (!quota) {
+      try {
+        quota = await createInitialQuota(user.id);
+        await Logger.info('Created initial quota for user', {
+          userId: user.id,
+          quota: plain(quota)
+        });
+      } catch (error) {
+        await Logger.error('Failed to create initial quota', {
+          userId: user.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+      }
+    }
+
+    const plainQuota = plain(quota);
+    const currentQuotaUsage = plainQuota?.usage?.JOBS_COUNT || 0;
+
+    // Update quota if it doesn't match active job count
+    if (quota && currentQuotaUsage !== activeJobCount) {
+      await UserQuotaModel.findOneAndUpdate(
+        { userId: user.id },
+        {
+          $set: { 'usage.JOBS_COUNT': activeJobCount },
+          dateUpdated: new Date().toISOString()
+        }
+      );
+      await Logger.info('Updated jobs quota to match active count', {
         userId: user.id,
-        quota: plain(quota)
-      });
-    } catch (error) {
-      await Logger.error('Failed to create initial quota', {
-        userId: user.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        previousCount: currentQuotaUsage,
+        newCount: activeJobCount
       });
     }
-  }
-
-  const plainQuota = plain(quota);
-  const currentQuotaUsage = plainQuota?.usage?.JOBS_COUNT || 0;
-
-  // Update quota if it doesn't match active job count
-  if (quota && currentQuotaUsage !== activeJobCount) {
-    await UserQuotaModel.findOneAndUpdate(
-      { userId: user.id },
-      {
-        $set: { 'usage.JOBS_COUNT': activeJobCount },
-        dateUpdated: new Date().toISOString()
-      }
-    );
-    await Logger.info('Updated jobs quota to match active count', {
+    
+    return transformedJobs;
+  } catch (error) {
+    await Logger.error('Error fetching jobs', {
       userId: user.id,
-      previousCount: currentQuotaUsage,
-      newCount: activeJobCount
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
+    return [];
   }
-  
-  return plain(jobs);
 }
 
 export async function srv_getJob(jobId: string) {
-  const job = await JobModel.findOne({ id: jobId });
-  return plain(job);
+  try {
+    const job = await prisma.job.findUnique({
+      where: { id: jobId }
+    });
+    return job;
+  } catch (error) {
+    await Logger.error('Error fetching job', {
+      jobId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return null;
+  }
 }
 
 export async function srv_archiveJob(jobId: string) {
-  const job = await JobModel.findOneAndUpdate({ id: jobId }, { status: 'Archived' });
-  return { success: true, data: plain(job) };
+  try {
+    const job = await prisma.job.update({
+      where: { id: jobId },
+      data: { status: 'ARCHIVED' as JobStatus }
+    });
+    return { success: true, data: job };
+  } catch (error) {
+    await Logger.error('Error archiving job', {
+      jobId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return { success: false, error: 'Failed to archive job' };
+  }
+}
+
+export async function srv_addJob(job: Job) {
+  const user = await currentUser();
+
+  if (!user) {
+    await Logger.warning('Unauthorized add job attempt', { job });
+    return;
+  }
+
+  const quotaCheck = await srv_func_verifyTiers(user.id, 'JOBS_COUNT');
+  if (!quotaCheck.allowed) {
+    await Logger.warning('Job creation quota exceeded', { userId: user.id, quotaCheck });
+    return { success: false, error: `Job creation quota exceeded. Used: ${quotaCheck.used}/${quotaCheck.limit}` };
+  }
+
+  try {
+    const jobID = uuidv4();
+    const newJob = await prisma.job.create({
+      data: {
+        id: jobID,
+        userId: user.id,
+        company: job.company,
+        position: job.position,
+        status: (job.status?.toUpperCase().replace(' ', '_') || 'YET_TO_APPLY') as JobStatus,
+        website: job.website,
+        jobDescription: job.jobDescription,
+        dateApplied: job.dateApplied ? new Date(job.dateApplied) : null,
+        notes: job.notes,
+        contactName: job.contactName,
+        contactEmail: job.contactEmail,
+        contactPhone: job.contactPhone,
+        interviewDate: job.interviewDate ? new Date(job.interviewDate) : null,
+        location: job.location,
+        flag: job.flag,
+        aiRated: job.aiRated || false,
+        aiNotes: job.aiNotes,
+        aiRating: job.aiRating,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+    return { success: true, data: newJob };
+  } catch (error) {
+    await Logger.error('Error creating job', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId: user.id
+    });
+    return { success: false, error: 'Failed to create job' };
+  }
+}
+
+export async function srv_updateJob(job: Job) {
+  const user = await currentUser();
+  if (!user) {
+    await Logger.warning('Unauthorized update job attempt', { job });
+    return null;
+  }
+
+  try {
+    // First verify the job exists and belongs to user
+    const existingJob = await prisma.job.findFirst({
+      where: { 
+        id: job.id,
+        userId: user.id
+      }
+    });
+
+    if (!existingJob) {
+      await Logger.warning('Job not found or unauthorized access', {
+        jobId: job.id,
+        userId: user.id
+      });
+      return null;
+    }
+
+    const updatedJob = await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        company: job.company,
+        position: job.position,
+        status: job.status?.toUpperCase().replace(' ', '_') as JobStatus,
+        website: job.website,
+        jobDescription: job.jobDescription,
+        dateApplied: job.dateApplied ? new Date(job.dateApplied) : null,
+        notes: job.notes,
+        contactName: job.contactName,
+        contactEmail: job.contactEmail,
+        contactPhone: job.contactPhone,
+        interviewDate: job.interviewDate ? new Date(job.interviewDate) : null,
+        location: job.location,
+        flag: job.flag,
+        aiRated: job.aiRated || false,
+        aiNotes: job.aiNotes,
+        aiRating: job.aiRating,
+        updatedAt: new Date()
+      }
+    });
+
+    await Logger.info('Job updated successfully', {
+      jobId: job.id,
+      userId: user.id
+    });
+
+    return updatedJob;
+  } catch (error) {
+    await Logger.error('Error updating job', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      jobId: job.id,
+      userId: user.id
+    });
+    return null;
+  }
+}
+
+export async function srv_updateJobStatus(jobId: string, newStatus: Job['status']) {
+  const user = await currentUser();
+  if (!user) {
+    await Logger.warning('Unauthorized update job status attempt', { jobId });
+    return null;
+  }
+
+  try {
+    // First verify the job exists and belongs to user
+    const existingJob = await prisma.job.findFirst({
+      where: { 
+        id: jobId,
+        userId: user.id
+      }
+    });
+
+    if (!existingJob) {
+      await Logger.warning('Unauthorized job update attempt', { jobId, userId: user.id });
+      return null;
+    }
+
+    const updatedJob = await prisma.job.update({
+      where: { id: jobId },
+      data: { 
+        status: newStatus.toUpperCase().replace(' ', '_') as JobStatus,
+        updatedAt: new Date()
+      }
+    });
+
+    return updatedJob;
+  } catch (error) {
+    await Logger.error('Error updating job status', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      jobId,
+      userId: user.id
+    });
+    return null;
+  }
 }
 
 export async function srv_getResumes() {
@@ -281,88 +493,6 @@ export async function srv_initialData() {
   const jobs = await srv_getJobs();
   const resumes = await srv_getResumes();
   return { jobs, resumes };
-}
-
-export async function srv_addJob(job: Job) {
-  const user = await currentUser();
-
-  if (!user) {
-    await Logger.warning('Unauthorized add job attempt', { job });
-    return;
-  }
-  const quotaCheck = await srv_func_verifyTiers(user.id, 'JOBS_COUNT');
-  if (!quotaCheck.allowed) {
-    await Logger.warning('Job creation quota exceeded', { userId: user.id, quotaCheck });
-    return { success: false, error: `Job creation quota exceeded. Used: ${quotaCheck.used}/${quotaCheck.limit}` };
-  }
-
-  const jobID = uuidv4();
-  const newJob = await JobModel.create({ ...job, id: jobID, userId: user.id, dateCreated: new Date().toISOString() });
-  return { success: true, data: plain(newJob) };
-}
-
-export async function srv_updateJob(job: Job) {
-  const user = await currentUser();
-  if (!user) {
-    await Logger.warning('Unauthorized update job attempt', { job });
-    return null;
-  }
-
-  try {
-    // First verify the job exists and belongs to user
-    const existingJob = await JobModel.findOne({ id: job.id, userId: user.id });
-    if (!existingJob) {
-      await Logger.warning('Job not found or unauthorized access', {
-        jobId: job.id,
-        userId: user.id
-      });
-      return null;
-    }
-
-    // Update using findOneAndUpdate instead of findByIdAndUpdate
-    const updatedJob = await JobModel.findOneAndUpdate(
-      { id: job.id, userId: user.id },
-      {
-        ...job,
-        dateUpdated: new Date().toISOString()
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedJob) {
-      throw new Error('Failed to update job');
-    }
-
-    await Logger.info('Job updated successfully', {
-      jobId: job.id,
-      userId: user.id
-    });
-
-    return plain(updatedJob);
-  } catch (error) {
-    await Logger.error('Error updating job', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      jobId: job.id,
-      userId: user.id
-    });
-    return null;
-  }
-}
-
-export async function srv_updateJobStatus(jobId: string, newStatus: Job['status']) {
-  const user = await currentUser();
-  if (!user) {
-    await Logger.warning('Unauthorized update job status attempt', { jobId });
-    return;
-  }
-  const existingJob = await JobModel.findOne({ id: jobId, userId: user.id });
-  if (!existingJob) {
-    await Logger.warning('Unauthorized job update attempt', { jobId, userId: user.id });
-    return null;
-  }
-  const updatedJob = await JobModel.findByIdAndUpdate(jobId, { status: newStatus }, { new: true });
-  return updatedJob;
 }
 
 export async function srv_createAIRating(job: Job) {

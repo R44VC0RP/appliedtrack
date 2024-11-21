@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { IJob } from '@/models/Job';
+import { Job, JobStatus } from '@prisma/client';
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Check, Pencil } from "lucide-react";
@@ -19,46 +19,43 @@ import { Bot, Sparkles, FileText, Users } from "lucide-react";
 import JobTitleAutocomplete from "@/components/ui/job-title-autocomplete";
 import { srv_getJob } from "../actions/server/job-board/primary";
 
-const getStatusColor = (status: string): string => {
+const getStatusColor = (status: JobStatus): string => {
     switch (status) {
-        case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-        case 'Applied': return 'bg-blue-100 text-blue-800'
-        case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-        case 'Interview': return 'bg-purple-100 text-purple-800'
-        case 'Offer': return 'bg-green-100 text-green-800'
-        case 'Rejected': return 'bg-red-100 text-red-800'
-        case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-        default: return 'bg-gray-100 text-gray-800'
+        case JobStatus.YET_TO_APPLY: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.APPLIED: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.PHONE_SCREEN: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        case JobStatus.INTERVIEW: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+        case JobStatus.OFFER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        case JobStatus.REJECTED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        case JobStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
 }
 
 export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails, activeTab: initialActiveTab, handleAIRecommendation }: {
     isOpen: boolean;
     onClose: () => void;
-    job: IJob | null;
-    setSelectedJob: React.Dispatch<React.SetStateAction<IJob | null>>;
+    job: Job | null;
+    setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>;
     setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    updateJobDetails: (job: IJob) => void;
-    activeTab?: 'details' | 'hunter';  // Add this type
-    handleAIRecommendation: (job: IJob) => void;
+    updateJobDetails: (job: Job) => void;
+    activeTab?: 'details' | 'hunter';  
+    handleAIRecommendation: (job: Job) => void;
 }) {
     const [activeTab, setActiveTab] = useState<'details' | 'hunter'>(initialActiveTab || 'details');
-    const [editingField, setEditingField] = useState<keyof IJob | null>(null);
+    const [editingField, setEditingField] = useState<keyof Job | null>(null);
     const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
 
-    // Add this useEffect to update the selected job when the job prop changes
     useEffect(() => {
         if (job) {
             setSelectedJob(job);
         }
     }, [job, setSelectedJob]);
 
-    // Add a wrapper function for handleAIRecommendation
     const handleAIAnalysis = async () => {
         if (!job) return;
 
         await handleAIRecommendation(job);
-        // After AI recommendation is complete, fetch the latest job data
         try {
             const updatedJob = await srv_getJob(job.id || '');
             setSelectedJob(updatedJob);
@@ -69,7 +66,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
 
     if (!job) return null;
 
-    const renderField = (label: string, value: string | number | undefined, field: keyof IJob) => {
+    const renderField = (label: string, value: string | number | undefined, field: keyof Job) => {
         const isEditing = editingField === field;
 
         return (
@@ -446,4 +443,3 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
         </Dialog>
     );
 }
-

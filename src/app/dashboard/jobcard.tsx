@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react';
-import { IJob as Job } from '@/models/Job';
+import { Job, GeneratedResumeWithStatus, GeneratedCoverLetterWithStatus } from '../types/job';
+import { JobStatus, RemoteType } from '@prisma/client';
 import hunterLogo from '@/app/logos/hunter.png'
 import Image from 'next/image'
 import { User } from '@/models/User';
@@ -20,7 +21,6 @@ import { format } from 'date-fns';
 import { Dispatch, SetStateAction } from 'react';
 import { Loader2, Download, CheckCircle2, AlertCircle, Sparkles, Clock, Calendar } from 'lucide-react';
 import { FaSync } from 'react-icons/fa';
-import { JobStatus } from '@/models/Job';
 import { AlertDialogTrigger, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -28,7 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { srv_archiveJob, srv_generateResume, srv_hunterDomainSearch } from '../actions/server/job-board/primary';
 
-const hunterCategories: { value: HunterCategory; label: string }[] = [
+const hunterCategories: { value: string; label: string }[] = [
     { value: 'executive', label: 'Executive' },
     { value: 'it', label: 'IT' },
     { value: 'finance', label: 'Finance' },
@@ -56,17 +56,17 @@ const getFlagIcon = (flag: string) => {
     }
 }
 
-type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
+// type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
 
 const getStatusColor = (status: string): string => {
     switch (status) {
-        case 'Yet to Apply': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        case 'Applied': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        case 'Phone Screen': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-        case 'Interview': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-        case 'Offer': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-        case 'Rejected': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        case 'Accepted': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+        case JobStatus.YET_TO_APPLY: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.APPLIED: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.PHONE_SCREEN: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        case JobStatus.INTERVIEW: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+        case JobStatus.OFFER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        case JobStatus.REJECTED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        case JobStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
         default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
 }
@@ -78,31 +78,32 @@ const generateResume = async (
     setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
     updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
-    try {
-        // const response = await fetch('/api/genai', {
-        //     method: 'POST',
-        //     body: JSON.stringify({ job, action: 'resume' }),
-        // });
+    // try {
+    //     // const response = await fetch('/api/genai', {
+    //     //     method: 'POST',
+    //     //     body: JSON.stringify({ job, action: 'resume' }),
+    //     // });
 
-        const response = await srv_generateResume(job);
+    //     const response = await srv_generateResume(job);
 
-        // const data = await response.json();
+    //     // const data = await response.json();
 
-        if (response.success) {
-            // Update job with generated resume
-            await updateJobDetails({
-                ...job,
-                resumeGenerated: { url: response.pdfUrl || '', status: 'ready', dateGenerated: new Date().toISOString() }
-            });
+    //     if (response.success) {
+    //         // Update job with generated resume
+    //         await updateJobDetails({
+    //             ...job,
+    //             resumeGenerated: { url: response.pdfUrl || '', status: 'ready', dateGenerated: new Date().toISOString() }
+    //         });
 
-            toast.success("Resume generated successfully");
+    //         toast.success("Resume generated successfully");
 
-            setIsGenerating("ready");
-        }
-    } catch (error) {
-        console.error('Error generating resume:', error);
-        setIsGenerating("failed");
-    }
+    //         setIsGenerating("ready");
+    //     }
+    // } catch (error) {
+    //     console.error('Error generating resume:', error);
+    //     setIsGenerating("failed");
+    // }
+    alert("Feature coming soon")
 };
 
 const generateCoverLetter = async (
@@ -110,95 +111,87 @@ const generateCoverLetter = async (
     setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
     updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
-    try {
-        const response = await fetch('/api/genai', {
-            method: 'POST',
-            body: JSON.stringify({ job, action: 'cover-letter' }),
-        });
+    // try {
+    //     const response = await fetch('/api/genai', {
+    //         method: 'POST',
+    //         body: JSON.stringify({ job, action: 'cover-letter' }),
+    //     });
 
-        const data = await response.json();
+    //     const data = await response.json();
 
-        if (data.success) {
-            // Update the local job with cover letter data
-            await updateJobDetails({
-                ...job,
-                coverLetter: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
-            });
+    //     if (data.success) {
+    //         // Update the local job with cover letter data
+    //         await updateJobDetails({
+    //             ...job,
+    //             coverLetter: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
+    //         });
 
-            toast.success("Cover letter generated successfully");
+    //         toast.success("Cover letter generated successfully");
 
-            setIsGenerating("ready");
-        }
-    } catch (error) {
-        console.error('Error generating cover letter:', error);
-        setIsGenerating("failed");
-    }
+    //         setIsGenerating("ready");
+    //     }
+    // } catch (error) {
+    //     console.error('Error generating cover letter:', error);
+    //     setIsGenerating("failed");
+    // }
+    alert("Feature coming soon")
 };
 
 const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
     const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
-        job.resumeGenerated?.status || "not_started"
+        job.latestGeneratedResume ? "ready" : "not_started"
     );
 
+    const handleGenerateResume = async () => {
+        setIsGenerating("generating");
+        try {
+            const response = await fetch('/api/generate-resume', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ jobId: job.id }),
+            });
 
+            if (!response.ok) {
+                throw new Error('Failed to generate resume');
+            }
+
+            const updatedJob = await response.json();
+            setIsGenerating("ready");
+            await updateJobDetails(updatedJob);
+        } catch (error) {
+            console.error('Error generating resume:', error);
+            setIsGenerating("failed");
+        }
+    };
 
     switch (isGenerating) {
         case 'generating':
             return (
-                <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating Resume...
+                <Button variant="outline" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating
                 </Button>
             );
-
         case 'ready':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="inline-flex items-center gap-2 text-blue-600 dark:text-white bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
-                    onClick={() => {
-                        console.log(job.resumeGenerated)
-                        window.open(job.resumeGenerated?.url, '_blank');
-                    }}
-                >
-                    <Download className="w-4 h-4" />
-                    <span>Download Resume</span>
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <Button variant="outline" onClick={() => window.open(job.latestGeneratedResume?.resumeMarkdown, '_blank')}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    View Resume
                 </Button>
             );
-
         case 'failed':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2 text-red-600"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateResume(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-                    <AlertCircle className="h-4 w-4" />
-                    Generation Failed - Retry
+                <Button variant="outline" onClick={handleGenerateResume}>
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    Retry
                 </Button>
             );
-
-
-
-
         default:
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateResume(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-                    <Sparkles className="h-4 w-4" />
+                <Button variant="outline" onClick={handleGenerateResume}>
+                    <FileText className="mr-2 h-4 w-4" />
                     Generate Resume
                 </Button>
             );
@@ -206,79 +199,63 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
 };
 
 const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
-    const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
-    const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
+    const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
+        job.latestGeneratedCoverLetter ? "ready" : "not_started"
+    );
 
-    // if (job.coverLetter?.status === 'ready') {
-    //   setIsGenerating("ready");
-    // }
+    const handleGenerateCoverLetter = async () => {
+        setIsGenerating("generating");
+        try {
+            const response = await fetch('/api/generate-cover-letter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ jobId: job.id }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate cover letter');
+            }
+
+            const updatedJob = await response.json();
+            setIsGenerating("ready");
+            await updateJobDetails(updatedJob);
+        } catch (error) {
+            console.error('Error generating cover letter:', error);
+            setIsGenerating("failed");
+        }
+    };
 
     switch (isGenerating) {
         case 'generating':
             return (
-                <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating Cover Letter...
+                <Button variant="outline" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating
                 </Button>
             );
-
         case 'ready':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="inline-flex items-center gap-2 text-blue-600 dark:text-white bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
-                    onClick={() => {
-                        console.log(job.coverLetter);
-                        window.open(job.coverLetter?.url, '_blank');
-                    }}
-                >
-                    <Download className="w-4 h-4" />
-                    <span>Download Cover Letter</span>
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <Button variant="outline" onClick={() => window.open(job.latestGeneratedCoverLetter?.coverLetterMarkdown, '_blank')}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    View Cover Letter
                 </Button>
             );
-
         case 'failed':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2 text-red-600"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateCoverLetter(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-                    <>
-                        <AlertCircle className="h-4 w-4" />
-                        Generation Failed - Retry
-                    </>
+                <Button variant="outline" onClick={handleGenerateCoverLetter}>
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    Retry
                 </Button>
             );
-
-        case 'not_started':
-            return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateCoverLetter(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-
-                    <>
-                        <Sparkles className="h-4 w-4" />
-                        Generate Cover Letter
-                    </>
-
-                </Button>
-            );
-
         default:
-            return null;
+            return (
+                <Button variant="outline" onClick={handleGenerateCoverLetter}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generate Cover Letter
+                </Button>
+            );
     }
 };
 
@@ -304,7 +281,7 @@ const JobCard = React.forwardRef(({
     const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-    const [selectedCategories, setSelectedCategories] = useState<Set<HunterCategory>>(new Set());
+    const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [showQuickNote, setShowQuickNote] = useState(false);
     const [quickNote, setQuickNote] = useState(job.notes || '');
@@ -326,13 +303,19 @@ const JobCard = React.forwardRef(({
     const handleSearch = async () => {
         setIsLoading(true);
         try {
-            const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+            const domain = job.website?.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+
+            if (!domain) {
+                setIsLoading(false);
+                toast.error("Please enter a valid domain.");
+                return;
+            }
 
             // Updated API call with new parameters
             console.log(Array.from(selectedCategories));
             const { success, data, total_results, quotaExceeded, error } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10);
 
-            if (quotaExceeded){
+            if (quotaExceeded) {
                 setIsLoading(false);
                 toast.error(error);
                 return;
@@ -364,7 +347,7 @@ const JobCard = React.forwardRef(({
             setIsCategoryModalOpen(false);
         } catch (error) {
             console.error('Error fetching InsightLink&trade; data:', error);
-            
+
             toast.error("Failed to fetch InsightLink&trade; data. Please check the domain and try again.");
         } finally {
             setIsLoading(false);
@@ -376,10 +359,10 @@ const JobCard = React.forwardRef(({
     };
 
     const renderHunterPreview = () => {
-        if (!job.hunterData?.emails?.length) return null;
+        if (!job.hunterCompanies?.emails?.length) return null;
 
-        const previewEmails = job.hunterData.emails.slice(0, 2);
-        const remainingCount = Math.max(0, job.hunterData.emails.length - 2);
+        const previewEmails = job.hunterCompanies.emails.slice(0, 2);
+        const remainingCount = Math.max(0, job.hunterCompanies.emails.length - 2);
 
         return (
             <div className="space-y-2">
@@ -634,7 +617,7 @@ const JobCard = React.forwardRef(({
                                             <AlertDialogAction
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleStatusChange('Archived');
+                                                    handleStatusChange(JobStatus.ARCHIVED);
                                                 }}
                                                 className="bg-red-600 hover:bg-red-700 text-white"
                                             >
@@ -803,28 +786,28 @@ const JobCard = React.forwardRef(({
                                 <Dialog open={isConfirmStatusChangeOpen} onOpenChange={setIsConfirmStatusChangeOpen}>
                                     <DialogTrigger asChild>
                                         <Button size="sm" className="flex-1">
-                                            {job.status === 'Yet to Apply' && 'Mark Applied'}
-                                            {job.status === 'Applied' && 'Got a phone follow up?'}
-                                            {job.status === 'Phone Screen' && 'Start Interview'}
-                                            {job.status === 'Interview' && 'Got Offer'}
-                                            {job.status === 'Offer' && 'Finalize'}
-                                            {job.status === 'Rejected' && 'Archive'}
-                                            {job.status === 'Accepted' && 'Archive'}
-                                            {job.status === 'Archived' && 'Restore'}
+                                            {job.status === JobStatus.YET_TO_APPLY && 'Mark Applied'}
+                                            {job.status === JobStatus.APPLIED && 'Got a phone follow up?'}
+                                            {job.status === JobStatus.PHONE_SCREEN && 'Start Interview'}
+                                            {job.status === JobStatus.INTERVIEW && 'Got Offer'}
+                                            {job.status === JobStatus.OFFER && 'Finalize'}
+                                            {job.status === JobStatus.REJECTED && 'Archive'}
+                                            {job.status === JobStatus.ACCEPTED && 'Archive'}
+                                            {job.status === JobStatus.ARCHIVED && 'Restore'}
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
                                             <DialogTitle>Update Status</DialogTitle>
                                             <DialogDescription>
-                                                {job.status === 'Yet to Apply' && 'Mark this application as submitted?'}
-                                                {job.status === 'Applied' && 'Moving to phone screening phase?'}
-                                                {job.status === 'Phone Screen' && 'Moving to interview phase?'}
-                                                {job.status === 'Interview' && 'Received job offer?'}
-                                                {job.status === 'Offer' && 'Ready to mark as accepted/rejected?'}
-                                                {job.status === 'Rejected' && 'Archive this application?'}
-                                                {job.status === 'Accepted' && 'Archive this application?'}
-                                                {job.status === 'Archived' && 'Restore this application?'}
+                                                {job.status === JobStatus.YET_TO_APPLY && 'Mark this application as submitted?'}
+                                                {job.status === JobStatus.APPLIED && 'Moving to phone screening phase?'}
+                                                {job.status === JobStatus.PHONE_SCREEN && 'Moving to interview phase?'}
+                                                {job.status === JobStatus.INTERVIEW && 'Received job offer?'}
+                                                {job.status === JobStatus.OFFER && 'Ready to mark as accepted/rejected?'}
+                                                {job.status === JobStatus.REJECTED && 'Archive this application?'}
+                                                {job.status === JobStatus.ACCEPTED && 'Archive this application?'}
+                                                {job.status === JobStatus.ARCHIVED && 'Restore this application?'}
                                             </DialogDescription>
                                         </DialogHeader>
                                         <DialogFooter>

@@ -40,7 +40,8 @@ import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
 import { LoggingDashboard } from './components/logging-dashboard'
-import { RoadMapPage} from './components/RoadMapPage'
+import { RoadMapPage } from './components/RoadMapPage'
+import MigrationPage from './components/MigrationPage'
 
 interface NavItem {
     title: string;
@@ -83,6 +84,11 @@ const navItems: NavItem[] = [
         title: "RoadMap",
         icon: MapIcon,
         component: RoadMapPage, // Placeholder
+    },
+    {
+        title: "Migrations",
+        icon: MapIcon,
+        component: MigrationPage, // Placeholder
     },
 ]
 
@@ -146,7 +152,7 @@ export default function AdminDashboard() {
                             </div>
                         </SidebarFooter>
                     </Sidebar>
-                    
+
 
                     <div className="flex-1 overflow-auto">
                         <div className="w-full">
@@ -161,20 +167,25 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="h-full p-6">
-                            {navItems.map(item => (
-                                activeComponent === item.title && (
-                                    <div key={item.title} className="h-full w-full">
+                            <Tabs value={activeComponent}>
+                                <TabsList>
+                                    {navItems.map(item => (
+                                        <TabsTrigger key={item.title} value={item.title}>{item.title}</TabsTrigger>
+                                    ))}
+                                </TabsList>
+                                {navItems.map(item => (
+                                    <TabsContent key={item.title} value={item.title} className="space-y-4">
                                         <item.component />
-                                    </div>
-                                )
-                            ))}
+                                    </TabsContent>
+                                ))}
+                            </Tabs>
                         </div>
                     </div>
-                    
+
                 </div>
-                
+
             </SidebarProvider>
-            
+
         </AdminOnly>
     )
 }

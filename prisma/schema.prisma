@@ -25,40 +25,70 @@ model User {
   notifications      Notification[]
   roadmaps           RoadmapItem[]
   userQuota          UserQuota?
+  logs               Log[]
 
   @@index([id])
 }
 
 model Job {
-  id              String          @id @default(uuid())
-  userId          String
-  company         String
-  position        String
-  status          JobStatus
-  website         String?
-  jobDescription  String?         @db.Text
-  dateApplied     DateTime?
-  notes           String?         @db.Text
-  contactName     String?
-  contactEmail    String?
-  contactPhone    String?
-  interviewDate   DateTime?
-  salary          Decimal?        @db.Decimal(10, 2)
-  location        String?
-  remoteType      RemoteType?
-  jobType         JobType?
-  flag            String?
-  aiRated         Boolean         @default(false)
-  aiNotes         String?         @db.Text
-  aiRating        Int?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  hunterCompanies HunterCompany[]
-  user            User            @relation(fields: [userId], references: [id])
+  id                    String                 @id @default(uuid())
+  userId                String
+  company               String
+  position              String
+  status                JobStatus
+  website               String?
+  jobDescription        String?                @db.Text
+  dateApplied           DateTime?
+  notes                 String?                @db.Text
+  contactName           String?
+  contactEmail          String?
+  contactPhone          String?
+  interviewDate         DateTime?
+  salary                Decimal?               @db.Decimal(10, 2)
+  location              String?
+  remoteType            RemoteType?
+  jobType               JobType?
+  flag                  String?
+  resumeUrl             String?
+  aiRated               Boolean                @default(false)
+  aiNotes               String?                @db.Text
+  aiRating              Int?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  hunterCompanies       HunterCompany[]
+  user                  User                   @relation(fields: [userId], references: [id])
+  generatedResumes      GeneratedResume[]
+  generatedCoverLetters GeneratedCoverLetter[]
 
   @@index([userId])
   @@index([company])
   @@index([status])
+}
+
+model GeneratedResume {
+  id             String   @id @default(uuid())
+  userId         String
+  jobId          String
+  resumeMarkdown String   @db.Text
+  resumeVersion  Decimal  @default(1.0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  job            Job      @relation(fields: [jobId], references: [id])
+
+  @@index([userId])
+}
+
+model GeneratedCoverLetter {
+  id                  String   @id @default(uuid())
+  userId              String
+  jobId               String
+  coverLetterMarkdown String   @db.Text
+  coverLetterVersion  Decimal  @default(1.0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  job                 Job      @relation(fields: [jobId], references: [id])
+
+  @@index([userId])
 }
 
 model UserQuota {
@@ -175,7 +205,6 @@ model HunterEmail {
   @@index([email])
 }
 
-
 model RoadmapItem {
   id          String        @id @default(uuid())
   title       String
@@ -187,7 +216,27 @@ model RoadmapItem {
   user        User?         @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "RoadmapItemI_userId_fkey")
-	@@map("Roadmap")
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  level     LogLevel
+  action    String
+  userId    String?
+  details   Json?
+  metadata  Json?
+  timestamp DateTime @default(now())
+  service   String
+  ip        String?
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  // Indexes
+  @@index([action])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([service])
 }
 
 enum JobStatus {
@@ -245,4 +294,10 @@ enum RoadmapStatus {
   not_started @map("not-started")
   in_progress @map("in-progress")
   completed
+}
+
+enum LogLevel {
+  info
+  warning
+  error
 }

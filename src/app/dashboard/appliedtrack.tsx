@@ -29,8 +29,8 @@ import { OnboardingModal } from '@/components/onboarding-modal';
 import ViewDetailsModal from './viewdetails';
 import KeyboardShortcut from '@/components/ui/keyboard-shortcut';
 // Model Imports
-import { IJob as Job } from '@/models/Job';
-import { JobStatus } from '@/models/Job';
+import { JobStatus } from '@prisma/client';
+import { Job } from '../types/job';
 import { toast } from "sonner"
 import { User } from '@/models/User';
 import JobCard from './jobcard';
@@ -70,12 +70,12 @@ const jobStatuses = Object.values(JobStatus);
 type SortDirection = 'asc' | 'desc' | null;
 
 interface SortState {
-  column: keyof Job | null;
+  column: string | null;
   direction: SortDirection;
 }
 
 interface ColumnDef {
-  id: keyof Job;
+  id: string;
   label: string;
   required?: boolean;
   sortable?: boolean;
@@ -84,7 +84,7 @@ interface ColumnDef {
 
 type AddJobStep = {
   title: string;
-  field: keyof Job;
+  field: string;
   type: 'text' | 'url' | 'textarea' | 'resume-date' | 'clearbit' | 'job-title';
   placeholder?: string;
 };
@@ -98,7 +98,7 @@ const columnDefs: ColumnDef[] = [
   { id: 'position', label: 'Position', sortable: true },
   { id: 'status', label: 'Status', required: true, sortable: true },
   { id: 'dateApplied', label: 'Date Applied', sortable: true },
-  { id: 'dateUpdated', label: 'Last Updated', sortable: true },
+  { id: 'updatedAt', label: 'Last Updated', sortable: true },
 ];
 
 const addJobSteps: AddJobStep[] = [
@@ -128,7 +128,7 @@ const addJobSteps: AddJobStep[] = [
   },
   {
     title: "Select resume and confirm date",
-    field: "resumeLink",
+    field: "resumeUrl",
     type: "resume-date"
   }
 ];
@@ -136,16 +136,16 @@ const addJobSteps: AddJobStep[] = [
 
 
 // ============= Utils =============
-const getStatusColor = (status: string): string => {
+const getStatusColor = (status: JobStatus): string => {
   switch (status) {
-    case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-    case 'Applied': return 'bg-blue-100 text-blue-800'
-    case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-    case 'Interview': return 'bg-purple-100 text-purple-800'
-    case 'Offer': return 'bg-green-100 text-green-800'
-    case 'Rejected': return 'bg-red-100 text-red-800'
-    case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-    default: return 'bg-gray-100 text-gray-800'
+    case JobStatus.YET_TO_APPLY: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    case JobStatus.APPLIED: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    case JobStatus.PHONE_SCREEN: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+    case JobStatus.INTERVIEW: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+    case JobStatus.OFFER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    case JobStatus.REJECTED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+    case JobStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
   }
 }
 
@@ -198,8 +198,6 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     }
   }, [])
 
-  
-
   function saveLayoutMode(mode: 'list' | 'masonry' | 'table') {
     setLayoutMode(mode)
     localStorage.setItem('layoutMode', mode)
@@ -214,7 +212,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>(initResumes);
   const searchParams = useSearchParams();
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
-  const [visibleColumns, setVisibleColumns] = useState<Set<keyof Job>>(
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
     new Set(columnDefs.map(col => col.id))
   );
   const [showColumnSelector, setShowColumnSelector] = useState(false);
@@ -292,23 +290,32 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         e.preventDefault()
         // Open modal to add new job
         setSelectedJob({
+          id: crypto.randomUUID(),
           userId: userId || '',
           company: '',
           position: '',
           status: JobStatus.YET_TO_APPLY,
+          latestGeneratedCoverLetter: null,
+          latestGeneratedResume: null,
           website: '',
-          resumeLink: '',
-          coverLetterLink: '',
+          resumeUrl: '',
           jobDescription: '',
-          notes: '',
+          notes: null,
           contactName: '',
           contactEmail: '',
           contactPhone: '',
-          interviewDate: '',
-          dateApplied: new Date().toISOString().split('T')[0],
+          interviewDate: null,
+          dateApplied: new Date(),
           aiRated: false,
           aiNotes: '',
           aiRating: 0,
+          salary: null,
+          location: null,
+          remoteType: null,
+          jobType: null,
+          flag: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
         })
         setIsModalOpen(true)
       }
@@ -327,7 +334,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     const updatedJob = {
       ...jobs.find(job => job.id === jobId)!,
       status: newStatus,
-      dateUpdated: new Date().toISOString(),
+      updatedAt: new Date(),
       flag: 'update' as const
     };
 
@@ -407,7 +414,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           aiRated: true,
           aiRating: response.aiRating,
           aiNotes: response.aiNotes,
-          dateUpdated: new Date().toISOString()
+          updatedAt: new Date()
         };
 
         await updateJobDetails(updatedJob as Job);
@@ -443,7 +450,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         matchesStatus = job.status === statusFilter;
       } else {
         // When "All" is selected, show only non-archived jobs
-        matchesStatus = job.status !== 'Archived';
+        matchesStatus = job.status !== JobStatus.ARCHIVED;
       }
 
       return matchesSearch && matchesStatus;
@@ -453,15 +460,15 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'rating_asc':
-          return a.aiRating - b.aiRating;
+          return (a.aiRating ?? 0) - (b.aiRating ?? 0);
         case 'rating_desc':
-          return b.aiRating - a.aiRating;
+          return (b.aiRating ?? 0) - (a.aiRating ?? 0);
         case 'newest':
-          return new Date(b.dateCreated || b.dateUpdated || '').getTime() - new Date(a.dateCreated || a.dateUpdated || '').getTime();
+          return new Date(b.createdAt || b.updatedAt || '').getTime() - new Date(a.createdAt || a.updatedAt || '').getTime();
         case 'oldest':
-          return new Date(a.dateCreated || a.dateUpdated || '').getTime() - new Date(b.dateCreated || b.dateUpdated || '').getTime();
+          return new Date(a.createdAt || a.updatedAt || '').getTime() - new Date(b.createdAt || b.updatedAt || '').getTime();
         case 'updated':
-          return new Date(b.dateUpdated || '').getTime() - new Date(a.dateUpdated || '').getTime();
+          return new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime();
         case 'company':
           return (a.company || '').localeCompare(b.company || '');
         case 'status':
@@ -487,8 +494,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     if (!sortState.column || !sortState.direction) return filteredJobs;
 
     return [...filteredJobs].sort((a, b) => {
-      const aVal = a[sortState.column!];
-      const bVal = b[sortState.column!];
+      const aVal = a[sortState.column as keyof Job];
+      const bVal = b[sortState.column as keyof Job];
 
       if (!aVal && !bVal) return 0;
       if (!aVal) return 1;
@@ -624,8 +631,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                   <SelectItem value="All">All Statuses</SelectItem>
                   {jobStatuses.map(status => (
                     <SelectItem key={status} value={status}>
-                      {status === 'Archived'
-                        ? `${status} (${jobs.filter(job => job.status === "Archived").length})`
+                      {status === JobStatus.ARCHIVED
+                        ? `${status} (${jobs.filter(job => job.status === JobStatus.ARCHIVED).length})`
                         : `${status} (${jobs.filter(job => job.status === status).length})`
                       }
                     </SelectItem>
@@ -835,8 +842,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                                 <Badge className={`${getStatusColor(job.status)}`}>
                                   {job.status}
                                 </Badge>
-                              ) : col.id === 'dateApplied' || col.id === 'dateUpdated' ? (
-                                job[col.id] ? format(new Date(job[col.id]!), 'PP') : 'N/A'
+                              ) : col.id === 'dateApplied' ? (
+                                job.dateApplied ? format(new Date(job.dateApplied)!, 'PP') : 'N/A'
                               ) : col.id === 'contactName' ? (
                                 <div className="flex flex-col">
                                   <span>{job.contactName || 'N/A'}</span>
@@ -847,7 +854,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                                   )}
                                 </div>
                               ) : (
-                                String(job[col.id] || 'N/A')
+                                String(job[col.id as keyof Job] || 'N/A')
                               )}
                             </TableCell>
                           ))}
@@ -900,7 +907,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                     transition={{ duration: 0.3 }}
                   >
                     <JobCard
-                      job={job}
+                      job={job as Job}
                       openJobDetails={openJobDetails}
                       handleKeyDown={handleKeyDown}
                       layoutMode={layoutMode}
@@ -1005,15 +1012,15 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Partial<Job>>({
-    dateApplied: new Date().toISOString().split('T')[0],
+    dateApplied: new Date(),
     status: JobStatus.YET_TO_APPLY,
     company: '',
     position: '',
     website: '',
     jobDescription: '',
-    resumeLink: '',
+    resumeUrl: '',
     userId: '',
-    dateUpdated: new Date().toISOString()
+    updatedAt: new Date()
   });
 
   const handleBack = () => {
@@ -1052,15 +1059,15 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
     onSubmit(formData as Job);
     setCurrentStep(0);
     setFormData({
-      dateApplied: new Date().toISOString().split('T')[0],
+      dateApplied: new Date(),
       status: JobStatus.YET_TO_APPLY,
       company: '',
       position: '',
       website: '',
       jobDescription: '',
-      resumeLink: '',
+      resumeUrl: '',
       userId: '',
-      dateUpdated: new Date().toISOString()
+      updatedAt: new Date()
     });
     onClose();
   };
@@ -1117,7 +1124,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
                     ...prev,
                     company: company.name,
                     website: `https://${company.domain}`,
-                    dateUpdated: new Date().toISOString()
+                    updatedAt: new Date()
                   }));
                 }}
                 onCustomInput={(companyName) => {
@@ -1125,7 +1132,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
                     ...prev,
                     company: companyName,
                     website: '', // Clear website when custom input
-                    dateUpdated: new Date().toISOString()
+                    updatedAt: new Date()
                   }));
                 }}
                 className="w-full p-2"
@@ -1214,10 +1221,10 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
                     />
                   </div>
                   <div>
-                    <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
+                    <Label htmlFor="resumeUrl" className="block mb-2">Resume *</Label>
                     <Select
-                      value={formData.resumeLink}
-                      onValueChange={(value) => setFormData({ ...formData, resumeLink: value })}
+                      value={formData.resumeUrl}
+                      onValueChange={(value) => setFormData({ ...formData, resumeUrl: value })}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a resume" />
@@ -1234,7 +1241,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
                       endpoint="pdfUploader"
                       onClientUploadComplete={(data: any) => {
                         setResumes([...resumes, { resumeId: data[0].key, fileUrl: data[0].url, fileName: data[0].name }]);
-                        formData.resumeLink = data[0].url;
+                        formData.resumeUrl = data[0].url;
                       }}
                       onUploadError={(error: any) => {
                         toast.error(`Error uploading resume: ${error.message}`);
@@ -1303,4 +1310,3 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
     </Dialog>
   );
 }
-

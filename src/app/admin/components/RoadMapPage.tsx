@@ -12,6 +12,7 @@ import { srv_getRoadmapData, srv_updateRoadmap, srv_createRoadmap, srv_deleteRoa
 import { TRoadmap, RoadmapStatus, toBackendStatus, toFrontendStatus } from '@/types/roadmap'
 import { FaTrash } from 'react-icons/fa'
 import { PiKeyReturnLight } from 'react-icons/pi'
+import KeyboardShortcut from "@/components/ui/keyboard-shortcut"
 
 type DisplayStatus = 'not-started' | 'in-progress' | 'completed'
 
@@ -33,9 +34,9 @@ export function RoadMapPage() {
     const handleDragEnd = async (result: any) => {
         const { source, destination, draggableId } = result
 
-        if (!destination || 
-            (destination.droppableId === source.droppableId && 
-             destination.index === source.index)) {
+        if (!destination ||
+            (destination.droppableId === source.droppableId &&
+                destination.index === source.index)) {
             return
         }
 
@@ -55,7 +56,7 @@ export function RoadMapPage() {
 
             const insertIndex = destination.index
             newItems.splice(insertIndex, 0, removed)
-            
+
             setItems(newItems)
 
             if (source.droppableId !== destination.droppableId) {
@@ -72,7 +73,7 @@ export function RoadMapPage() {
                     return
                 }
             }
-            
+
             toast.success("Item moved successfully")
         } catch (error) {
             console.error('Error moving item:', error)
@@ -98,8 +99,8 @@ export function RoadMapPage() {
         if (!newItem.title.trim()) return
 
         const response = await srv_createRoadmap(
-            newItem.title, 
-            newItem.description, 
+            newItem.title,
+            newItem.description,
             'not_started'
         )
 
@@ -115,7 +116,7 @@ export function RoadMapPage() {
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
             e.preventDefault()
             handleCreateItem()
         }
@@ -133,7 +134,7 @@ export function RoadMapPage() {
 
     const handleMigration = async () => {
         try {
-            
+
             await srv_migrateMongoRoadmapData()
             toast.success("Migration completed successfully")
             fetchItems()
@@ -177,11 +178,11 @@ export function RoadMapPage() {
                                     onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                                     onKeyDown={handleKeyDown}
                                 />
-                                <Button 
+                                <Button
                                     onClick={handleCreateItem}
                                 >
-                                    Create
-                                    <PiKeyReturnLight className="ml-2 h-5 w-5" />
+                                    <span className="mr-2">Create</span>
+                                    <KeyboardShortcut text="cmd + enter" />
                                 </Button>
                             </div>
                         </DialogContent>
@@ -202,9 +203,8 @@ export function RoadMapPage() {
                                     <div
                                         {...provided.droppableProps}
                                         ref={provided.innerRef}
-                                        className={`space-y-4 min-h-[200px] ${
-                                            snapshot.isDraggingOver ? 'bg-muted/80' : ''
-                                        }`}
+                                        className={`space-y-4 min-h-[200px] ${snapshot.isDraggingOver ? 'bg-muted/80' : ''
+                                            }`}
                                     >
                                         {items
                                             .filter(item => toFrontendStatus(item.status) === status)
@@ -219,15 +219,13 @@ export function RoadMapPage() {
                                                             ref={provided.innerRef}
                                                             {...provided.draggableProps}
                                                             {...provided.dragHandleProps}
-                                                            className={`p-4 cursor-pointer transition-shadow relative group ${
-                                                                snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
-                                                            } ${
-                                                                toFrontendStatus(item.status) === 'not-started' 
-                                                                    ? 'bg-red-500/10 hover:bg-red-500/20' 
+                                                            className={`p-4 cursor-pointer transition-shadow relative group ${snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
+                                                                } ${toFrontendStatus(item.status) === 'not-started'
+                                                                    ? 'bg-red-500/10 hover:bg-red-500/20'
                                                                     : toFrontendStatus(item.status) === 'in-progress'
-                                                                    ? 'bg-yellow-500/10 hover:bg-yellow-500/20'
-                                                                    : 'bg-green-500/10 hover:bg-green-500/20'
-                                                            }`}
+                                                                        ? 'bg-yellow-500/10 hover:bg-yellow-500/20'
+                                                                        : 'bg-green-500/10 hover:bg-green-500/20'
+                                                                }`}
                                                         >
                                                             <div className="flex justify-between items-start">
                                                                 <div onClick={() => setEditItem(item)} className="flex-1">
@@ -274,6 +272,7 @@ export function RoadMapPage() {
                             />
                             <Textarea
                                 value={editItem.description}
+                                className='h-40'
                                 onChange={(e) => setEditItem({ ...editItem, description: e.target.value })}
                             />
                             <Button onClick={handleUpdateItem}>Update</Button>
