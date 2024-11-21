@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export enum JobStatus {
+enum JobStatus {
   YET_TO_APPLY = 'Yet to Apply',
   APPLIED = 'Applied',
   PHONE_SCREEN = 'Phone Screen',
@@ -12,7 +12,7 @@ export enum JobStatus {
 }
 
 // First, create an interface for the plain job object
-export interface IJob {
+interface IJob {
   id?: string;
   userId: string;
   company: string;
@@ -157,10 +157,10 @@ const JobSchema = new mongoose.Schema({
 });
 
 
-export type Job = mongoose.Document & IJob;
+type Job = mongoose.Document & IJob;
 
 // Fix the model export to handle Next.js hot reloading properly
 const JobModel = (mongoose.models?.Job || mongoose.model('Job', JobSchema)) as mongoose.Model<Job>;
 
 // Export the model
-export { JobModel };
+{ JobModel };

@@ -359,16 +359,16 @@ const JobCard = React.forwardRef(({
     };
 
     const renderHunterPreview = () => {
-        if (!job.hunterCompanies?.emails?.length) return null;
+        if (!job.hunterData?.emails?.length) return null;
 
-        const previewEmails = job.hunterCompanies.emails.slice(0, 2);
-        const remainingCount = Math.max(0, job.hunterCompanies.emails.length - 2);
+        const previewEmails = job.hunterData.emails.slice(0, 2);
+        const remainingCount = Math.max(0, job.hunterData.emails.length - 2);
 
         return (
             <div className="space-y-2">
                 {previewEmails.map((email, index) => (
                     <div key={index} className="flex items-center justify-between text-sm">
-                        <span>{email.first_name} {email.last_name}</span>
+                        <span>{email.firstName} {email.lastName}</span>
                         <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
                                 {email.position}
@@ -403,7 +403,7 @@ const JobCard = React.forwardRef(({
 
             // Call the parent's updateJobDetails to refresh the UI
             const updatedJob = response.data;
-            updateJobDetails(updatedJob);
+            updateJobDetails(updatedJob as Job);
 
             toast.success("Job Archived", {
                 description: "The job has been successfully archived"
@@ -515,7 +515,7 @@ const JobCard = React.forwardRef(({
                     )}
 
                     <div className="mt-4 text-xs text-gray-500">
-                        Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PP') : 'N/A'}
+                        Last updated: {job.updatedAt ? format(new Date(job.updatedAt), 'PP') : 'N/A'}
                     </div>
                 </CardContent>
             </Card>
@@ -743,7 +743,7 @@ const JobCard = React.forwardRef(({
                                     <h3 className="text-xl font-semibold">{job.position}</h3>
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                    Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
+                                    Last updated: {job.updatedAt ? format(new Date(job.updatedAt), 'PPP') : 'Not available'}
                                 </p>
                             </div>
                             <div className="flex items-center space-x-2 mt-2 md:mt-0">

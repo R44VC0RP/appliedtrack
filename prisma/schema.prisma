@@ -22,10 +22,10 @@ model User {
   updatedAt          DateTime        @updatedAt
   hunterCompanies    HunterCompany[]
   jobs               Job[]
+  logs               Log[]
   notifications      Notification[]
   roadmaps           RoadmapItem[]
   userQuota          UserQuota?
-  logs               Log[]
 
   @@index([id])
 }
@@ -49,16 +49,16 @@ model Job {
   remoteType            RemoteType?
   jobType               JobType?
   flag                  String?
-  resumeUrl             String?
   aiRated               Boolean                @default(false)
   aiNotes               String?                @db.Text
   aiRating              Int?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  resumeUrl             String?
+  generatedCoverLetters GeneratedCoverLetter[]
+  generatedResumes      GeneratedResume[]
   hunterCompanies       HunterCompany[]
   user                  User                   @relation(fields: [userId], references: [id])
-  generatedResumes      GeneratedResume[]
-  generatedCoverLetters GeneratedCoverLetter[]
 
   @@index([userId])
   @@index([company])
@@ -70,12 +70,13 @@ model GeneratedResume {
   userId         String
   jobId          String
   resumeMarkdown String   @db.Text
-  resumeVersion  Decimal  @default(1.0)
+  resumeVersion  Decimal  @default(1.000000000000000000000000000000)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   job            Job      @relation(fields: [jobId], references: [id])
 
   @@index([userId])
+  @@index([jobId], map: "GeneratedResume_jobId_fkey")
 }
 
 model GeneratedCoverLetter {
@@ -83,12 +84,13 @@ model GeneratedCoverLetter {
   userId              String
   jobId               String
   coverLetterMarkdown String   @db.Text
-  coverLetterVersion  Decimal  @default(1.0)
+  coverLetterVersion  Decimal  @default(1.000000000000000000000000000000)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   job                 Job      @relation(fields: [jobId], references: [id])
 
   @@index([userId])
+  @@index([jobId], map: "GeneratedCoverLetter_jobId_fkey")
 }
 
 model UserQuota {
@@ -163,6 +165,7 @@ model Notification {
 model HunterCompany {
   id        String        @id @default(uuid())
   userId    String
+  pattern   String        @default("")
   jobId     String
   domain    String
   name      String?
@@ -195,6 +198,9 @@ model HunterEmail {
   position      String?
   seniority     String?
   department    String?
+  linkedin      String?
+  twitter       String?
+  facebook      String?
   confidence    Int?
   metadata      Json?
   createdAt     DateTime      @default(now())
@@ -228,11 +234,8 @@ model Log {
   timestamp DateTime @default(now())
   service   String
   ip        String?
+  user      User?    @relation(fields: [userId], references: [id])
 
-  // Relations
-  user User? @relation(fields: [userId], references: [id])
-
-  // Indexes
   @@index([action])
   @@index([userId])
   @@index([timestamp])

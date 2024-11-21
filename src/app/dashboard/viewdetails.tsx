@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Job, JobStatus } from '@prisma/client';
+import { Job } from '@/app/types/job';
+import { JobStatus, RemoteType, JobType } from '@prisma/client';
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Check, Pencil } from "lucide-react";
@@ -58,7 +59,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
         await handleAIRecommendation(job);
         try {
             const updatedJob = await srv_getJob(job.id || '');
-            setSelectedJob(updatedJob);
+            setSelectedJob(updatedJob as Job);
         } catch (error) {
             console.error('Error fetching updated job details:', error);
         }
@@ -122,7 +123,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
     };
 
     const renderHunterTab = () => {
-        if (!job.hunterData?.emails?.length) {
+        if (!job.hunterData?.emails) {
             return (
                 <div className="text-center py-8 text-gray-500">
                     No Hunter.io data available
@@ -134,16 +135,16 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Email Pattern</h3>
-                    <Badge variant="secondary">{job.hunterData.pattern}</Badge>
+                    <Badge variant="secondary">{job.hunterData?.pattern}</Badge>
                 </div>
 
                 <div className="space-y-4">
-                    {job.hunterData.emails.map((email, index) => (
+                    {job.hunterData?.emails?.map((email, index) => (
                         <Card key={index} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h4 className="font-semibold">
-                                        {email.first_name} {email.last_name}
+                                        {email.firstName} {email.lastName}
                                     </h4>
                                     <p className="text-sm text-gray-600">{email.position}</p>
                                 </div>
@@ -153,14 +154,8 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                             <div className="mt-4 grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Email</Label>
-                                    <p className="text-sm font-mono">{email.value}</p>
+                                    <p className="text-sm font-mono">{email.email}</p>
                                 </div>
-                                {email.phone_number && (
-                                    <div>
-                                        <Label>Phone</Label>
-                                        <p className="text-sm">{email.phone_number}</p>
-                                    </div>
-                                )}
                                 {email.department && (
                                     <div>
                                         <Label>Department</Label>
@@ -187,6 +182,11 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                 {email.twitter && (
                                     <a href={`https://twitter.com/${email.twitter}`} target="_blank" rel="noopener noreferrer">
                                         <Button variant="outline" size="sm">Twitter</Button>
+                                    </a>
+                                )}
+                                {email.facebook && (
+                                    <a href={`https://facebook.com/${email.facebook}`} target="_blank" rel="noopener noreferrer">
+                                        <Button variant="outline" size="sm">Facebook</Button>
                                     </a>
                                 )}
                             </div>
@@ -217,7 +217,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     </div>
                                 </div>
                                 <a
-                                    href={job.website}
+                                    href={job.website || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 whitespace-nowrap"
@@ -377,29 +377,29 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     <Separator />
                                     <div className="space-y-2">
                                         <h4 className="font-semibold">Important Dates</h4>
-                                        {renderField("Interview Date", job.interviewDate, "interviewDate")}
-                                        {renderField("Date Applied", job.dateApplied, "dateApplied")}
+                                        {renderField("Interview Date", job.interviewDate?.toDateString(), "interviewDate")}
+                                        {renderField("Date Applied", job.dateApplied?.toDateString(), "dateApplied")}
                                     </div>
                                     <Separator />
                                     <div className="space-y-2">
                                         <h4 className="font-semibold">Documents</h4>
                                         <div className="space-y-4">
-                                            {job.resumeLink && (
+                                            {job.resumeUrl && (
                                                 <div>
                                                     <Label className="font-semibold">Resume</Label>
-                                                    <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
+                                                    <embed src={job.resumeUrl} type="application/pdf" width="100%" height="400px" />
                                                 </div>
                                             )}
-                                            {job.coverLetterLink && (
+                                            {job.latestGeneratedCoverLetter && (
                                                 <div>
                                                     <Label className="font-semibold">Cover Letter</Label>
-                                                    <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
+                                                    <embed src={job.latestGeneratedCoverLetter.coverLetterMarkdown} type="application/pdf" width="100%" height="400px" />
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                     <Separator />
-                                    <div className="space-y-4">
+                                    {/* <div className="space-y-4">
                                         <h4 className="font-semibold">Additional Details</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             {renderField("Salary", job.salary, "salary")}
@@ -407,7 +407,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                             {renderField("Remote Type", job.remoteType, "remoteType")}
                                             {renderField("Job Type", job.jobType, "jobType")}
                                         </div>
-                                    </div>
+                                    </div> */}
                                 </div>
                             ) : (
                                 <div className="p-3 sm:p-6">

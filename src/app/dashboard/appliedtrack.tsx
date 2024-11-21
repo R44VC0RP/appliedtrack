@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 
+import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 import ReactConfetti from 'react-confetti';
 import { SubscriptionStatus } from '../components/subscription-status';
 import { Badge } from "@/components/ui/badge"
@@ -29,8 +29,8 @@ import { OnboardingModal } from '@/components/onboarding-modal';
 import ViewDetailsModal from './viewdetails';
 import KeyboardShortcut from '@/components/ui/keyboard-shortcut';
 // Model Imports
-import { JobStatus } from '@prisma/client';
-import { Job } from '../types/job';
+import { Job, GeneratedResumeWithStatus, GeneratedCoverLetterWithStatus } from '../types/job';
+import { JobStatus, RemoteType, JobType } from '@prisma/client';
 import { toast } from "sonner"
 import { User } from '@/models/User';
 import JobCard from './jobcard';
@@ -64,18 +64,28 @@ function useWindowSize() {
   return size;
 }
 
+const SignedOutCallback = () => {
+  useEffect(() => {
+    window.location.href = "/";
+  }, []);
+  return null;
+};
+
+
+
+
 const jobStatuses = Object.values(JobStatus);
 
 // ============= Types & Interfaces =============
 type SortDirection = 'asc' | 'desc' | null;
 
 interface SortState {
-  column: string | null;
+  column: keyof Job | null;
   direction: SortDirection;
 }
 
 interface ColumnDef {
-  id: string;
+  id: keyof Job;
   label: string;
   required?: boolean;
   sortable?: boolean;
@@ -84,7 +94,7 @@ interface ColumnDef {
 
 type AddJobStep = {
   title: string;
-  field: string;
+  field: keyof Job;
   type: 'text' | 'url' | 'textarea' | 'resume-date' | 'clearbit' | 'job-title';
   placeholder?: string;
 };
@@ -161,6 +171,35 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
+const createEmptyJob = (userId: string): Job => ({
+  id: crypto.randomUUID(),
+  userId,
+  company: '',
+  position: '',
+  status: JobStatus.YET_TO_APPLY,
+  website: null,
+  jobDescription: null,
+  dateApplied: new Date(),
+  notes: null,
+  contactName: null,
+  contactEmail: null,
+  contactPhone: null,
+  interviewDate: null,
+  salary: null,
+  location: null,
+  remoteType: null,
+  jobType: null,
+  flag: null,
+  resumeUrl: null,
+  aiRated: false,
+  aiNotes: null,
+  aiRating: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  latestGeneratedResume: null,
+  latestGeneratedCoverLetter: null,
+  hunterData: null
+});
 
 export function useClientMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
@@ -286,49 +325,20 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'n') {
-        // This opens the modal to add a new job
-        e.preventDefault()
-        // Open modal to add new job
-        setSelectedJob({
-          id: crypto.randomUUID(),
-          userId: userId || '',
-          company: '',
-          position: '',
-          status: JobStatus.YET_TO_APPLY,
-          latestGeneratedCoverLetter: null,
-          latestGeneratedResume: null,
-          website: '',
-          resumeUrl: '',
-          jobDescription: '',
-          notes: null,
-          contactName: '',
-          contactEmail: '',
-          contactPhone: '',
-          interviewDate: null,
-          dateApplied: new Date(),
-          aiRated: false,
-          aiNotes: '',
-          aiRating: 0,
-          salary: null,
-          location: null,
-          remoteType: null,
-          jobType: null,
-          flag: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        setIsModalOpen(true)
+        e.preventDefault();
+        setSelectedJob(createEmptyJob(user?.id || ''));
+        setIsModalOpen(true);
       }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         // This focuses the search box
         e.preventDefault()
         document.getElementById('searchBox')?.focus()
       }
-    }
+    };
 
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [])
+  }, []);
 
   const updateJobStatus = (jobId: string, newStatus: Job['status']) => {
     const updatedJob = {
@@ -362,7 +372,13 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         toast.error(response.error);
         return;
       }
-      setJobs([...jobs, response.data]);
+      // Add type guard to check if response.data is an array
+      if (Array.isArray(response.data)) {
+        setJobs([...jobs, ...response.data]);
+      } else if (response.data) {
+        // If it's a single job, add it as a single item
+        setJobs([...jobs, response.data as Job]);
+      }
       setIsModalOpen(false);
       toast.success("Job Added")
     } catch (error) {
@@ -375,19 +391,16 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
   const updateJobDetails = async (updatedJob: Job) => {
     try {
-      if (!updatedJob.id) {
-        await addNewJob(updatedJob);
-        return;
-      }
-
       const response = await srv_updateJob(updatedJob);
-      if (!response) {
-        throw new Error('Failed to update job');
+      if (response) {
+        const updatedJobWithGeneratedContent: Job = {
+          ...response,
+          latestGeneratedResume: null,
+          latestGeneratedCoverLetter: null,
+          hunterData: null
+        };
+        setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJobWithGeneratedContent : job));
       }
-
-      console.log("Updated job:", response);
-      setJobs(jobs.map(job => job.id === updatedJob.id ? response : job));
-      setIsModalOpen(false);
     } catch (error) {
       console.error('Error updating job:', error);
       toast.error("Failed to update the job. Please try again.")
@@ -437,19 +450,18 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
   const filteredJobs = useMemo(() => {
+    const searchTermLower = searchTerm.toLowerCase();
     let filtered = jobs.filter(job => {
-      // Search term filter
-      const matchesSearch =
-        job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.position?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || 
+        job.company?.toLowerCase().includes(searchTermLower) ||
+        job.position?.toLowerCase().includes(searchTermLower) ||
+        job.jobDescription?.toLowerCase().includes(searchTermLower) ||
+        job.notes?.toLowerCase().includes(searchTermLower);
 
-      // Status filter
       let matchesStatus = true;
       if (statusFilter !== 'All') {
-        // For other statuses, show non-archived jobs that match the status
         matchesStatus = job.status === statusFilter;
       } else {
-        // When "All" is selected, show only non-archived jobs
         matchesStatus = job.status !== JobStatus.ARCHIVED;
       }
 
@@ -464,15 +476,15 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         case 'rating_desc':
           return (b.aiRating ?? 0) - (a.aiRating ?? 0);
         case 'newest':
-          return new Date(b.createdAt || b.updatedAt || '').getTime() - new Date(a.createdAt || a.updatedAt || '').getTime();
+          return b.createdAt.getTime() - a.createdAt.getTime();
         case 'oldest':
-          return new Date(a.createdAt || a.updatedAt || '').getTime() - new Date(b.createdAt || b.updatedAt || '').getTime();
+          return a.createdAt.getTime() - b.createdAt.getTime();
         case 'updated':
-          return new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime();
+          return b.updatedAt.getTime() - a.updatedAt.getTime();
         case 'company':
           return (a.company || '').localeCompare(b.company || '');
         case 'status':
-          return jobStatuses.indexOf(a.status) - jobStatuses.indexOf(b.status);
+          return a.status.localeCompare(b.status);
         default:
           return 0;
       }
@@ -480,14 +492,6 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   }, [jobs, searchTerm, statusFilter, sortBy]);
 
   
-
-  const openNewJobModal = async () => {
-    const resumes = await srv_getResumes();
-    setResumes(resumes);
-    setIsModalOpen(true);
-  };
-
-
 
   const sortedJobs = useMemo(() => {
     // console.log(filteredJobs);
@@ -617,7 +621,10 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
-                onClick={openNewJobModal}
+                onClick={() => {
+                  setSelectedJob(createEmptyJob(user?.id || ''));
+                  setIsModalOpen(true);
+                }}
                 className="flex items-center gap-2"
               >
                 Add New Job
@@ -727,7 +734,10 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                 Click the + button to add your first job application or click here to add your first job application.
 
               </p>
-              <Button onClick={openNewJobModal}>Add Your First Job Application</Button>
+              <Button onClick={() => {
+                setSelectedJob(createEmptyJob(user?.id || ''));
+                setIsModalOpen(true);
+              }}>Add Your First Job Application</Button>
 
             </div>
           </div>
@@ -956,17 +966,21 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           </AnimatePresence>
         )}
 
-        <SteppedAddJobModal
+        <AddJobModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSubmit={addNewJob}
           resumes={resumes}
           setResumes={setResumes}
+          user={user}
         />
 
         {/* <Button
           className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
-          onClick={openNewJobModal}
+          onClick={() => {
+            setSelectedJob(createEmptyJob(user?.id || ''));
+            setIsModalOpen(true);
+          }}
         >
           +
         </Button> */}
@@ -988,40 +1002,30 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   )
 }
 
-//#endregion
-
-//#region ============= Small Components =============
-const SignedOutCallback = () => {
-  useEffect(() => {
-    window.location.href = "/";
-  }, []);
-  return null;
-};
-
-
-
-// ============= Card Components =============
-
-// ============= Modal Components =============
-function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: {
+interface AddJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (job: Job) => void;
   resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
   setResumes: (resumes: { resumeId: string; fileUrl: string; fileName: string; }[]) => void;
-}) {
+  user: CompleteUserProfile | null;
+}
+
+function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: AddJobModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<Partial<Job>>({
-    dateApplied: new Date(),
-    status: JobStatus.YET_TO_APPLY,
-    company: '',
-    position: '',
-    website: '',
-    jobDescription: '',
-    resumeUrl: '',
-    userId: '',
-    updatedAt: new Date()
-  });
+  const [formData, setFormData] = useState<Job>(createEmptyJob(user?.id || ''));
+
+  const handleSubmit = () => {
+    if (!formData.company || !formData.position) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    onSubmit(formData);
+    setCurrentStep(0);
+    setFormData(createEmptyJob(user?.id || ''));
+    onClose();
+  };
 
   const handleBack = () => {
     if (currentStep > 0) {
@@ -1030,46 +1034,11 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
   };
 
   const handleNext = () => {
-    const currentField = addJobSteps[currentStep].field;
-
-    // Special validation for company step
-    if (currentField === 'company' && !formData.company) {
-      toast.error("Please select a company from the suggestions");
-      return;
-    }
-
-    if (!formData[currentField]) {
-      toast.error(`Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`);
-      return;
-    }
-
     if (currentStep < addJobSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
       handleSubmit();
     }
-  };
-
-  const handleSubmit = () => {
-    if (!formData.company || !formData.position) {
-      toast.error("Company name and position are required.");
-      return;
-    }
-
-    onSubmit(formData as Job);
-    setCurrentStep(0);
-    setFormData({
-      dateApplied: new Date(),
-      status: JobStatus.YET_TO_APPLY,
-      company: '',
-      position: '',
-      website: '',
-      jobDescription: '',
-      resumeUrl: '',
-      userId: '',
-      updatedAt: new Date()
-    });
-    onClose();
   };
 
   useEffect(() => {
@@ -1214,8 +1183,8 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
                     <Input
                       id="dateApplied"
                       type="date"
-                      value={formData.dateApplied || ''}
-                      onChange={(e) => setFormData({ ...formData, dateApplied: e.target.value })}
+                      value={formData.dateApplied?.toDateString() || ''}
+                      onChange={(e) => setFormData({ ...formData, dateApplied: new Date(e.target.value), updatedAt: new Date(e.target.value) })}
                       required
                       className="w-full"
                     />
@@ -1223,7 +1192,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
                   <div>
                     <Label htmlFor="resumeUrl" className="block mb-2">Resume *</Label>
                     <Select
-                      value={formData.resumeUrl}
+                      value={formData.resumeUrl || ''}
                       onValueChange={(value) => setFormData({ ...formData, resumeUrl: value })}
                     >
                       <SelectTrigger className="w-full">
@@ -1310,3 +1279,4 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes }: 
     </Dialog>
   );
 }
+

@@ -5,6 +5,7 @@ import { srv_checkUserAttributes, srv_initialData } from "@/app/actions/server/j
 import { CompleteUserProfile } from "@/lib/useUser";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { Job } from "@/app/types/job";
 import { SubscriptionStatus } from '../components/subscription-status';
 
 export default async function DashboardPage() {
@@ -14,10 +15,9 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
   const user = await srv_checkUserAttributes(clerkUser.id);
-  console.log(user);
   return (
     <div>
-      <AppliedTrack initJobs={jobs} initResumes={resumes} onboardingComplete={user?.onBoardingComplete || false} role={user?.role || 'user'} tier={user?.tier || 'free'} user={user as CompleteUserProfile} />
+      <AppliedTrack initJobs={jobs as unknown as Job[]} initResumes={resumes} onboardingComplete={user?.onBoardingComplete || false} role={user?.role || 'user'} tier={user?.tier || 'free'} user={user as CompleteUserProfile} />
     </div>
   )
 }

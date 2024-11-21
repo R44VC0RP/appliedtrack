@@ -1,6 +1,5 @@
 "use server"
 
-import { JobModel } from "@/models/Job";
 import { ResumeModel } from "@/models/Resume";
 import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from "@/lib/logger";
@@ -10,7 +9,7 @@ import { srv_addGenAIAction } from "@/lib/useGenAI";
 import { ConfigModel } from "@/models/Config";
 import { UserQuotaModel } from "@/models/UserQuota";
 import { plain } from "@/lib/plain";
-import { IJob as Job } from "@/models/Job";
+
 import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
 import Pdf from "@/lib/pdf-helper";
@@ -24,6 +23,7 @@ import { render } from 'resumed';
 import { join } from 'path';
 import { UTApi } from "uploadthing/server";
 import { PrismaClient, JobStatus } from '@prisma/client'
+import { Job } from "@/app/types/job";
 
 const utapi = new UTApi();
 const prisma = new PrismaClient()
@@ -220,18 +220,25 @@ export async function srv_getJobs() {
             createdAt: 'desc'
           },
           take: 1
+        },
+        hunterCompanies: {
+          include: {
+            emails: true
+          }
         }
       }
     });
 
     // Transform the response to flatten the most recent resume
-    const transformedJobs = jobs.map(job => ({
-      ...job,
-      latestGeneratedResume: job.generatedResumes[0] || null,
-      latestGeneratedCoverLetter: job.generatedCoverLetters[0] || null,
-      generatedResumes: undefined, // Remove the full array since we only need the latest
-      generatedCoverLetters: undefined
-    }));
+    const transformedJobs = jobs.map(job => {
+      return {
+        ...job,
+        latestGeneratedResume: job.generatedResumes[0] || null,
+        latestGeneratedCoverLetter: job.generatedCoverLetters[0] || null,
+        generatedResumes: undefined, // Remove the full array since we only need the latest
+        generatedCoverLetters: undefined
+      };
+    });
 
     // Count active jobs (not archived)
     const activeJobCount = transformedJobs.filter(job => job.status !== 'ARCHIVED').length;
@@ -491,6 +498,12 @@ export async function srv_initialData() {
   }
 
   const jobs = await srv_getJobs();
+  for (let i = 0; i < jobs.length; i++) {
+    if (jobs[i].hunterCompanies?.length != 0) {
+      console.log("Found hunter companies for job:", jobs[i].id);
+      // console.log(jobs[i].hunterCompanies);
+    }
+  }
   const resumes = await srv_getResumes();
   return { jobs, resumes };
 }
@@ -529,7 +542,7 @@ export async function srv_createAIRating(job: Job) {
   }
 
   // Extract text from resume PDF
-  const resumeText = await Pdf.getPDFText(job.resumeLink);
+  const resumeText = await Pdf.getPDFText(job.resumeUrl || '');
   await Logger.info('Resume text extracted successfully', {
     jobId: job.id,
     resumeLength: resumeText.length
@@ -588,7 +601,7 @@ export async function srv_createAIRating(job: Job) {
 
   await srv_addGenAIAction('createAIResumeRating', usage.promptTokens, usage.completionTokens, totalCostInCents);
 
-  console.log(usage);
+  // console.log(usage);
 
   // After successful generation, update usage
 
@@ -693,7 +706,7 @@ export async function srv_generateResume(job: Job) {
   }
 
   // Extract text from resume PDF
-  const resumeText = await Pdf.getPDFText(job.resumeLink);
+  const resumeText = await Pdf.getPDFText(job.resumeUrl || '');
   
   const resumeSchema = z.object({
     basics: z.object({
