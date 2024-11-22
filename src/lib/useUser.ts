@@ -1,9 +1,12 @@
 'use server';
 
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
-import { UserModel, User } from "@/models/User";
 import { Logger } from '@/lib/logger';
 import { plain } from "./plain";
+
+import { UserRole, UserTier, PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface CompleteUserProfile {
   // Clerk data
@@ -15,20 +18,16 @@ export interface CompleteUserProfile {
   lastSignInAt: Date | null;
   createdAt: Date | null;
   
-  // MongoDB data
-  _id: string;
-  userId: string;
-  tier: User['tier'];
-  role: User['role'];
-  about: string;
-  onBoardingComplete: boolean;
-  dateCreated: Date;
-  dateUpdated: Date;
-  stripeCustomerId?: string;
-  subscriptionId?: string;
-  currentPeriodEnd?: Date;
-  cancelAtPeriodEnd?: boolean;
-
+  // Prisma data
+  tier: UserTier;
+  role: UserRole;
+  about: string | null;
+  onboardingComplete: boolean;
+  stripeCustomerId?: string | null;
+  subscriptionId?: string | null;
+  currentPeriodEnd?: Date | null;
+  cancelAtPeriodEnd?: boolean | null;
+  updatedAt: Date;
 }
 
 export async function srv_getCompleteUserProfile(userId: string): Promise<CompleteUserProfile | null> {
@@ -39,7 +38,7 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
         await Logger.warning('Clerk user not found', { userId });
         return null;
       }),
-      UserModel.findOne({ userId })
+      prisma.user.findUnique({ where: { id: userId } })
     ]);
 
     if (!clerkUser) {
@@ -48,20 +47,15 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
     }
 
     // If no DB user exists, create one
-    const mongoUser = dbUser || await UserModel.create({
-      userId,
-      tier: 'free',
-      role: 'user',
-      dateCreated: new Date(),
-      dateUpdated: new Date(),
-      onBoardingComplete: false,
-      about: ''
+    const prismaUser = dbUser || await prisma.user.create({
+      data: {
+        id: userId,
+        tier: 'free',
+        role: 'user',
+        onboardingComplete: false,
+        about: ''
+      }
     });
-
-    // await Logger.info('Complete user profile fetched', {
-    //   userId,
-    //   hasDbRecord: !!dbUser
-    // });
 
     return plain({
       // Clerk data
@@ -72,19 +66,17 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       imageUrl: clerkUser.imageUrl,
       lastSignInAt: clerkUser.lastSignInAt ? new Date(clerkUser.lastSignInAt) : null,
       createdAt: clerkUser.createdAt ? new Date(clerkUser.createdAt) : null,
-      // MongoDB data
-      // _id: mongoUser._id.toString(),
-      userId: mongoUser.userId,
-      tier: mongoUser.tier,
-      role: mongoUser.role,
-      about: mongoUser.about,
-      onBoardingComplete: mongoUser.onBoardingComplete,
-      dateCreated: mongoUser.dateCreated,
-      dateUpdated: mongoUser.dateUpdated,
-      stripeCustomerId: mongoUser.stripeCustomerId,
-      subscriptionId: mongoUser.subscriptionId,
-      currentPeriodEnd: mongoUser.currentPeriodEnd,
-      cancelAtPeriodEnd: mongoUser.cancelAtPeriodEnd
+      
+      // Prisma data
+      tier: prismaUser.tier,
+      role: prismaUser.role,
+      about: prismaUser.about,
+      onboardingComplete: prismaUser.onboardingComplete,
+      stripeCustomerId: prismaUser.stripeCustomerId,
+      subscriptionId: prismaUser.subscriptionId,
+      currentPeriodEnd: prismaUser.currentPeriodEnd,
+      cancelAtPeriodEnd: prismaUser.cancelAtPeriodEnd,
+      updatedAt: prismaUser.updatedAt
     });
 
   } catch (error) {
@@ -98,16 +90,17 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
 }
 
 export async function srv_getAllCompleteUserProfiles(): Promise<CompleteUserProfile[]> {
-  const users = await UserModel.find({}).lean();
-  const completeUserProfiles = await Promise.all(users.map(async user => {
-    const profile = await srv_getCompleteUserProfile(user.userId);
-    return profile ? profile : null;
-  }));
-  return completeUserProfiles.filter(profile => profile !== null) as CompleteUserProfile[];
+  const users = await prisma.user.findMany();
+  const userProfiles = await Promise.all(
+    users.map(user => srv_getCompleteUserProfile(user.id))
+  );
+  return userProfiles.filter((profile): profile is CompleteUserProfile => profile !== null);
 }
 
 export async function srv_authAdminUser(): Promise<boolean> {
   const user = await currentUser();
-  const authUser = await UserModel.findOne({ userId: user?.id });
-  return authUser?.role === 'admin';
+  if (!user) return false;
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  return dbUser?.role === 'admin';
 }

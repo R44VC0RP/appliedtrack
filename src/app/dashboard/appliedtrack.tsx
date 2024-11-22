@@ -267,7 +267,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     const checkOnboardingStatus = async () => {
       if (!isLoaded || !userId) return;
       try {
-        setShowOnboarding(!user?.onBoardingComplete);
+        setShowOnboarding(!user?.onboardingComplete);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
       }

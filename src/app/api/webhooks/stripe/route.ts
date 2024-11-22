@@ -2,13 +2,12 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import Stripe from 'stripe';
-import { UserModel } from '@/models/User';
 import { Logger } from '@/lib/logger';
-import { UserQuotaModel, resetQuota, createInitialQuota } from '@/models/UserQuota';
-import { WebhookEventModel } from '@/models/WebhookEvent';
-import mongoose from 'mongoose';
+import { resetQuota, createInitialQuota } from '@/lib/useQuota';
+import { prisma } from '@/lib/prisma';
 import { UserTier } from '@/types/subscription';
 import { srv_handleSubscriptionChange } from '@/app/actions/server/settings/primary';
+import { UUID } from 'crypto';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -28,30 +27,30 @@ async function updateUserSubscription(
   }
 ) {
   try {
-    const user = await UserModel.findOneAndUpdate(
-      { stripeCustomerId },
-      {
+    const user = await prisma.user.update({
+      where: { stripeCustomerId: stripeCustomerId },
+      data: {
         ...updates,
-        dateUpdated: new Date(),
+        updatedAt: new Date()
       },
-      { new: true }
-    );
+      include: {
+        userQuota: true
+      }
+    });
 
     if (user && updates.currentPeriodEnd && updates.tier) {
-      // Handle quota reset
-      const quota = await UserQuotaModel.findOne({ userId: user.userId });
-      if (quota) {
+      if (user.userQuota) {
         await resetQuota({ 
-          userId: user.userId, 
+          userId: user.id, 
           tier: updates.tier, 
           resetDate: updates.currentPeriodEnd 
         });
       } else {
-        await createInitialQuota(user.userId, updates.currentPeriodEnd);
+        await createInitialQuota(user.id, updates.currentPeriodEnd);
       }
 
       await Logger.info('User quota reset for new billing period', {
-        userId: user.userId,
+        userId: user.id,
         newResetDate: updates.currentPeriodEnd,
         tier: updates.tier
       });
@@ -60,7 +59,7 @@ async function updateUserSubscription(
     await Logger.info('User subscription updated', {
       stripeCustomerId,
       updates,
-      success: !!user
+      success: true
     });
 
     return user;
@@ -79,7 +78,13 @@ async function handleSubscriptionCancellation(
   immediateReset: boolean = false
 ) {
   try {
-    const user = await UserModel.findOne({ stripeCustomerId });
+    const user = await prisma.user.findUnique({
+      where: { stripeCustomerId },
+      include: {
+        userQuota: true
+      }
+    });
+
     if (!user) {
       await Logger.warning('User not found for subscription cancellation', {
         stripeCustomerId
@@ -90,17 +95,23 @@ async function handleSubscriptionCancellation(
     // If immediate cancellation or subscription expired, reset quota and update user tier
     if (immediateReset) {
       // Update user to free tier
-      await UserModel.findByIdAndUpdate(user._id, {
-        tier: 'free',
-        dateUpdated: new Date()
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          tier: 'free',
+          updatedAt: new Date()
+        }
       });
 
       // Reset quota
-      const quota = await UserQuotaModel.findOne({ userId: user.userId });
-      if (quota) {
-        await resetQuota({ userId: user.userId, tier: 'free', resetDate: new Date(new Date().setDate(new Date().getDate() + 30)) });
+      if (user.userQuota) {
+        await resetQuota({ 
+          userId: user.id, 
+          tier: 'free', 
+          resetDate: new Date(new Date().setDate(new Date().getDate() + 30)) 
+        });
         await Logger.info('User quota reset to free tier', {
-          userId: user.userId,
+          userId: user.id,
           oldTier: user.tier,
           newTier: 'free'
         });
@@ -115,28 +126,36 @@ async function handleSubscriptionCancellation(
   }
 }
 
-// Helper function to process webhook with idempotency but without transactions
+// Helper function to process webhook with idempotency
 async function processWebhookEvent(event: Stripe.Event) {
   try {
     // Check if event was already processed
-    const existingEvent = await WebhookEventModel.findOne({ eventId: event.id });
+    const existingEvent = await prisma.webhookEvent.findUnique({
+      where: { eventId: event.id }
+    });
+
     if (existingEvent?.processed) {
       await Logger.info('Webhook event already processed', { eventId: event.id });
       return true;
     }
 
     // Create or update webhook event record
-    const webhookEvent = await WebhookEventModel.findOneAndUpdate(
-      { eventId: event.id },
-      {
+    const webhookEvent = await prisma.webhookEvent.upsert({
+      where: { eventId: event.id },
+      update: {
+        lastAttempt: new Date(),
+        retryCount: { increment: 1 },
+        metadata: event.data.object as any
+      },
+      create: {
+        id: crypto.randomUUID(),
         eventId: event.id,
         type: event.type,
         lastAttempt: new Date(),
-        $inc: { retryCount: 1 },
-        metadata: event.data.object
-      },
-      { upsert: true, new: true }
-    );
+        retryCount: 1,
+        metadata: event.data.object as any
+      }
+    });
 
     if (webhookEvent.retryCount > MAX_RETRY_ATTEMPTS) {
       await Logger.error('Max retry attempts exceeded for webhook event', {
@@ -161,7 +180,10 @@ async function processWebhookEvent(event: Stripe.Event) {
         });
 
         // Find user by Stripe customer ID
-        const user = await UserModel.findOne({ stripeCustomerId: customerId });
+        const user = await prisma.user.findUnique({
+          where: { stripeCustomerId: customerId }
+        });
+
         if (!user) {
           await Logger.warning('User not found for subscription update', {
             customerId
@@ -177,7 +199,7 @@ async function processWebhookEvent(event: Stripe.Event) {
               prorate: true
             });
             await Logger.info('Cancelled previous subscription during upgrade/downgrade', {
-              userId: user.userId,
+              userId: user.id,
               oldSubscriptionId: user.subscriptionId,
               newSubscriptionId: subscription.id
             });
@@ -212,21 +234,19 @@ async function processWebhookEvent(event: Stripe.Event) {
         const effectiveTier = isActive ? newTier : 'free';
 
         // Update user's subscription details
-        await UserModel.findOneAndUpdate(
-          { _id: user._id },
-          {
-            $set: {
-              tier: effectiveTier,
-              cancelAtPeriodEnd: isCanceled,
-              currentPeriodEnd: periodEnd,
-              subscriptionId: subscription.id, // Always update to the latest subscription ID
-              dateUpdated: new Date()
-            }
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            tier: effectiveTier,
+            cancelAtPeriodEnd: isCanceled,
+            currentPeriodEnd: periodEnd,
+            subscriptionId: subscription.id,
+            updatedAt: new Date()
           }
-        );
+        });
 
         await Logger.info('Subscription updated', {
-          userId: user.userId,
+          userId: user.id,
           customerId,
           tier: effectiveTier,
           status: subscription.status,
@@ -242,7 +262,10 @@ async function processWebhookEvent(event: Stripe.Event) {
         const customerId = subscription.customer as string;
 
         // Find user by Stripe customer ID
-        const user = await UserModel.findOne({ stripeCustomerId: customerId });
+        const user = await prisma.user.findUnique({
+          where: { stripeCustomerId: customerId }
+        });
+
         if (!user) {
           await Logger.warning('User not found for subscription cancellation', {
             customerId
@@ -255,26 +278,25 @@ async function processWebhookEvent(event: Stripe.Event) {
         const periodEnd = new Date(subscription.current_period_end * 1000);
 
         // Update user's subscription status
-        await UserModel.findOneAndUpdate(
-          { _id: user._id },
-          {
-            $set: {
-              cancelAtPeriodEnd: false, // Reset since subscription is now deleted
-              currentPeriodEnd: periodEnd
-            }
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            cancelAtPeriodEnd: false,
+            currentPeriodEnd: periodEnd,
+            updatedAt: new Date()
           }
-        );
+        });
 
         // Handle subscription change with correct parameter order
         await srv_handleSubscriptionChange(
-          user.userId,        // Clerk user ID
-          customerId,        // Stripe customer ID
+          user.id,
+          customerId,
           'free',
           periodEnd
         );
 
         await Logger.info('Subscription cancelled', {
-          userId: user.userId,
+          userId: user.id,
           customerId,
           subscriptionId: subscription.id,
           currentPeriodEnd: periodEnd
@@ -343,8 +365,12 @@ async function processWebhookEvent(event: Stripe.Event) {
     }
 
     // Mark event as processed
-    webhookEvent.processed = true;
-    await webhookEvent.save();
+    await prisma.webhookEvent.update({
+      where: { eventId: event.id },
+      data: {
+        processed: true
+      }
+    });
     
     await Logger.info('Successfully processed webhook event', {
       eventId: event.id,
@@ -399,18 +425,20 @@ export async function POST(request: NextRequest) {
     
     if (!success) {
       return NextResponse.json(
-        { error: 'Failed to process webhook event' },
+        { error: 'Failed to process webhook' },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    await Logger.error('Webhook processing error', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+    await Logger.error('Error processing webhook', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     });
+    
     return NextResponse.json(
-      { error: 'Webhook processing failed' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -421,9 +449,9 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Allow': 'POST',
       'Access-Control-Allow-Methods': 'POST',
       'Access-Control-Allow-Headers': 'Content-Type, stripe-signature',
-    },
+      'Access-Control-Max-Age': '86400'
+    }
   });
 }

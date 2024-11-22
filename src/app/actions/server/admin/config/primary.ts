@@ -1,16 +1,15 @@
 'use server'
 
-import { ConfigModel, ConfigData, Config } from '@/models/Config';
 import { Logger } from '@/lib/logger';
-import { srv_authAdminUser, srv_getAllCompleteUserProfiles } from '@/lib/useUser';
-import { plain } from '@/lib/plain';
-import { UserModel } from '@/models/User';
-import { UserQuotaModel } from '@/models/UserQuota';
+import { srv_authAdminUser } from '@/lib/useUser';
+import { PrismaClient, Config, Prisma } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 interface ConfigResponse {
   success: boolean;
   message: string;
-  data: ConfigData | null;
+  data: Config | null;
 }
 
 export async function srv_getConfigData(): Promise<ConfigResponse> {
@@ -23,11 +22,11 @@ export async function srv_getConfigData(): Promise<ConfigResponse> {
       throw new Error('Forbidden');
     }
 
-    let config = await ConfigModel.findOne();
+    let config = await prisma.config.findFirst();
     
     if (!config) {
       // Create default configuration
-      const defaultConfig: ConfigData = {
+      const defaultConfig = {
         tierLimits: {
           free: {
             AI_RESUME: { limit: 1 },
@@ -85,12 +84,12 @@ export async function srv_getConfigData(): Promise<ConfigResponse> {
             description: "Number of cover letters you can create",
             active: true
           }
-        },
-        dateCreated: new Date(),
-        dateUpdated: new Date()
+        }
       };
 
-      config = await ConfigModel.create(defaultConfig);
+      config = await prisma.config.create({
+        data: defaultConfig
+      });
       
       await Logger.info('Initialized default system configuration', {
         action: 'CONFIG_CREATION',
@@ -100,72 +99,74 @@ export async function srv_getConfigData(): Promise<ConfigResponse> {
 
     return {
       success: true,
-      message: 'Config data fetched successfully',
-      data: plain(config)
+      message: 'Configuration retrieved successfully',
+      data: config
     };
+
   } catch (error) {
-    await Logger.error('Failed to fetch config data', {
+    console.error('Error:', error);
+    await Logger.error('Error fetching configuration', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      action: 'GET_CONFIG'
     });
-    throw error;
+
+    return {
+      success: false,
+      message: 'Failed to fetch configuration',
+      data: null
+    };
   }
 }
 
-export async function srv_updateConfig(config: Config): Promise<ConfigResponse> {
+export async function srv_updateConfig(configData: Partial<Config>): Promise<ConfigResponse> {
   try {
     const authAdminUser = await srv_authAdminUser();
     if (!authAdminUser) {
+      await Logger.warning('Non-admin user attempted to update config', {
+        error: "Forbidden"
+      });
       throw new Error('Forbidden');
     }
 
-    // Convert the nested objects to dot notation for MongoDB
-    const updateObj: any = {};
-
-    // Update tier limits
-    Object.entries(config.tierLimits).forEach(([tier, limits]) => {
-      Object.entries(limits).forEach(([service, quota]) => {
-        updateObj[`tierLimits.${tier}.${service}`] = quota;
-      });
-    });
-
-    // Update services
-    Object.entries(config.services).forEach(([key, service]) => {
-      updateObj[`services.${key}`] = service;
-    });
-
-    const updatedConfig = await ConfigModel.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          ...updateObj,
-          dateUpdated: new Date()
-        }
-      },
-      { new: true }
-    );
-
-    if (!updatedConfig) {
-      throw new Error('Failed to update configuration');
+    const config = await prisma.config.findFirst();
+    if (!config) {
+      throw new Error('Configuration not found');
     }
 
-    await Logger.info('Config updated successfully', {
-      updatedTierLimits: config.tierLimits,
-      updatedServices: config.services
+    const updatedConfig = await prisma.config.update({
+      where: { id: config.id },
+      data: {
+        tierLimits: configData.tierLimits as Prisma.InputJsonValue,
+        services: configData.services as Prisma.InputJsonValue,
+        dateUpdated: new Date()
+      }
+    });
+
+    await Logger.info('Updated system configuration', {
+      action: 'CONFIG_UPDATE',
+      timestamp: new Date()
     });
 
     return {
       success: true,
       message: 'Configuration updated successfully',
-      data: plain(updatedConfig)
+      data: updatedConfig
     };
 
   } catch (error) {
-    await Logger.error('Failed to update config', {
+    console.error('Error:', error);
+    await Logger.error('Error updating configuration', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      action: 'UPDATE_CONFIG'
     });
-    throw error;
+
+    return {
+      success: false,
+      message: 'Failed to update configuration',
+      data: null
+    };
   }
 }
 
@@ -174,68 +175,63 @@ export async function srv_deleteService(serviceKey: string): Promise<ConfigRespo
     const authAdminUser = await srv_authAdminUser();
     if (!authAdminUser) {
       await Logger.warning('Non-admin user attempted to delete service', {
-        serviceKey,
-        error: "Forbidden"
+        error: "Forbidden",
+        serviceKey
       });
       throw new Error('Forbidden');
     }
 
-    // First, verify the service exists
-    const config = await ConfigModel.findOne({
-      [`services.${serviceKey}`]: { $exists: true }
-    });
-
+    const config = await prisma.config.findFirst();
     if (!config) {
-      await Logger.warning('Service not found for deletion', { serviceKey });
-      throw new Error('Service not found');
+      throw new Error('Configuration not found');
     }
 
-    // Use $unset to remove the service and its tier limits
-    const updateOperations = {
-      $unset: {
-        [`services.${serviceKey}`]: 1
-      },
-      $set: {
+    const services = { ...config.services as any };
+    const tierLimits = { ...config.tierLimits as any };
+
+    // Remove service from services
+    delete services[serviceKey];
+
+    // Remove service from all tier limits
+    Object.keys(tierLimits).forEach(tier => {
+      if (tierLimits[tier][serviceKey]) {
+        delete tierLimits[tier][serviceKey];
+      }
+    });
+
+    const updatedConfig = await prisma.config.update({
+      where: { id: config.id },
+      data: {
+        services,
+        tierLimits,
         dateUpdated: new Date()
       }
-    };
-
-    // Add unset operations for each tier
-    const tiers = Object.keys(config.tierLimits);
-    tiers.forEach(tier => {
-      updateOperations.$unset[`tierLimits.${tier}.${serviceKey}`] = 1;
     });
 
-    const updatedConfig = await ConfigModel.findOneAndUpdate(
-      {},
-      updateOperations,
-      { new: true }
-    );
-
-    if (!updatedConfig) {
-      throw new Error('Failed to update config');
-    }
-
-    await Logger.info('Service deleted successfully', {
+    await Logger.info('Deleted service from configuration', {
+      action: 'SERVICE_DELETE',
       serviceKey,
-      updatedServices: Object.keys(updatedConfig.services)
+      timestamp: new Date()
     });
 
     return {
       success: true,
       message: 'Service deleted successfully',
-      data: plain(updatedConfig)
+      data: updatedConfig
     };
 
   } catch (error) {
-    await Logger.error('Failed to delete service', {
-      serviceKey,
+    console.error('Error:', error);
+    await Logger.error('Error deleting service', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      serviceKey,
+      action: 'DELETE_SERVICE'
     });
+
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to delete service',
+      message: 'Failed to delete service',
       data: null
     };
   }
@@ -250,92 +246,117 @@ export async function srv_addService(
     const authAdminUser = await srv_authAdminUser();
     if (!authAdminUser) {
       await Logger.warning('Non-admin user attempted to add service', {
-        serviceKey,
-        error: "Forbidden"
+        error: "Forbidden",
+        serviceKey
       });
       throw new Error('Forbidden');
     }
 
-    const currentConfig = await ConfigModel.findOne();
-    if (!currentConfig) {
+    const config = await prisma.config.findFirst();
+    if (!config) {
       throw new Error('Configuration not found');
     }
 
-    // Check if service already exists
-    if (currentConfig.services[serviceKey]) {
-      throw new Error('Service key already exists');
-    }
+    const services = { ...config.services as any };
+    const tierLimits = { ...config.tierLimits as any };
 
-    // Add new service
-    const updatedConfig = await ConfigModel.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          [`services.${serviceKey}`]: {
-            name: serviceName,
-            description,
-            active: true
-          },
-          [`tierLimits.free.${serviceKey}`]: { limit: 0 },
-          [`tierLimits.pro.${serviceKey}`]: { limit: 0 },
-          [`tierLimits.power.${serviceKey}`]: { limit: -1 },
-          dateUpdated: new Date()
-        }
-      },
-      { new: true }
-    );
+    // Add service to services
+    services[serviceKey] = {
+      name: serviceName,
+      description,
+      active: true
+    };
 
-    await Logger.info('New service added successfully', {
+    // Add service to all tier limits with default values
+    Object.keys(tierLimits).forEach(tier => {
+      tierLimits[tier][serviceKey] = { limit: 0 };
+    });
+
+    const updatedConfig = await prisma.config.update({
+      where: { id: config.id },
+      data: {
+        services,
+        tierLimits,
+        dateUpdated: new Date()
+      }
+    });
+
+    await Logger.info('Added new service to configuration', {
+      action: 'SERVICE_ADD',
       serviceKey,
-      serviceName
+      timestamp: new Date()
     });
 
     return {
       success: true,
-      message: `Service ${serviceKey} added successfully`,
-      data: plain(updatedConfig)
+      message: 'Service added successfully',
+      data: updatedConfig
     };
+
   } catch (error) {
-    await Logger.error('Failed to add service', {
-      serviceKey,
+    console.error('Error:', error);
+    await Logger.error('Error adding service', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      serviceKey,
+      action: 'ADD_SERVICE'
     });
-    throw error;
+
+    return {
+      success: false,
+      message: 'Failed to add service',
+      data: null
+    };
   }
 }
 
 export async function srv_getAllUserQuotas() {
   try {
-    const users = await srv_getAllCompleteUserProfiles();
-    const quotas = await UserQuotaModel.find({}).lean();
+    const authAdminUser = await srv_authAdminUser();
+    if (!authAdminUser) {
+      await Logger.warning('Non-admin user attempted to fetch user quotas', {
+        error: "Forbidden"
+      });
+      throw new Error('Forbidden');
+    }
 
-    const userQuotaMap = quotas.reduce((acc, quota) => {
-      acc[quota.userId.toString()] = quota;
-      return acc;
-    }, {} as Record<string, any>);
+    const userQuotas = await prisma.userQuota.findMany({
+      include: {
+        user: true,
+        quotaUsage: true
+      }
+    });
 
-    const userQuotaInfo = users.map(user => ({
-      userId: user.id,
-      email: user.email || 'N/A',
-      tier: user.tier || 'free',
-      quotaResetDate: userQuotaMap[user.id]?.quotaResetDate || new Date(),
-      usage: userQuotaMap[user.id]?.usage || {}
+    const formattedQuotas = userQuotas.map(quota => ({
+      userId: quota.userId,
+      tier: quota.user.tier,
+      quotaResetDate: quota.quotaResetDate,
+      usage: Object.fromEntries(
+        quota.quotaUsage.map(usage => [
+          usage.quotaKey,
+          usage.usageCount
+        ])
+      )
     }));
 
     return {
       success: true,
-      data: userQuotaInfo
+      message: 'User quotas retrieved successfully',
+      data: formattedQuotas
     };
+
   } catch (error) {
-    await Logger.error('Failed to fetch user quotas', {
+    console.error('Error:', error);
+    await Logger.error('Error fetching user quotas', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      action: 'GET_USER_QUOTAS'
     });
 
     return {
       success: false,
-      message: 'Failed to fetch user quotas'
+      message: 'Failed to fetch user quotas',
+      data: null
     };
   }
 }

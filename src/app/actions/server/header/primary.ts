@@ -14,16 +14,21 @@
 */
 
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser"
-import { UserQuota, UserQuotaModel } from "@/models/UserQuota"
-import { plain } from "@/lib/plain" 
+import { plain } from "@/lib/plain"
+import { prisma } from "@/lib/prisma"
 
 export interface HeaderData extends CompleteUserProfile {
-    quota: UserQuota | null
+    quota: any | null // Using any temporarily until we define proper types
 }
 
 
 export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
     const user = await srv_getCompleteUserProfile(userId) as CompleteUserProfile
-    const quota = await UserQuotaModel.findOne({ userId }) || null
+    const quota = await prisma.userQuota.findUnique({
+        where: { userId },
+        include: {
+            notifications: true
+        }
+    })
     return plain({ ...user, quota })
 }

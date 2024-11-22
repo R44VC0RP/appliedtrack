@@ -8,10 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Settings, Plus } from 'lucide-react'
-import { Config, ConfigData } from '@/models/Config';
+import { Settings, Plus, Search, Trash2 } from 'lucide-react'
+import { Config } from '@prisma/client'
 import { AddServiceModal } from './add-service-modal'
-import { Trash2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,22 +29,39 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Search } from 'lucide-react'
-
 
 // Server Actions
 import { srv_getConfigData, srv_updateConfig, srv_deleteService, srv_addService, srv_getAllUserQuotas } from '@/app/actions/server/admin/config/primary';
 
-
-// Add these new types
+// Types
 interface UserQuotaInfo {
   userId: string;
-  email: string;
   tier: string;
   quotaResetDate: Date;
   usage: Record<string, number>;
 }
 
+interface ServiceConfig {
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+interface TierLimit {
+  limit: number;
+  description?: string;
+}
+
+interface ConfigData extends Omit<Config, 'tierLimits' | 'services'> {
+  tierLimits: {
+    [tier: string]: {
+      [serviceKey: string]: TierLimit;
+    };
+  };
+  services: {
+    [key: string]: ServiceConfig;
+  };
+}
 
 export function TierConfig() {
   const [config, setConfig] = useState<ConfigData | null>(null);
@@ -53,13 +69,13 @@ export function TierConfig() {
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [userQuotas, setUserQuotas] = useState<UserQuotaInfo[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('tierConfigActiveTab') || 'limits';
     }
     return 'limits';
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('tierConfigActiveTab', activeTab);
@@ -70,11 +86,20 @@ export function TierConfig() {
     fetchUserQuotas();
   }, []);
 
+  const parseConfig = (data: Config | null): ConfigData | null => {
+    if (!data) return null;
+    return {
+      ...data,
+      tierLimits: JSON.parse(data.tierLimits as string),
+      services: JSON.parse(data.services as string)
+    };
+  };
+
   const fetchConfig = async () => {
     try {
       const response = await srv_getConfigData();
       if (!response.success) throw new Error(response.message);
-      setConfig(response.data);
+      setConfig(parseConfig(response.data));
     } catch (error) {
       console.error('Error:', error);
       toast.error("Failed to fetch tier configuration");
@@ -98,14 +123,22 @@ export function TierConfig() {
   const handleUpdate = async () => {
     try {
       if (!config) return;
-      const response = await srv_updateConfig(config as Config);
-
+      
+      // Stringify JSON fields for Prisma
+      const prismaConfig: Config = {
+        ...config,
+        tierLimits: JSON.stringify(config.tierLimits),
+        services: JSON.stringify(config.services)
+      };
+      
+      const response = await srv_updateConfig(prismaConfig);
       if (!response.success) throw new Error(response.message);
-
-      toast.success("Tier configuration updated successfully");
+      
+      toast.success("Configuration updated successfully");
+      await fetchConfig(); // Refresh the config
     } catch (error) {
       console.error('Error:', error);
-      toast.error("Failed to update tier configuration");
+      toast.error("Failed to update configuration");
     }
   };
 
@@ -131,10 +164,13 @@ export function TierConfig() {
   const handleAddService = async (serviceKey: string, serviceName: string, description: string) => {
     try {
       const response = await srv_addService(serviceKey, serviceName, description);
-      if (!response.success) throw new Error(response.message);
-      
-      setConfig(response.data);
-      toast.success("Service added successfully");
+      if (!response.success || !response.data) {
+        toast.error(response.message || "Failed to add service");
+        return;
+      }
+
+      setConfig(parseConfig(response.data));
+      toast.success(response.message || "Service added successfully");
     } catch (error) {
       console.error('Error:', error);
       toast.error("Failed to add service");
@@ -149,15 +185,16 @@ export function TierConfig() {
         return;
       }
       
-      setConfig(response.data);
+      setConfig(parseConfig(response.data));
       setServiceToDelete(null);
       toast.success(response.message || "Service deleted successfully");
     } catch (error) {
       console.error('Error:', error);
       toast.error("Failed to delete service");
-      setServiceToDelete(null);
     }
   };
+
+  
 
   if (loading) {
     return <div>Loading...</div>;
@@ -167,7 +204,7 @@ export function TierConfig() {
 
   return (
     <div className="h-full flex flex-col w-full max-w-full">
-      <div className="flex-none mb-6">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Settings className="w-6 h-6" />
           System Configuration
@@ -294,11 +331,11 @@ export function TierConfig() {
                 <TableBody>
                   {userQuotas
                     .filter(user => 
-                      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                      user.userId.toLowerCase().includes(searchQuery.toLowerCase()) || user.userId.toLowerCase().includes(searchQuery.toLowerCase())
                     )
                     .map((user) => (
                       <TableRow key={user.userId}>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.userId}</TableCell>
                         <TableCell className="capitalize">{user.tier}</TableCell>
                         <TableCell>
                           {new Date(user.quotaResetDate).toLocaleDateString()}
@@ -345,4 +382,4 @@ export function TierConfig() {
       </div>
     </div>
   );
-} 
+}

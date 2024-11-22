@@ -8,12 +8,15 @@ import { ResumeModel } from "@/models/Resume";
 import { plain } from "@/lib/plain";
 import { z } from "zod";
 import { UTApi } from "uploadthing/server";
-import { ConfigModel } from "@/models/Config";
+import { PrismaClient } from '@prisma/client'
+// import { ConfigModel } from "@/models/Config";
 import Stripe from 'stripe';
 import { UserTier, StripeCheckoutOptions } from '@/types/subscription';
-import { resetQuota, checkQuotaLimits, notifyQuotaStatus, createInitialQuota } from '@/models/UserQuota';
-import { UserQuotaModel } from "@/models/UserQuota";
+import { createInitialQuota, resetQuota } from "@/lib/useQuota";
 
+import { checkQuotaLimits } from "@/lib/useQuota";
+
+const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
@@ -39,49 +42,81 @@ export async function srv_getUserDetails() {
       return null;
     }
 
-    // Get user details and quota information
     console.log('Fetching details for user:', user.id);
     
-    const [userDetails, userQuota] = await Promise.all([
-      UserModel.findOne({ userId: user.id }),
-      UserQuotaModel.findOne({ userId: user.id })
-    ]);
+    // Get user and quota information using Prisma
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        userQuota: {
+          include: {
+            quotaUsage: true,
+            notifications: true
+          }
+        }
+      }
+    });
 
-    console.log('Raw userDetails:', userDetails);
-    console.log('Raw userQuota:', userQuota);
+    if (!dbUser) {
+      console.log('User not found in database');
+      return null;
+    }
 
-    if (!userQuota) {
+    if (!dbUser.userQuota) {
       console.log('No quota found for user, creating initial quota');
       const newQuota = await createInitialQuota(user.id);
       console.log('Created new quota:', newQuota);
-    } else {
-      console.log('Found existing quota:', userQuota);
-    }
-
-    // First convert userDetails to plain object
-    const plainUserDetails = plain(userDetails);
-    
-    // Then attach the quota data
-    if (userDetails && userQuota) {
-      // Convert Map to plain object for usage and clean up any duplicate keys
-      const plainUsage = plain(userQuota.usage);
       
-      // If we have both 'jobs' and 'JOBS_COUNT', use JOBS_COUNT
-      if ('jobs' in plainUsage && 'JOBS_COUNT' in plainUsage) {
-        delete plainUsage['jobs'];
+      // Fetch the user again with the new quota
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          userQuota: {
+            include: {
+              quotaUsage: true,
+              notifications: true
+            }
+          }
+        }
+      });
+      
+      if (!updatedUser) {
+        throw new Error('User not found after quota creation');
       }
       
-      console.log('Plain usage after cleanup:', plainUsage);
-
-      plainUserDetails.quotas = {
-        usage: plainUsage,
-        quotaResetDate: userQuota.quotaResetDate,
-        notifications: userQuota.notifications
-      };
+      dbUser.userQuota = updatedUser.userQuota;
     }
 
-    console.log('Final plainUserDetails:', plainUserDetails);
-    return plainUserDetails;
+    // Transform the data into the expected format
+    const userDetails = {
+      userId: dbUser.id,
+      tier: dbUser.tier,
+      role: dbUser.role,
+      about: dbUser.about,
+      onboardingComplete: dbUser.onboardingComplete,
+      stripeCustomerId: dbUser.stripeCustomerId,
+      subscriptionId: dbUser.subscriptionId,
+      subscriptionStatus: dbUser.subscriptionStatus,
+      cancelAtPeriodEnd: dbUser.cancelAtPeriodEnd,
+      currentPeriodEnd: dbUser.currentPeriodEnd,
+      quotas: dbUser.userQuota ? {
+        usage: dbUser.userQuota.quotaUsage.reduce((acc, usage) => {
+          acc[usage.quotaKey] = usage.usageCount;
+          return acc;
+        }, {} as Record<string, number>),
+        quotaResetDate: dbUser.userQuota.quotaResetDate,
+        notifications: dbUser.userQuota.notifications.map(notification => ({
+          type: notification.type,
+          quotaKey: notification.quotaKey,
+          currentUsage: notification.currentUsage,
+          limit: notification.limit,
+          message: notification.message
+        }))
+      } : undefined
+    };
+
+    console.log('Final userDetails:', userDetails);
+    return userDetails;
   } catch (error) {
     await Logger.error('Error fetching user details', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -105,25 +140,57 @@ export async function srv_updateUserDetails(details: z.infer<typeof UserDetailsS
     // Validate input
     const validatedData = UserDetailsSchema.parse(details);
 
-    const updatedUser = await UserModel.findOneAndUpdate(
-      { userId: user.id },
-      {
+    // Update user with Prisma
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
         ...validatedData,
-        dateUpdated: new Date().toISOString()
+        updatedAt: new Date() // Prisma handles this automatically
       },
-      { new: true }
-    );
-
-    if (!updatedUser) {
-      throw new Error('User not found');
-    }
+      include: {
+        userQuota: {
+          include: {
+            quotaUsage: true,
+            notifications: true
+          }
+        }
+      }
+    });
 
     await Logger.info('User details updated successfully', {
       userId: user.id,
       updatedFields: Object.keys(validatedData)
     });
 
-    return { success: true, data: plain(updatedUser) };
+    // Transform to match expected format
+    const responseData = {
+      userId: updatedUser.id,
+      tier: updatedUser.tier,
+      role: updatedUser.role,
+      about: updatedUser.about,
+      onboardingComplete: updatedUser.onboardingComplete,
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      subscriptionId: updatedUser.subscriptionId,
+      subscriptionStatus: updatedUser.subscriptionStatus,
+      cancelAtPeriodEnd: updatedUser.cancelAtPeriodEnd,
+      currentPeriodEnd: updatedUser.currentPeriodEnd,
+      quotas: updatedUser.userQuota ? {
+        usage: updatedUser.userQuota.quotaUsage.reduce((acc, usage) => {
+          acc[usage.quotaKey] = usage.usageCount;
+          return acc;
+        }, {} as Record<string, number>),
+        quotaResetDate: updatedUser.userQuota.quotaResetDate,
+        notifications: updatedUser.userQuota.notifications.map(notification => ({
+          type: notification.type,
+          quotaKey: notification.quotaKey,
+          currentUsage: notification.currentUsage,
+          limit: notification.limit,
+          message: notification.message
+        }))
+      } : undefined
+    };
+
+    return { success: true, data: responseData };
   } catch (error) {
     await Logger.error('Error updating user details', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -365,9 +432,9 @@ export async function srv_handleSubscriptionChange(
 
     // Check quota limits after change
     const notifications = await checkQuotaLimits(clerkUserId, newTier);
-    if (notifications.length > 0) {
-      await notifyQuotaStatus(notifications);
-    }
+    // if (notifications.length > 0) {
+    //   await notifyQuotaStatus(notifications);
+    // }
 
     return true;
   } catch (error) {
@@ -409,44 +476,32 @@ export async function srv_createCustomerPortal() {
 
 export async function srv_getConfigTiers() {
   try {
-    const config = await ConfigModel.findOne({});
+    const config = await prisma.config.findFirst();
     if (!config) {
       throw new Error('Configuration not found');
     }
 
-    // Get the raw document
-    const rawDoc = plain(config);
+    // Type assertions for the JSON fields
+    const tierLimits = config.tierLimits as Record<string, Record<string, { limit: number }>>;
+    const services = config.services as Record<string, { name: string; description: string; active: boolean }>;
 
     // Create a clean structure for tierLimits
-    const tierLimits = Object.keys(rawDoc.tierLimits).reduce((acc, tier) => {
+    const cleanTierLimits = Object.keys(tierLimits).reduce((acc, tier) => {
       acc[tier] = {};
-      // Remove _id and only keep limit values for each service
-      Object.entries(rawDoc.tierLimits[tier]).forEach(([service, data]: [string, any]) => {
-        if (service !== '_id') {
-          acc[tier][service] = {
-            limit: data.limit
-          };
-        }
+      Object.entries(tierLimits[tier]).forEach(([service, data]) => {
+        acc[tier][service] = {
+          limit: data.limit
+        };
       });
       return acc;
     }, {} as Record<string, Record<string, { limit: number }>>);
 
-    // Create a clean structure for services
-    const services = Object.entries(rawDoc.services).reduce((acc, [key, value]: [string, any]) => {
-      acc[key] = {
-        name: value.name,
-        description: value.description,
-        active: value.active
-      };
-      return acc;
-    }, {} as Record<string, { name: string; description: string; active: boolean }>);
-
     await Logger.info('Config tiers retrieved successfully', {
-      tiersCount: Object.keys(tierLimits).length,
+      tiersCount: Object.keys(cleanTierLimits).length,
       servicesCount: Object.keys(services).length
     });
 
-    return { tierLimits, services };
+    return { tierLimits: cleanTierLimits, services };
   } catch (error) {
     await Logger.error('Error fetching config tiers', {
       error: error instanceof Error ? error.message : 'Unknown error',

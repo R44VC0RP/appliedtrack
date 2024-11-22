@@ -6,7 +6,7 @@ import { UploadButton } from "@/utils/uploadthing";
 import { Progress } from "@/components/ui/progress";
 import { FileText, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { srv_updateUserOnboarding } from '@/app/actions/server/job-board/primary';
+import { srv_updateUserOnboarding, srv_uploadBaselineResume } from '@/app/actions/server/job-board/primary';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -23,20 +23,13 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const handleResumeUpload = async (res: any) => {
     const uploadedFile = res[0];
     try {
-      const response = await fetch('/api/resumes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileUrl: uploadedFile.url,
-          fileId: uploadedFile.key,
-          resumeId: "RESUME_" + uploadedFile.key,
-          fileName: uploadedFile.name,
-        }),
+      const success = await srv_uploadBaselineResume({
+        fileUrl: uploadedFile.url,
+        fileId: uploadedFile.key,
+        fileName: uploadedFile.name,
       });
 
-      if (!response.ok) throw new Error('Failed to save resume');
+      if (!success) throw new Error('Failed to save resume');
       
       setResumeUploaded(true);
       toast.success("Resume uploaded");

@@ -6,9 +6,9 @@ import { Logger } from "@/lib/logger";
 import { UserModel, User } from "@/models/User";
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser";
 import { srv_addGenAIAction } from "@/lib/useGenAI";
-import { ConfigModel } from "@/models/Config";
-import { UserQuotaModel } from "@/models/UserQuota";
 import { plain } from "@/lib/plain";
+
+import { createInitialQuota } from "@/lib/useQuota";
 
 import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
@@ -16,11 +16,6 @@ import Pdf from "@/lib/pdf-helper";
 import { openai } from "@ai-sdk/openai";
 import { generateObject, JSONParseError, TypeValidationError } from "ai";
 import { srv_addServiceUsage } from "@/lib/tierlimits";
-import { createInitialQuota } from "@/models/UserQuota";
-import { promises as fs } from 'fs';
-import puppeteer from 'puppeteer';
-import { render } from 'resumed';
-import { join } from 'path';
 import { UTApi } from "uploadthing/server";
 import { PrismaClient, JobStatus } from '@prisma/client'
 import { Job } from "@/app/types/job";
@@ -56,14 +51,18 @@ export async function srv_checkUserAttributes(userId: string): Promise<CompleteU
 export async function srv_func_verifyTiers(userId: string, serviceKey: string, action: string = "increment"): Promise<QuotaCheck> {
   try {
     // Get user and their tier
-    const user = await UserModel.findOne({ userId });
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { userQuota: true }
+    });
+    
     if (!user) {
       await Logger.warning('User not found during tier verification', { userId });
       throw new Error('User not found');
     }
 
     // Get config with tier limits
-    const config = await ConfigModel.findOne({});
+    const config = await prisma.config.findFirst();
     if (!config) {
       await Logger.warning('Config not found during tier verification', { userId });
       throw new Error('Config not found');
@@ -77,17 +76,18 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
       }
     });
 
-    // Convert to plain objects
-    const plainConfig = plain(config);
+    // Parse JSON data from config
+    const tierLimits = JSON.parse(config.tierLimits as string);
+    const services = JSON.parse(config.services as string);
 
     // Check if service exists and is active
-    const service = plainConfig.services[serviceKey];
+    const service = services[serviceKey];
 
     await Logger.info('Service check', {
       serviceKey,
       serviceExists: !!service,
       serviceActive: service?.active,
-      services: plainConfig.services
+      services
     });
 
     if (!service || !service.active) {
@@ -98,65 +98,104 @@ export async function srv_func_verifyTiers(userId: string, serviceKey: string, a
       throw new Error('Service not available');
     }
 
-    // Get user's current quota
-    let quota = await UserQuotaModel.findOne({ userId });
-    if (!quota) {
-      await Logger.info('Creating initial quota for user', { userId });
-      try {
-        quota = await createInitialQuota(userId);
-        await Logger.info('Initial quota created', { userId, quota });
-      } catch (error) {
-        await Logger.error('Failed to create initial quota', {
+    // Get or create user quota
+    let userQuota = user.userQuota;
+    if (!userQuota) {
+      userQuota = await prisma.userQuota.create({
+        data: {
           userId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        });
-        throw new Error('Failed to create quota');
-      }
-    }
-
-    // Update the quota with current active job count
-    if (serviceKey === 'JOBS_COUNT') {
-      await UserQuotaModel.findOneAndUpdate(
-        { userId },
-        { 
-          $set: { 'usage.JOBS_COUNT': activeJobCount },
-          dateUpdated: new Date().toISOString()
+          quotaResetDate: new Date(),
+          quotaUsage: {
+            create: [
+              {
+                quotaKey: serviceKey,
+                usageCount: 0
+              }
+            ]
+          }
+        },
+        include: {
+          quotaUsage: true
         }
-      );
-      quota = await UserQuotaModel.findOne({ userId });
+      });
     }
 
-    const plainQuota = plain(quota);
+    // Find or create quota usage for the service
+    let quotaUsage = await prisma.quotaUsage.findUnique({
+      where: {
+        userQuotaId_quotaKey: {
+          userQuotaId: userQuota.id,
+          quotaKey: serviceKey
+        }
+      }
+    });
 
-    // Get tier limits based on user's tier using object access
-    const tierLimits = plainConfig.tierLimits[user.tier];
-    if (!tierLimits) {
+    if (!quotaUsage) {
+      quotaUsage = await prisma.quotaUsage.create({
+        data: {
+          userQuotaId: userQuota.id,
+          quotaKey: serviceKey,
+          usageCount: 0
+        }
+      });
+    }
+
+    // Update JOBS_COUNT if necessary
+    if (serviceKey === 'JOBS_COUNT') {
+      await prisma.quotaUsage.update({
+        where: {
+          userQuotaId_quotaKey: {
+            userQuotaId: userQuota.id,
+            quotaKey: serviceKey
+          }
+        },
+        data: {
+          usageCount: activeJobCount,
+          dateUpdated: new Date()
+        }
+      });
+      quotaUsage = await prisma.quotaUsage.findUnique({
+        where: {
+          userQuotaId_quotaKey: {
+            userQuotaId: userQuota.id,
+            quotaKey: serviceKey
+          }
+        }
+      });
+    }
+
+    // Get tier limits for user's tier
+    const userTierLimits = tierLimits[user.tier];
+    if (!userTierLimits) {
       await Logger.error('Tier limits not found for user tier', {
         userId,
         userTier: user.tier,
-        availableTiers: Object.keys(plainConfig.tierLimits)
+        availableTiers: Object.keys(tierLimits)
       });
       throw new Error('Invalid tier configuration');
     }
 
-    // Access service limit using object notation
-    const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
-    const currentUsage = plainQuota?.usage?.[serviceKey] || 0;
+    const serviceLimit = userTierLimits[serviceKey]?.limit ?? 0;
+    const currentUsage = quotaUsage?.usageCount || 0;
 
-    // If action is increment and not jobs service (since jobs are tracked separately)
+    // If action is increment and not jobs service
     if (action === "increment" && serviceKey !== 'JOBS_COUNT') {
       const newUsage = currentUsage + 1;
 
       // Only increment if within limits or if limit is -1 (unlimited)
       if (serviceLimit === -1 || newUsage <= serviceLimit) {
-        await UserQuotaModel.findOneAndUpdate(
-          { userId },
-          {
-            $inc: { [`usage.${serviceKey}`]: 1 },
-            dateUpdated: new Date().toISOString()
+        await prisma.quotaUsage.update({
+          where: {
+            userQuotaId_quotaKey: {
+              userQuotaId: userQuota.id,
+              quotaKey: serviceKey
+            }
+          },
+          data: {
+            usageCount: newUsage,
+            dateUpdated: new Date()
           }
-        );
+        });
 
         await Logger.info('Service usage incremented', {
           userId,
@@ -244,7 +283,7 @@ export async function srv_getJobs() {
     const activeJobCount = transformedJobs.filter(job => job.status !== 'ARCHIVED').length;
 
     // Get or create quota
-    let quota = await UserQuotaModel.findOne({ userId: user.id });
+    let quota = await prisma.userQuota.findUnique({ where: { userId: user.id } });
     if (!quota) {
       try {
         quota = await createInitialQuota(user.id);
@@ -266,13 +305,18 @@ export async function srv_getJobs() {
 
     // Update quota if it doesn't match active job count
     if (quota && currentQuotaUsage !== activeJobCount) {
-      await UserQuotaModel.findOneAndUpdate(
-        { userId: user.id },
-        {
-          $set: { 'usage.JOBS_COUNT': activeJobCount },
-          dateUpdated: new Date().toISOString()
+      await prisma.quotaUsage.update({
+        where: {
+          userQuotaId_quotaKey: {
+            userQuotaId: quota.id,
+            quotaKey: 'JOBS_COUNT'
+          }
+        },
+        data: {
+          usageCount: activeJobCount,
+          dateUpdated: new Date()
         }
-      );
+      });
       await Logger.info('Updated jobs quota to match active count', {
         userId: user.id,
         previousCount: currentQuotaUsage,
@@ -506,6 +550,82 @@ export async function srv_initialData() {
   }
   const resumes = await srv_getResumes();
   return { jobs, resumes };
+}
+
+export interface ResumeUploadData {
+  fileUrl: string;
+  fileId: string;
+  resumeId: string;
+  fileName: string;
+}
+
+export async function srv_uploadResume(data: ResumeUploadData): Promise<boolean> {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Create resume record in the database
+    await prisma.generatedResume.create({
+      data: {
+        userId: user.id,
+        jobId: data.resumeId, // Using resumeId as jobId for base resume
+        resumeMarkdown: data.fileUrl,
+        resumeVersion: 1
+      }
+    });
+
+    await Logger.info('Resume uploaded successfully', {
+      userId: user.id,
+      resumeId: data.resumeId,
+      fileName: data.fileName
+    });
+
+    return true;
+  } catch (error) {
+    await Logger.error('Failed to upload resume', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      data
+    });
+    throw error;
+  }
+}
+
+export interface BaselineResumeData {
+  fileUrl: string;
+  fileId: string;
+  fileName: string;
+}
+
+export async function srv_uploadBaselineResume(data: BaselineResumeData): Promise<boolean> {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Update user with baseline resume
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        baselineResume: data.fileUrl
+      }
+    });
+
+    await Logger.info('Baseline resume uploaded successfully', {
+      userId: user.id,
+      fileName: data.fileName
+    });
+
+    return true;
+  } catch (error) {
+    await Logger.error('Failed to upload baseline resume', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      data
+    });
+    throw error;
+  }
 }
 
 export async function srv_createAIRating(job: Job) {
@@ -861,7 +981,7 @@ export async function srv_getUserRole() {
       return { role: 'user', tier: 'free' };
     }
 
-    const dbUser = await UserModel.findOne({ userId: user.id });
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
     if (!dbUser) {
       return { role: 'user', tier: 'free' };
     }
@@ -872,6 +992,101 @@ export async function srv_getUserRole() {
     };
   } catch (error) {
     await Logger.error('Error fetching user role', { error });
+    throw error;
+  }
+}
+
+export async function srv_getUserDetails() {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      await Logger.warning('Unauthorized attempt to get user details', {
+        path: "srv_getUserDetails",
+        method: 'GET'
+      });
+      return null;
+    }
+
+    console.log('Fetching details for user:', user.id);
+    
+    // Get user and quota information using Prisma
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        userQuota: {
+          include: {
+            quotaUsage: true,
+            notifications: true
+          }
+        }
+      }
+    });
+
+    if (!dbUser) {
+      console.log('User not found in database');
+      return null;
+    }
+
+    if (!dbUser.userQuota) {
+      console.log('No quota found for user, creating initial quota');
+      const newQuota = await createInitialQuota(user.id);
+      console.log('Created new quota:', newQuota);
+      
+      // Fetch the user again with the new quota
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          userQuota: {
+            include: {
+              quotaUsage: true,
+              notifications: true
+            }
+          }
+        }
+      });
+      
+      if (!updatedUser) {
+        throw new Error('User not found after quota creation');
+      }
+      
+      dbUser.userQuota = updatedUser.userQuota;
+    }
+
+    // Transform the data into the expected format
+    const userDetails = {
+      userId: dbUser.id,
+      tier: dbUser.tier,
+      role: dbUser.role,
+      about: dbUser.about,
+      onboardingComplete: dbUser.onboardingComplete,
+      stripeCustomerId: dbUser.stripeCustomerId,
+      subscriptionId: dbUser.subscriptionId,
+      subscriptionStatus: dbUser.subscriptionStatus,
+      cancelAtPeriodEnd: dbUser.cancelAtPeriodEnd,
+      currentPeriodEnd: dbUser.currentPeriodEnd,
+      quotas: dbUser.userQuota ? {
+        usage: dbUser.userQuota.quotaUsage.reduce((acc, usage) => {
+          acc[usage.quotaKey] = usage.usageCount;
+          return acc;
+        }, {} as Record<string, number>),
+        quotaResetDate: dbUser.userQuota.quotaResetDate,
+        notifications: dbUser.userQuota.notifications.map(notification => ({
+          type: notification.type,
+          quotaKey: notification.quotaKey,
+          currentUsage: notification.currentUsage,
+          limit: notification.limit,
+          message: notification.message
+        }))
+      } : undefined
+    };
+
+    console.log('Final user details:', userDetails);
+    return userDetails;
+  } catch (error) {
+    await Logger.error('Error fetching user details', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw error;
   }
 }

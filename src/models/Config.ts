@@ -5,17 +5,17 @@ interface QuotaLimit {
   description?: string;
 }
 
-export interface ServiceConfig {
+ interface ServiceConfig {
   name: string;
   description: string;
   active: boolean;
 }
 
-export interface TierLimits {
+ interface TierLimits {
   [serviceKey: string]: QuotaLimit;
 }
 
-export interface ConfigData {
+ interface ConfigData {
   tierLimits: {
     [tier: string]: TierLimits;
   };
@@ -26,7 +26,7 @@ export interface ConfigData {
   dateUpdated: Date;
 }
 
-export interface Config extends Document, ConfigData {}
+ interface Config extends Document, ConfigData {}
 
 const ConfigSchema: Schema = new Schema({
   tierLimits: {
@@ -53,4 +53,4 @@ const ConfigSchema: Schema = new Schema({
   dateUpdated: { type: Date, default: Date.now }
 });
 
-export const ConfigModel: Model<Config> = mongoose.models.Config || mongoose.model<Config>('Config', ConfigSchema); 
+ const ConfigModel: Model<Config> = mongoose.models.Config || mongoose.model<Config>('Config', ConfigSchema); 

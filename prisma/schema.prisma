@@ -13,11 +13,12 @@ model User {
   role               UserRole        @default(user)
   about              String?         @db.Text
   onboardingComplete Boolean         @default(false)
-  stripeCustomerId   String?
+  stripeCustomerId   String?         @unique
   subscriptionId     String?
   subscriptionStatus String?
   cancelAtPeriodEnd  Boolean?
   currentPeriodEnd   DateTime?
+  baselineResume     String?         @db.Text
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   hunterCompanies    HunterCompany[]
@@ -28,6 +29,7 @@ model User {
   userQuota          UserQuota?
 
   @@index([id])
+  @@index([stripeCustomerId])
 }
 
 model Job {
@@ -94,14 +96,15 @@ model GeneratedCoverLetter {
 }
 
 model UserQuota {
-  id                     String       @id @default(uuid())
-  userId                 String       @unique
+  id                     String              @id @default(uuid())
+  userId                 String              @unique
   quotaResetDate         DateTime
   stripeCurrentPeriodEnd DateTime?
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  dateCreated            DateTime            @default(now())
+  dateUpdated            DateTime            @updatedAt
   quotaUsage             QuotaUsage[]
-  user                   User         @relation(fields: [userId], references: [id])
+  notifications          QuotaNotification[]
+  user                   User                @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -111,11 +114,33 @@ model QuotaUsage {
   userQuotaId String
   quotaKey    String
   usageCount  Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  dateCreated DateTime  @default(now())
+  dateUpdated DateTime  @updatedAt
   userQuota   UserQuota @relation(fields: [userQuotaId], references: [id])
 
   @@unique([userQuotaId, quotaKey])
+}
+
+model QuotaNotification {
+  id           String    @id @default(uuid())
+  userQuotaId  String
+  type         String // 'warning' or 'exceeded'
+  quotaKey     String
+  currentUsage Int
+  limit        Int
+  message      String
+  dateCreated  DateTime  @default(now())
+  userQuota    UserQuota @relation(fields: [userQuotaId], references: [id])
+
+  @@index([userQuotaId])
+}
+
+model Config {
+  id          String   @id @default(uuid())
+  tierLimits  Json // Stores tier limits as nested JSON: { tier: { serviceKey: { limit: number, description?: string } } }
+  services    Json // Stores services config as JSON: { key: { name: string, description: string, active: boolean } }
+  dateCreated DateTime @default(now())
+  dateUpdated DateTime @updatedAt
 }
 
 model Campaign {
@@ -240,6 +265,19 @@ model Log {
   @@index([userId])
   @@index([timestamp])
   @@index([service])
+}
+
+model WebhookEvent {
+  id           String   @id @default(uuid())
+  eventId      String   @unique
+  type         String
+  processed    Boolean  @default(false)
+  lastAttempt  DateTime
+  retryCount   Int
+  metadata     Json
+
+  @@index([id])
+  @@index([eventId])
 }
 
 enum JobStatus {
