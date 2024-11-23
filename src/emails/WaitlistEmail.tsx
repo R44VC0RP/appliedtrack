@@ -49,7 +49,7 @@ export const WaitlistEmail = ({
             <Heading style={h2}>What to Look Forward To:</Heading>
             {features.map((feature, index) => (
               <Text key={index} style={featureText}>
-                • {feature}
+                - {feature}
               </Text>
             ))}
           </Section>

@@ -649,7 +649,7 @@ function SubscriptionStatus({ userDetails }: { userDetails: UserDetails | null }
 
   const getStatusDisplay = () => {
     if (userDetails.cancelAtPeriodEnd && userDetails.currentPeriodEnd) {
-      return `Cancels on ${new Date(userDetails.currentPeriodEnd).toLocaleDateString()}`;
+      return `Cancels on ${new Date(userDetails.currentPeriodEnd).toLocaleDateString('en-US')}`;
     }
     
     if (userDetails.tier === 'free') {
@@ -657,7 +657,8 @@ function SubscriptionStatus({ userDetails }: { userDetails: UserDetails | null }
     }
     
     if (userDetails.currentPeriodEnd) {
-      return `${userDetails.tier.charAt(0).toUpperCase() + userDetails.tier.slice(1)} Plan · Renews ${new Date(userDetails.currentPeriodEnd).toLocaleDateString()}`;
+      const tierName = userDetails.tier.charAt(0).toUpperCase() + userDetails.tier.slice(1);
+      return `${tierName} Plan | Renews ${new Date(userDetails.currentPeriodEnd).toLocaleDateString('en-US')}`;
     }
 
     return `${userDetails.tier.charAt(0).toUpperCase() + userDetails.tier.slice(1)} Plan`;
@@ -669,7 +670,7 @@ function SubscriptionStatus({ userDetails }: { userDetails: UserDetails | null }
       {userDetails.tier !== 'free' && (
         <p className="text-xs text-muted-foreground">
           Next billing date: {userDetails.currentPeriodEnd 
-            ? new Date(userDetails.currentPeriodEnd).toLocaleDateString()
+            ? new Date(userDetails.currentPeriodEnd).toLocaleDateString('en-US')
             : 'N/A'}
         </p>
       )}

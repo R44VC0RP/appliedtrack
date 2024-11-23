@@ -38,27 +38,51 @@ const nextConfig = {
             };
         }
 
+        // Needed for html2canvas and other canvas-related dependencies
         config.resolve.alias.canvas = false;
         
         // Suppress deprecation warnings
         config.ignoreWarnings = [
             { message: /\[DEP0040\] DeprecationWarning: The `punycode` module is deprecated/ }
         ];
-        
-        // Update Terser configuration to handle unicode properly
-        config.optimization.minimizer = config.optimization.minimizer.map((minimizer) => {
-            if (minimizer.constructor.name === 'TerserPlugin') {
-                minimizer.options.terserOptions = {
-                    ...minimizer.options.terserOptions,
-                    output: {
-                        ...minimizer.options.terserOptions?.output,
-                        comments: false,
-                        ascii_only: false  // Changed to false to properly handle unicode
-                    }
+
+        // Configure Terser to handle unicode properly
+        const terserOptions = {
+            parse: {
+                // Enable parsing of unicode escape sequences
+                unicode: true
+            },
+            compress: {
+                // Preserve unicode literals
+                unicode: true
+            },
+            mangle: {
+                // Keep variable names readable
+                keep_classnames: true,
+                keep_fnames: true
+            },
+            format: {
+                // Preserve unicode characters
+                ascii_only: false,
+                comments: false,
+                // Ensure proper unicode escaping
+                quote_style: 1
+            },
+            sourceMap: false
+        };
+
+        // Find and update the Terser plugin configuration
+        if (config.optimization && config.optimization.minimizer) {
+            const terserPlugin = config.optimization.minimizer.find(
+                plugin => plugin.constructor.name === 'TerserPlugin'
+            );
+            if (terserPlugin) {
+                terserPlugin.options.terserOptions = {
+                    ...terserPlugin.options.terserOptions,
+                    ...terserOptions
                 };
             }
-            return minimizer;
-        });
+        }
         
         return config;
     },

@@ -216,10 +216,10 @@ export function AdminUsers() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      {new Date(user.lastSignInAt || '').toLocaleDateString()}
+                      {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString() : 'Never'}
                     </TableCell>
                     <TableCell>
-                      {new Date(user.dateCreated).toLocaleDateString()}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" disabled={isLocked}>

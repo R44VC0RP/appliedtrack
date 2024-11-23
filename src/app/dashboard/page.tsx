@@ -17,7 +17,14 @@ export default async function DashboardPage() {
   const user = await srv_checkUserAttributes(clerkUser.id);
   return (
     <div>
-      <AppliedTrack initJobs={jobs as unknown as Job[]} initResumes={resumes} onboardingComplete={user?.onboardingComplete || false} role={user?.role || 'user'} tier={user?.tier || 'free'} user={user as CompleteUserProfile} />
+      <AppliedTrack 
+        initJobs={jobs as unknown as Job[]} 
+        initResumes={resumes?.map(({ resumeId, fileUrl, fileName }) => ({ resumeId, fileUrl, fileName })) || []} 
+        onboardingComplete={user?.onboardingComplete || false} 
+        role={user?.role || 'user'} 
+        tier={user?.tier || 'free'} 
+        user={user as CompleteUserProfile} 
+      />
     </div>
   )
 }

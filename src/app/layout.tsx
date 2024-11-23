@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import Script from 'next/script'
 import { siteConfig } from '@/config/metadata'
 import { Toaster } from "@/components/ui/sonner"
-import { srv_initQuotaResetSchedule } from '@/lib/scheduler'
+// import { srv_initQuotaResetSchedule } from '@/lib/scheduler'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -54,9 +54,9 @@ export default async function RootLayout({
   }
 
   // Initialize the scheduler when the app starts
-  if (process.env.NODE_ENV === 'production') {
-    srv_initQuotaResetSchedule();
-  }
+  // if (process.env.NODE_ENV === 'production') {
+  //   srv_initQuotaResetSchedule();
+  // }
 
   return (
     <ClerkProvider>

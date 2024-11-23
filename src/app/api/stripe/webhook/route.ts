@@ -101,7 +101,10 @@ export async function POST(req: Request) {
 
       // Add more webhook event handlers as needed
       default:
-        await Logger.info(`Unhandled Stripe webhook event: ${event.type}`);
+        await Logger.info(`Unhandled Stripe webhook event: ${event.type}`, {
+          event
+        });
+        return NextResponse.json({ error: 'Unhandled Stripe webhook event' }, { status: 400 });
     }
 
     return NextResponse.json({ received: true });
