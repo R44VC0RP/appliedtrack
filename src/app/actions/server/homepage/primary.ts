@@ -1,9 +1,7 @@
 "use server"
 
 import { Logger } from "@/lib/logger"
-import { PrismaClient } from "@prisma/client"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 async function checkIfEmailIsAlreadyOnWaitlist(email: string) {
     const waitlistUser = await prisma.waitlistUser.findUnique({

@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export interface Resume extends Document {
+interface Resume extends Document {
 
   userId: string;
   fileUrl: string;
@@ -21,4 +21,4 @@ const ResumeSchema = new Schema<Resume>({
   dateUpdated: { type: Date, default: Date.now },
 });
 
-export const ResumeModel = mongoose.models.Resume || mongoose.model<Resume>('Resume', ResumeSchema);
+const ResumeModel = mongoose.models.Resume || mongoose.model<Resume>('Resume', ResumeSchema);

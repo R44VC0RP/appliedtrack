@@ -40,14 +40,20 @@ const nextConfig = {
 
         config.resolve.alias.canvas = false;
         
+        // Suppress deprecation warnings
+        config.ignoreWarnings = [
+            { message: /\[DEP0040\] DeprecationWarning: The `punycode` module is deprecated/ }
+        ];
+        
+        // Update Terser configuration to handle unicode properly
         config.optimization.minimizer = config.optimization.minimizer.map((minimizer) => {
             if (minimizer.constructor.name === 'TerserPlugin') {
                 minimizer.options.terserOptions = {
                     ...minimizer.options.terserOptions,
                     output: {
-                        ...minimizer.options.terserOptions.output,
+                        ...minimizer.options.terserOptions?.output,
                         comments: false,
-                        ascii_only: true
+                        ascii_only: false  // Changed to false to properly handle unicode
                     }
                 };
             }

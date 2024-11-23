@@ -3,12 +3,10 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { createClerkClient } from "@clerk/backend"
 import { Logger } from "@/lib/logger";
-import { UserModel } from "@/models/User";
-import { ResumeModel } from "@/models/Resume";
 import { plain } from "@/lib/plain";
 import { z } from "zod";
 import { UTApi } from "uploadthing/server";
-import { PrismaClient } from '@prisma/client'
+import { prisma } from "@/lib/prisma";
 // import { ConfigModel } from "@/models/Config";
 import Stripe from 'stripe';
 import { UserTier, StripeCheckoutOptions } from '@/types/subscription';
@@ -16,7 +14,6 @@ import { createInitialQuota, resetQuota } from "@/lib/useQuota";
 
 import { checkQuotaLimits } from "@/lib/useQuota";
 
-const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
@@ -35,16 +32,9 @@ export async function srv_getUserDetails() {
   try {
     const user = await currentUser();
     if (!user) {
-      await Logger.warning('Unauthorized attempt to get user details', {
-        path: "srv_getUserDetails",
-        method: 'GET'
-      });
-      return null;
+      throw new Error('Unauthorized');
     }
 
-    console.log('Fetching details for user:', user.id);
-    
-    // Get user and quota information using Prisma
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: {
@@ -58,65 +48,18 @@ export async function srv_getUserDetails() {
     });
 
     if (!dbUser) {
-      console.log('User not found in database');
-      return null;
+      throw new Error('User not found');
     }
 
-    if (!dbUser.userQuota) {
-      console.log('No quota found for user, creating initial quota');
-      const newQuota = await createInitialQuota(user.id);
-      console.log('Created new quota:', newQuota);
-      
-      // Fetch the user again with the new quota
-      const updatedUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        include: {
-          userQuota: {
-            include: {
-              quotaUsage: true,
-              notifications: true
-            }
-          }
-        }
-      });
-      
-      if (!updatedUser) {
-        throw new Error('User not found after quota creation');
-      }
-      
-      dbUser.userQuota = updatedUser.userQuota;
-    }
-
-    // Transform the data into the expected format
-    const userDetails = {
-      userId: dbUser.id,
-      tier: dbUser.tier,
-      role: dbUser.role,
-      about: dbUser.about,
-      onboardingComplete: dbUser.onboardingComplete,
-      stripeCustomerId: dbUser.stripeCustomerId,
-      subscriptionId: dbUser.subscriptionId,
-      subscriptionStatus: dbUser.subscriptionStatus,
-      cancelAtPeriodEnd: dbUser.cancelAtPeriodEnd,
-      currentPeriodEnd: dbUser.currentPeriodEnd,
-      quotas: dbUser.userQuota ? {
-        usage: dbUser.userQuota.quotaUsage.reduce((acc, usage) => {
-          acc[usage.quotaKey] = usage.usageCount;
-          return acc;
-        }, {} as Record<string, number>),
-        quotaResetDate: dbUser.userQuota.quotaResetDate,
-        notifications: dbUser.userQuota.notifications.map(notification => ({
-          type: notification.type,
-          quotaKey: notification.quotaKey,
-          currentUsage: notification.currentUsage,
-          limit: notification.limit,
-          message: notification.message
-        }))
-      } : undefined
+    return {
+      ...dbUser,
+      userId: user.id,
+      email: user.emailAddresses[0]?.emailAddress,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      imageUrl: user.imageUrl,
+      lastSignInAt: user.lastSignInAt,
+      createdAt: dbUser.createdAt.getTime(), // Convert to timestamp if needed
     };
-
-    console.log('Final userDetails:', userDetails);
-    return userDetails;
   } catch (error) {
     await Logger.error('Error fetching user details', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -211,15 +154,23 @@ export async function srv_getResumes() {
       return [];
     }
 
-    const resumes = await ResumeModel.find({ userId: user.id })
-      .select('resumeId fileUrl fileName dateCreated');
+    const resumes = await prisma.resume.findMany({
+      where: { userId: user.id },
+      select: {
+        resumeId: true,
+        fileUrl: true,
+        fileName: true,
+        dateCreated: true
+      },
+      orderBy: { dateCreated: 'desc' }
+    });
 
     await Logger.info('Resumes retrieved successfully', {
       userId: user.id,
       count: resumes.length
     });
 
-    return plain(resumes);
+    return resumes;
   } catch (error) {
     await Logger.error('Error fetching resumes', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -240,13 +191,15 @@ export async function srv_addResume(fileUrl: string, fileName: string, fileKey: 
       return { success: false, error: 'Unauthorized' };
     }
 
-    const newResume = await ResumeModel.create({
-      userId: user.id,
-      fileId: fileKey,
-      resumeId: `RESUME_${fileKey}`,
-      fileUrl,
-      fileName,
-      dateCreated: new Date().toISOString()
+    const newResume = await prisma.resume.create({
+      data: {
+        userId: user.id,
+        fileId: fileKey,
+        resumeId: `RESUME_${fileKey}`,
+        fileUrl,
+        fileName,
+        dateCreated: new Date().toISOString()
+      }
     });
 
     await Logger.info('Resume added successfully', {
@@ -255,7 +208,7 @@ export async function srv_addResume(fileUrl: string, fileName: string, fileKey: 
       fileName
     });
 
-    return { success: true, data: plain(newResume) };
+    return { success: true, data: newResume };
   } catch (error) {
     await Logger.error('Error adding resume', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -278,7 +231,7 @@ export async function srv_removeResume(resumeId: string) {
     }
 
     // Find the resume first to get the file key
-    const resume = await ResumeModel.findOne({ resumeId, userId: user.id });
+    const resume = await prisma.resume.findFirst({ where: { resumeId, userId: user.id } });
     if (!resume) {
       throw new Error('Resume not found');
     }
@@ -292,7 +245,7 @@ export async function srv_removeResume(resumeId: string) {
     }
 
     // Delete from database
-    await ResumeModel.deleteOne({ resumeId, userId: user.id });
+    await prisma.resume.delete({ where: { resumeId } });
 
     await Logger.info('Resume removed successfully', {
       userId: user.id,
@@ -326,7 +279,10 @@ export async function srv_createStripeCheckout(tier: Exclude<UserTier, 'free'>) 
       throw new Error('Invalid tier');
     }
 
-    const userDetails = await UserModel.findOne({ userId: user.id });
+    const userDetails = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
+    
     if (!userDetails) {
       throw new Error('User details not found');
     }
@@ -385,8 +341,10 @@ export async function srv_handleSubscriptionChange(
   periodEnd: Date
 ) {
   try {
-    // First try to find by Clerk user ID
-    let user = await UserModel.findOne({ userId: clerkUserId });
+    // Use Prisma to find the user
+    const user = await prisma.user.findUnique({
+      where: { id: clerkUserId }
+    });
     
     await Logger.info('Looking up user for subscription change', {
       clerkUserId,
@@ -400,21 +358,23 @@ export async function srv_handleSubscriptionChange(
 
     const previousTier = user.tier;
 
-    // Update user's tier
-    await UserModel.findOneAndUpdate(
-      { userId: clerkUserId },
-      { 
+    // Update user with Prisma
+    const updatedUser = await prisma.user.update({
+      where: { id: clerkUserId },
+      data: {
         tier: newTier,
-        dateUpdated: new Date(),
-        ...(newTier !== 'free' ? {
-          currentPeriodEnd: periodEnd,
-          cancelAtPeriodEnd: false
-        } : {
-          currentPeriodEnd: undefined,
-          cancelAtPeriodEnd: undefined
-        })
+        stripeCustomerId,
+        currentPeriodEnd: periodEnd,
+        updatedAt: new Date()
       }
-    );
+    });
+
+    await Logger.info('Updated user subscription', {
+      userId: clerkUserId,
+      previousTier,
+      newTier,
+      periodEnd
+    });
 
     // Reset quotas based on new tier
     await resetQuota({
@@ -423,20 +383,13 @@ export async function srv_handleSubscriptionChange(
       resetDate: periodEnd
     });
 
-    await Logger.info('Subscription changed', {
-      userId: clerkUserId,
-      previousTier,
-      newTier,
-      periodEnd
-    });
-
     // Check quota limits after change
     const notifications = await checkQuotaLimits(clerkUserId, newTier);
     // if (notifications.length > 0) {
     //   await notifyQuotaStatus(notifications);
     // }
 
-    return true;
+    return updatedUser;
   } catch (error) {
     await Logger.error('Error handling subscription change', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -454,7 +407,9 @@ export async function srv_createCustomerPortal() {
       throw new Error('Unauthorized');
     }
 
-    const dbUser = await UserModel.findOne({ userId: user.id });
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
     if (!dbUser?.stripeCustomerId) {
       throw new Error('No subscription found');
     }
@@ -481,27 +436,51 @@ export async function srv_getConfigTiers() {
       throw new Error('Configuration not found');
     }
 
-    // Type assertions for the JSON fields
-    const tierLimits = config.tierLimits as Record<string, Record<string, { limit: number }>>;
-    const services = config.services as Record<string, { name: string; description: string; active: boolean }>;
+    // Parse JSON fields if they are strings
+    const tierLimits = typeof config.tierLimits === 'string' 
+      ? JSON.parse(config.tierLimits) 
+      : config.tierLimits;
+    const services = typeof config.services === 'string'
+      ? JSON.parse(config.services)
+      : config.services;
+
+    // Type guards for the JSON data
+    interface TierLimitData {
+      limit: number;
+      description?: string;
+    }
+
+    interface ServiceData {
+      name: string;
+      description: string;
+      active: boolean;
+    }
 
     // Create a clean structure for tierLimits
     const cleanTierLimits = Object.keys(tierLimits).reduce((acc, tier) => {
       acc[tier] = {};
       Object.entries(tierLimits[tier]).forEach(([service, data]) => {
+        const typedData = data as TierLimitData;
         acc[tier][service] = {
-          limit: data.limit
+          limit: typedData.limit
         };
       });
       return acc;
     }, {} as Record<string, Record<string, { limit: number }>>);
 
+    // Type-check services
+    const typedServices = Object.entries(services).reduce((acc, [key, service]) => {
+      const typedService = service as ServiceData;
+      acc[key] = typedService;
+      return acc;
+    }, {} as Record<string, ServiceData>);
+
     await Logger.info('Config tiers retrieved successfully', {
       tiersCount: Object.keys(cleanTierLimits).length,
-      servicesCount: Object.keys(services).length
+      servicesCount: Object.keys(typedServices).length
     });
 
-    return { tierLimits: cleanTierLimits, services };
+    return { tierLimits: cleanTierLimits, services: typedServices };
   } catch (error) {
     await Logger.error('Error fetching config tiers', {
       error: error instanceof Error ? error.message : 'Unknown error',

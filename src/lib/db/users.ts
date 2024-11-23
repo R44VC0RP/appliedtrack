@@ -1,6 +1,8 @@
 import { UserModel } from '@/models/User';
-import { clerkClient } from '@clerk/nextjs/server';
+import { createClerkClient } from '@clerk/backend';
 import { User } from '@/models/User';
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
 
 export async function getUser(userId: string): Promise<User & { email: string; name: string }> {
   try {
@@ -45,7 +47,7 @@ export async function createUserIfNotExists(userId: string): Promise<User> {
         about: '',
         dateCreated: new Date(),
         dateUpdated: new Date(),
-        onBoardingComplete: false
+        onboardingComplete: false
       });
     }
 

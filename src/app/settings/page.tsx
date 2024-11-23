@@ -14,8 +14,8 @@ import { Loader2, FileText, CreditCard, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User } from "@/models/User";
-import { ConfigData, ServiceConfig, TierLimits } from "@/models/Config";
+import { User } from "@prisma/client";
+
 import { UserProfile } from "@clerk/nextjs";
 import Confetti from 'react-dom-confetti';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -23,7 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserTier, QuotaNotification } from '@/types/subscription';
 import { Progress } from "@/components/ui/progress";
-
+import { QuotaUsage } from '@prisma/client';
 import {
   srv_getUserDetails,
   srv_updateUserDetails,
@@ -35,6 +35,55 @@ import {
   srv_createStripeCheckout
 } from "@/app/actions/server/settings/primary";
 
+type UserDetails = {
+  id: string;
+  userId: string;
+  tier: 'free' | 'pro' | 'power';
+  role: 'user' | 'admin';
+  about: string | null;
+  onboardingComplete: boolean;
+  stripeCustomerId: string | null;
+  subscriptionId: string | null;
+  subscriptionStatus: string | null;
+  cancelAtPeriodEnd: boolean | null;
+  currentPeriodEnd: Date | null;
+  baselineResume: string | null;
+  createdAt: number;
+  updatedAt: Date;
+  email: string;
+  name: string;
+  imageUrl: string;
+  lastSignInAt: number | null;
+  userQuota: {
+    quotaUsage: {
+      id: string;
+      userQuotaId: string;
+      quotaKey: string;
+      usageCount: number;
+      dateCreated: Date;
+      dateUpdated: Date;
+    }[];
+    notifications: any[];
+  } | null;
+};
+
+interface ConfigData {
+  services: {
+    [key: string]: {
+      name: string;
+      description: string;
+      active: boolean;
+    };
+  };
+  tierLimits: {
+    [key in UserTier]: {
+      [serviceKey: string]: {
+        limit: number;
+        description?: string;
+      };
+    };
+  };
+}
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
@@ -46,7 +95,7 @@ export default function SettingsPage() {
   const [localAbout, setLocalAbout] = useState('');
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userDetails, setUserDetails] = useState<User | null>(null);
+  const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [configData, setConfigData] = useState<ConfigData | null>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -67,6 +116,7 @@ export default function SettingsPage() {
         srv_getConfigTiers()
       ]);
 
+      // console.log('Config data received:', config.tierLimits);
       setUserDetails(userDetails);
       setResumes(userResumes);
       setConfigData(config as ConfigData);
@@ -180,13 +230,12 @@ export default function SettingsPage() {
   };
 
   const getQuotaUsage = useCallback((serviceKey: string) => {
-    if (!userDetails?.quotas?.usage || !configData?.tierLimits?.[userDetails.tier]?.[serviceKey]) {
+    if (!userDetails?.userQuota?.quotaUsage || !configData?.tierLimits?.[userDetails.tier]?.[serviceKey]) {
       return { usage: 0, limit: configData?.tierLimits?.[userDetails?.tier || 'free']?.[serviceKey]?.limit || 0, percentage: 0 };
     }
 
-    // Map service keys to their quota keys
-    const quotaKey = serviceKey === 'JOBS_COUNT' ? 'JOBS_COUNT' : serviceKey;
-    const usage = Number(userDetails.quotas.usage[quotaKey]) || 0;
+    const quotaUsage = userDetails.userQuota.quotaUsage.find(q => q.quotaKey === serviceKey);
+    const usage = quotaUsage?.usageCount || 0;
     const limit = configData.tierLimits[userDetails.tier][serviceKey].limit;
     const percentage = limit > 0 ? (usage / limit) * 100 : 0;
 
@@ -514,13 +563,18 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Quota Usage Section */}
-                  {userDetails && (
+                  {userDetails && configData?.services && (
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Current Usage</h3>
                       <div className="grid gap-4">
-                        {configData?.services && Object.keys(configData.services).map((serviceKey) => (
-                          <QuotaUsageIndicator key={serviceKey} serviceKey={serviceKey} />
-                        ))}
+                        {Object.entries(configData.services)
+                          .filter(([_, service]) => service && service.active)
+                          .map(([serviceKey, service]) => {
+                            if (!service || !service.name) return null;
+                            return (
+                              <QuotaUsageIndicator key={serviceKey} serviceKey={serviceKey} />
+                            );
+                          })}
                       </div>
                     </div>
                   )}
@@ -590,7 +644,7 @@ export default function SettingsPage() {
   );
 }
 
-function SubscriptionStatus({ userDetails }: { userDetails: User | null }) {
+function SubscriptionStatus({ userDetails }: { userDetails: UserDetails | null }) {
   if (!userDetails) return null;
 
   const getStatusDisplay = () => {

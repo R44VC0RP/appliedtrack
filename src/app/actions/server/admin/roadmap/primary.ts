@@ -3,11 +3,10 @@
 import { Logger } from '@/lib/logger'
 import { v4 as uuidv4 } from 'uuid'
 import { srv_authAdminUser } from '@/lib/useUser'
-import { PrismaClient, Prisma } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { TRoadmap, RoadmapStatus } from '@/types/roadmap'
-import { any } from 'zod'
 
-const prisma = new PrismaClient()
+
 
 const mapPrismaRoadmapToRoadmap = (prismaRoadmap: any): TRoadmap => ({
     ...prismaRoadmap,

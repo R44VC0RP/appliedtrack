@@ -86,13 +86,27 @@ export function TierConfig() {
     fetchUserQuotas();
   }, []);
 
-  const parseConfig = (data: Config | null): ConfigData | null => {
-    if (!data) return null;
-    return {
-      ...data,
-      tierLimits: JSON.parse(data.tierLimits as string),
-      services: JSON.parse(data.services as string)
-    };
+  const parseConfig = (config: any) => {
+    try {
+      // Handle tierLimits
+      const tierLimits = typeof config.tierLimits === 'string' 
+        ? JSON.parse(config.tierLimits) 
+        : config.tierLimits;
+
+      // Handle services
+      const services = typeof config.services === 'string'
+        ? JSON.parse(config.services)
+        : config.services;
+
+      return {
+        ...config,
+        tierLimits,
+        services
+      };
+    } catch (error) {
+      console.error('Error parsing config:', error);
+      return config;
+    }
   };
 
   const fetchConfig = async () => {
@@ -203,7 +217,7 @@ export function TierConfig() {
   console.log(config);
 
   return (
-    <div className="h-full flex flex-col w-full max-w-full">
+    <div className="h-full flex flex-col w-full max-w-full ">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Settings className="w-6 h-6" />
@@ -219,7 +233,7 @@ export function TierConfig() {
         </TabsList>
 
         <TabsContent value="limits">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 ">
             {config && Object.entries(config.tierLimits).map(([tier, limits]) => (
               <Card key={tier} className="p-6">
                 <h3 className="text-lg font-semibold capitalize mb-4">{tier} Tier</h3>
@@ -249,12 +263,12 @@ export function TierConfig() {
           </div>
         </TabsContent>
 
-        <TabsContent value="services">
+        <TabsContent value="services" className=''>
           <div className="mb-4">
             <AddServiceModal onAdd={handleAddService} />
           </div>
           
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 ">
             {config && Object.entries(config.services).map(([key, service]) => (
               <Card key={key} className="p-4">
                 <div className="flex items-center justify-between mb-4">
@@ -375,7 +389,7 @@ export function TierConfig() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="mt-6">
+      <div className="mt-6 mb-4">
         <Button onClick={handleUpdate}>
           Save Changes
         </Button>

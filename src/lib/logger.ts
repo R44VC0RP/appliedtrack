@@ -2,10 +2,10 @@
 
 import { headers } from 'next/headers';
 import { currentUser } from '@clerk/nextjs/server';
-import { PrismaClient, LogLevel } from '@prisma/client';
+import { LogLevel } from '@prisma/client';
+import { prisma } from './prisma';
 import { use } from 'react';
 
-const prisma = new PrismaClient();
 
 interface LogOptions {
   userId?: string;
@@ -30,7 +30,7 @@ export const Logger = {
       const headersList = headers();
       const user = await currentUser();
 
-      console.log(user?.id);
+      // console.log(user?.id);
       
       const log = await prisma.log.create({
         data: {
@@ -45,7 +45,7 @@ export const Logger = {
       });
 
       // Log to console in development
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'development' && level.toUpperCase() !== 'INFO') {
         console.log(`[${level.toUpperCase()}] ${action}:`, details);
       }
 

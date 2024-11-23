@@ -18,7 +18,11 @@ import { Globe2 } from "lucide-react";
 import { LinkedInLogoIcon } from "@radix-ui/react-icons";
 import { Bot, Sparkles, FileText, Users } from "lucide-react";
 import JobTitleAutocomplete from "@/components/ui/job-title-autocomplete";
-import { srv_getJob } from "../actions/server/job-board/primary";
+import { srv_getJob, srv_getResumes, srv_uploadResume } from "../actions/server/job-board/primary";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UploadButton } from "@/utils/uploadthing";
+import { toast } from "sonner";
+import { jobStatusToLabel } from "./appliedtrack";
 
 const getStatusColor = (status: JobStatus): string => {
     switch (status) {
@@ -46,6 +50,26 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
     const [activeTab, setActiveTab] = useState<'details' | 'hunter'>(initialActiveTab || 'details');
     const [editingField, setEditingField] = useState<keyof Job | null>(null);
     const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
+    const [resumes, setResumes] = useState<Array<{ resumeId: string, fileUrl: string, fileName: string }>>([]);
+
+    useEffect(() => {
+        const loadResumes = async () => {
+            try {
+                const userResumes = await srv_getResumes();
+                if (Array.isArray(userResumes)) {
+                    setResumes(userResumes.map(resume => ({
+                        resumeId: resume.id,
+                        fileUrl: resume.fileUrl,
+                        fileName: resume.fileName || 'Resume'
+                    })));
+                }
+            } catch (error) {
+                console.error('Failed to load resumes:', error);
+                toast.error('Failed to load resumes');
+            }
+        };
+        loadResumes();
+    }, []);
 
     useEffect(() => {
         if (job) {
@@ -101,6 +125,57 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                             className="mt-1"
                             onBlur={() => setEditingField(null)}
                         />
+                    ) : field === 'resumeUrl' ? (
+                        <div className="space-y-2">
+                            <Select
+                                value={value?.toString() || ''}
+                                onValueChange={(value) => {
+                                    setSelectedJob(prev => prev ? { ...prev, resumeUrl: value } : null);
+                                    setEditingField(null);
+                                }}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select a resume" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[60vh] sm:max-h-[40vh]">
+                                    {resumes.map((resume) => (
+                                        <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                                            {resume.fileName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <UploadButton
+                                endpoint="pdfUploader"
+                                onClientUploadComplete={async (data: any) => {
+                                    try {
+                                        const uploadData = {
+                                            fileUrl: data[0].url,
+                                            fileId: data[0].key,
+                                            resumeId: data[0].key,
+                                            fileName: data[0].name
+                                        };
+                                        await srv_uploadResume(uploadData);
+                                        const newResume = { resumeId: data[0].key, fileUrl: data[0].url, fileName: data[0].name };
+                                        setResumes([...resumes, newResume]);
+                                        setSelectedJob(prev => prev ? { ...prev, resumeUrl: data[0].url } : null);
+                                        setEditingField(null);
+                                        toast.success('Resume uploaded successfully');
+                                    } catch (error) {
+                                        console.error('Error uploading resume:', error);
+                                        toast.error('Failed to upload resume');
+                                    }
+                                }}
+                                onUploadError={(error: any) => {
+                                    console.error('Upload error:', error);
+                                    toast.error(`Error uploading resume: ${error.message}`);
+                                }}
+                                className="mt-2 ut-button:w-full ut-button:h-9 ut-button:bg-secondary ut-button:hover:bg-secondary/80 ut-button:text-secondary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
+                                appearance={{
+                                    button: "Upload New Resume"
+                                }}
+                            />
+                        </div>
                     ) : (
                         <Input
                             value={value || ''}
@@ -212,7 +287,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     <div className="flex flex-wrap items-center gap-2">
                                         <h2 className="text-base sm:text-lg text-muted-foreground">{job?.position}</h2>
                                         <Badge className={`${getStatusColor(job.status)}`}>
-                                            {job.status}
+                                            {jobStatusToLabel(job.status)}
                                         </Badge>
                                     </div>
                                 </div>
@@ -384,12 +459,14 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     <div className="space-y-2">
                                         <h4 className="font-semibold">Documents</h4>
                                         <div className="space-y-4">
-                                            {job.resumeUrl && (
-                                                <div>
-                                                    <Label className="font-semibold">Resume</Label>
-                                                    <embed src={job.resumeUrl} type="application/pdf" width="100%" height="400px" />
-                                                </div>
-                                            )}
+                                            <div>
+                                                {renderField("Resume", job.resumeUrl ? "Resume Uploaded" : "Resume Not Uploaded", "resumeUrl")}
+                                                {job.resumeUrl && (
+                                                    <div className="mt-2">
+                                                        <embed src={job.resumeUrl} type="application/pdf" width="100%" height="400px" />
+                                                    </div>
+                                                )}
+                                            </div>
                                             {job.latestGeneratedCoverLetter && (
                                                 <div>
                                                     <Label className="font-semibold">Cover Letter</Label>

@@ -3,9 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { Logger } from '@/lib/logger';
 import { srv_authAdminUser } from '@/lib/useUser';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 interface CreateCampaignInput {
   name: string;

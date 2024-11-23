@@ -1,10 +1,9 @@
 "use server"
 
 import { Logger } from '@/lib/logger'
-import { JobStatus, PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { srv_authAdminUser } from '@/lib/useUser'
 
-const prisma = new PrismaClient()
 
 export interface MongoUser {
     _id: { $oid: string };
@@ -15,7 +14,7 @@ export interface MongoUser {
     dateCreated: { $date: string };
     dateUpdated: { $date: string };
     __v: number;
-    onBoardingComplete: boolean;
+    onboardingComplete: boolean;
     stripeCustomerId?: string;
     subscriptionId?: string;
     subscriptionStatus?: string;
@@ -69,7 +68,7 @@ export async function srv_migrateMongoUsers(mongoExport: MongoUser[]) {
                     tier: item.tier,
                     role: item.role,
                     about: item.about,
-                    onboardingComplete: item.onBoardingComplete,
+                    onboardingComplete: item.onboardingComplete,
                     stripeCustomerId: item.stripeCustomerId,
                     subscriptionId: item.subscriptionId,
                     subscriptionStatus: item.subscriptionStatus,
@@ -102,92 +101,3 @@ export async function srv_migrateMongoUsers(mongoExport: MongoUser[]) {
     }
 }
 
-export async function srv_migrateMongoJobs() {
-    // Open local file in the same directory as this file
-    const mongoExport = require('./appliedtrack.jobs.json') as MongoJob[];
-    try {
-        const authAdminUser = await srv_authAdminUser();
-        if (!authAdminUser) {
-            throw new Error('Forbidden');
-        }
-
-        console.log(`Found ${mongoExport.length} jobs to migrate...`);
-
-        const jobs = [];
-        
-        // Process one job at a time
-        for (let i = 0; i < mongoExport.length; i++) {
-            const item = mongoExport[i];
-            console.log(`Processing job ${i + 1} of ${mongoExport.length}: ${item._id.$oid}...`);
-
-            // Date Handling
-            const dateApplied = (() => {
-                if (!item.dateApplied) return new Date();
-                try {
-                    const date = new Date(Date.parse(item.dateApplied.$date));
-                    return isNaN(date.getTime()) ? new Date() : date;
-                } catch {
-                    return new Date();
-                }
-            })();
-
-            const interviewDate = (() => {
-                if (!item.interviewDate) return null;
-                try {
-                    const date = new Date(Date.parse(item.interviewDate.$date));
-                    return isNaN(date.getTime()) ? null : date;
-                } catch {
-                    return null;
-                }
-            })();
-
-            const jobStatus = item.status.toUpperCase() as JobStatus;
-
-            try {
-                const job = await prisma.job.create({
-                    data: {
-                        id: item._id.$oid,
-                        userId: item.userId,
-                        company: item.company,
-                        position: item.position,
-                        status: jobStatus,
-                        website: item.website,
-                        jobDescription: item.jobDescription,
-                        dateApplied: dateApplied,
-                        notes: item.notes,
-                        contactName: item.contactName,
-                        contactEmail: item.contactEmail,
-                        contactPhone: item.contactPhone,
-                        interviewDate,
-                        location: item.location,
-                        remoteType: item.remoteType,
-                        jobType: item.jobType,
-                        flag: item.flag,
-                        aiRated: item.aiRated || false,
-                        aiNotes: item.aiNotes,
-                        aiRating: item.aiRating,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    }
-                });
-                jobs.push(job);
-            } catch (error) {
-                console.error(`Failed to migrate job ${item._id.$oid}:`, error);
-                // Continue with next job instead of failing the entire migration
-                continue;
-            }
-
-            // Add a small delay between jobs
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        console.log(`Successfully migrated ${jobs.length} jobs.`);
-        return jobs;
-    } catch (error) {
-        console.error('Failed to migrate jobs:', error);
-        throw error;
-    } finally {
-        // Disconnect from the database
-        await prisma.$disconnect();
-    }
-}

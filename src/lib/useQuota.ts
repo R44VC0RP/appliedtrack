@@ -1,7 +1,8 @@
-import { PrismaClient, UserTier, UserQuota } from '@prisma/client';
+import { UserTier, UserQuota } from '@prisma/client';
 import { Logger } from './logger';
+import { prisma } from './prisma';
 
-const prisma = new PrismaClient();
+
 
 interface QuotaNotification {
   type: 'warning' | 'exceeded';

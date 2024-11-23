@@ -20,4 +20,4 @@ const GenAIActionSchema = new Schema({
 
 const GenAIActionModel = (mongoose.models?.GenAIAction || mongoose.model('GenAIAction', GenAIActionSchema)) as mongoose.Model<GenAIAction>;
 
-export { GenAIActionModel };
+{ GenAIActionModel };

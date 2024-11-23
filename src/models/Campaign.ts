@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export interface Campaign extends Document {
+interface Campaign extends Document {
   name: string;
   ref: string;
   description?: string;
@@ -22,4 +22,4 @@ const CampaignSchema = new Schema<Campaign>({
   isActive: { type: Boolean, default: true }
 });
 
-export const CampaignModel = mongoose.models.Campaign || mongoose.model<Campaign>('Campaign', CampaignSchema); 
+const CampaignModel = mongoose.models.Campaign || mongoose.model<Campaign>('Campaign', CampaignSchema); 

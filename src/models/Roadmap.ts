@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 // Define the interface
-export interface Roadmap {
+interface Roadmap {
     id: string;
     title: string;
     description: string;
@@ -25,5 +25,5 @@ const roadmapSchema = new mongoose.Schema<Roadmap>({
 });
 
 
-export const RoadmapModel = mongoose.models.Roadmap || mongoose.model<Roadmap>('Roadmap', roadmapSchema);
+const RoadmapModel = mongoose.models.Roadmap || mongoose.model<Roadmap>('Roadmap', roadmapSchema);
 

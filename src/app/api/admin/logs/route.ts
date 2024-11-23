@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { Logger } from '@/lib/logger';
-import { PrismaClient, Prisma, LogLevel } from '@prisma/client';
+import { Prisma, LogLevel } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {

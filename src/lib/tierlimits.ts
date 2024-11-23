@@ -32,7 +32,8 @@ export async function fetchTierLimits(): Promise<TierResponse> {
     await Logger.error('Error fetching tier configuration', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      action: 'GET_TIER_CONFIG'
+      action: 'GET_TIER_CONFIG',
+      location: new Error().stack?.split('\n')[1]?.trim()
     });
 
     return { error: 'Internal server error' };
@@ -50,74 +51,89 @@ export async function srv_addServiceUsage(userId: string, serviceKey: string, am
       await Logger.error('Failed to fetch user or config for usage update', {
         userId,
         serviceKey,
-        error: 'User or config not found'
+        error: 'User or config not found',
+        location: new Error().stack?.split('\n')[1]?.trim()
       });
       return false;
     }
 
-    // Check if service exists and is active
-    const services = config.services as Record<string, { active: boolean }>;
-    const service = services[serviceKey];
-    if (!service || !service.active) {
-      await Logger.error('Invalid or inactive service', {
-        userId,
-        serviceKey
-      });
-      return false;
-    }
-
-    const tierLimits = (config.tierLimits as Record<string, any>)[user.tier || 'free'];
-    const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
+    const services = typeof config.services === 'string' ? JSON.parse(config.services) : config.services;
     
-    // Get or create user quota and its usage
-    const userQuota = await prisma.userQuota.upsert({
+    if (!services || typeof services !== 'object') {
+      console.error('Invalid services object:', services);
+      return false;
+    }
+    
+    const service = services[serviceKey];
+    if (!service || service.active === false) {
+      console.error('Invalid or inactive service', serviceKey, services);
+      return false;
+    }
+
+    const tierLimitsJson = config.tierLimits;
+    const tierLimits = typeof tierLimitsJson === 'string' ? JSON.parse(tierLimitsJson) : tierLimitsJson;
+    
+    if (!tierLimits || typeof tierLimits !== 'object') {
+      console.error('Invalid tierLimits object:', tierLimitsJson);
+      return false;
+    }
+
+    const userTier = user.tier || 'free';
+    const tierConfig = tierLimits[userTier];
+    
+    if (!tierConfig || typeof tierConfig !== 'object') {
+      console.error('Invalid tier configuration for tier:', userTier, 'available tiers:', Object.keys(tierLimits));
+      return false;
+    }
+
+    const serviceLimit = tierConfig[serviceKey]?.limit ?? 0;
+
+    const userQuota = await prisma.userQuota.findUnique({
       where: { userId },
-      create: {
-        userId,
-        quotaResetDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
-        quotaUsage: {
-          create: {
-            quotaKey: serviceKey,
-            usageCount: amount
-          }
-        }
-      },
-      update: {},
-      include: {
-        quotaUsage: true
-      }
+      include: { quotaUsage: true }
     });
 
-    const quotaUsage = userQuota.quotaUsage.find(u => u.quotaKey === serviceKey);
+    const quotaUsage = userQuota?.quotaUsage.find(u => u.quotaKey === serviceKey);
     const currentUsage = quotaUsage?.usageCount || 0;
+
+    console.log('Current usage:', currentUsage);
+    console.log('Amount:', amount);
     
-    // Check if increment is allowed (-1 means unlimited)
     if (serviceLimit !== -1 && (currentUsage + amount) > serviceLimit) {
-      await Logger.warning('Usage limit exceeded', {
-        userId,
-        serviceKey,
-        currentUsage,
-        attemptedAmount: amount,
-        serviceLimit
-      });
+      console.error(`Usage would exceed service limit for ${serviceKey}, current usage: ${currentUsage}, amount: ${amount}, service limit: ${serviceLimit}`);
       return false;
     }
 
-    // Increment usage
-    if (quotaUsage) {
-      await prisma.quotaUsage.update({
-        where: { id: quotaUsage.id },
-        data: {
-          usageCount: currentUsage + amount,
-          dateUpdated: new Date()
-        }
-      });
+    if (userQuota) {
+      if (quotaUsage) {
+        // Increment the user quota
+        await prisma.quotaUsage.update({
+          where: { id: quotaUsage.id },
+          data: {
+            usageCount: currentUsage + amount,
+            dateUpdated: new Date()
+          }
+        });
+      } else {
+        await prisma.quotaUsage.create({
+          data: {
+            quotaKey: serviceKey,
+            usageCount: amount,
+            userQuotaId: userQuota.id
+          }
+        });
+      }
     } else {
-      await prisma.quotaUsage.create({
+      await prisma.userQuota.create({
         data: {
-          userQuotaId: userQuota.id,
-          quotaKey: serviceKey,
-          usageCount: amount
+          userId,
+          quotaResetDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+          quotaUsage: {
+            create: {
+              quotaKey: serviceKey,
+              usageCount: amount
+            }
+          }
         }
       });
     }
@@ -129,7 +145,9 @@ export async function srv_addServiceUsage(userId: string, serviceKey: string, am
       userId,
       serviceKey,
       amount,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      location: new Error().stack?.split('\n')[1]?.trim()
     });
     return false;
   }
@@ -152,8 +170,23 @@ export async function srv_getServiceQuota(userId: string, serviceKey: string): P
       return null;
     }
 
-    const tierLimits = (config.tierLimits as Record<string, any>)[user.tier || 'free'];
-    const serviceLimit = tierLimits[serviceKey]?.limit ?? 0;
+    const tierLimitsJson = config.tierLimits;
+    const tierLimits = typeof tierLimitsJson === 'string' ? JSON.parse(tierLimitsJson) : tierLimitsJson;
+    
+    if (!tierLimits || typeof tierLimits !== 'object') {
+      console.error('Invalid tierLimits object:', tierLimitsJson);
+      return null;
+    }
+
+    const userTier = user.tier || 'free';
+    const tierConfig = tierLimits[userTier];
+    
+    if (!tierConfig || typeof tierConfig !== 'object') {
+      console.error('Invalid tier configuration for tier:', userTier, 'available tiers:', Object.keys(tierLimits));
+      return null;
+    }
+
+    const serviceLimit = tierConfig[serviceKey]?.limit ?? 0;
     
     const quotaUsage = userQuota?.quotaUsage.find(u => u.quotaKey === serviceKey);
     const used = quotaUsage?.usageCount || 0;
@@ -168,7 +201,9 @@ export async function srv_getServiceQuota(userId: string, serviceKey: string): P
     await Logger.error('Error fetching service quota', {
       userId,
       serviceKey,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      location: new Error().stack?.split('\n')[1]?.trim()
     });
     return null;
   }
@@ -200,11 +235,14 @@ export async function srv_resetAllQuotas(): Promise<void> {
     }
 
     await Logger.info('Successfully reset all user quotas', {
-      count: users.length
+      count: users.length,
+      location: new Error().stack?.split('\n')[1]?.trim()
     });
   } catch (error) {
     await Logger.error('Error resetting quotas', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      location: new Error().stack?.split('\n')[1]?.trim()
     });
   }
 }

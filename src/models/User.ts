@@ -12,7 +12,7 @@ export interface User extends Document {
   subscriptionStatus?: string;
   cancelAtPeriodEnd?: boolean;
   currentPeriodEnd?: Date;
-  onBoardingComplete: boolean;
+  onboardingComplete: boolean;
   quotas?: {
     usage: { [key: string]: number };
     quotaResetDate: Date;
@@ -40,7 +40,7 @@ const UserSchema: Schema = new Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
-  onBoardingComplete: { type: Boolean, default: false },
+  onboardingComplete: { type: Boolean, default: false },
   about: { type: String, default: '' },
   dateCreated: { type: Date, default: Date.now },
   dateUpdated: { type: Date, default: Date.now },

@@ -1,11 +1,10 @@
 "use server"
 
-import { ResumeModel } from "@/models/Resume";
 import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from "@/lib/logger";
 import { UserModel, User } from "@/models/User";
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser";
-import { srv_addGenAIAction } from "@/lib/useGenAI";
+// import { srv_addGenAIAction } from "@/lib/useGenAI";
 import { plain } from "@/lib/plain";
 
 import { createInitialQuota } from "@/lib/useQuota";
@@ -17,11 +16,12 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject, JSONParseError, TypeValidationError } from "ai";
 import { srv_addServiceUsage } from "@/lib/tierlimits";
 import { UTApi } from "uploadthing/server";
-import { PrismaClient, JobStatus } from '@prisma/client'
+import { JobStatus } from '@prisma/client'
 import { Job } from "@/app/types/job";
+import { prisma } from '@/lib/prisma';
 
 const utapi = new UTApi();
-const prisma = new PrismaClient()
+
 
 interface FileEsque {
   name: string;
@@ -402,7 +402,8 @@ export async function srv_addJob(job: Job) {
         aiNotes: job.aiNotes,
         aiRating: job.aiRating,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        resumeUrl: job.resumeUrl
       }
     });
     return { success: true, data: newJob };
@@ -458,7 +459,8 @@ export async function srv_updateJob(job: Job) {
         aiRated: job.aiRated || false,
         aiNotes: job.aiNotes,
         aiRating: job.aiRating,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        resumeUrl: job.resumeUrl
       }
     });
 
@@ -527,8 +529,13 @@ export async function srv_getResumes() {
     });
     return [];
   }
-  const resumes = await ResumeModel.find({ userId: user.id });
-  return plain(resumes);
+  
+  const resumes = await prisma.resume.findMany({
+    where: { userId: user.id },
+    orderBy: { dateCreated: 'desc' }
+  });
+  
+  return resumes;
 }
 
 export async function srv_initialData() {
@@ -544,7 +551,7 @@ export async function srv_initialData() {
   const jobs = await srv_getJobs();
   for (let i = 0; i < jobs.length; i++) {
     if (jobs[i].hunterCompanies?.length != 0) {
-      console.log("Found hunter companies for job:", jobs[i].id);
+      // console.log("Found hunter companies for job:", jobs[i].id);
       // console.log(jobs[i].hunterCompanies);
     }
   }
@@ -644,6 +651,10 @@ export async function srv_createAIRating(job: Job) {
     };
   }
 
+  // if (quotaCheck) {
+  //   console.log('Quota check:', quotaCheck);
+  // }
+
   const jobData = await srv_getJob(job.id || '');
 
   if (!user || !jobData) {
@@ -653,8 +664,8 @@ export async function srv_createAIRating(job: Job) {
     });
     return { success: false, error: 'User or job not found' };
   }
-
-  if (!await srv_addServiceUsage(user.id, 'GENAI_JOBMATCH', 1)) {
+  // This is going to add the serivice usage.
+  if (!await srv_addServiceUsage(user.id, "GENAI_JOBMATCH", 1)) {
     await Logger.warning('AI job match quota exceeded', {
       userId: user.id,
     });
@@ -662,6 +673,7 @@ export async function srv_createAIRating(job: Job) {
   }
 
   // Extract text from resume PDF
+  console.log(job.resumeUrl);
   const resumeText = await Pdf.getPDFText(job.resumeUrl || '');
   await Logger.info('Resume text extracted successfully', {
     jobId: job.id,
@@ -719,7 +731,7 @@ export async function srv_createAIRating(job: Job) {
     (usage.promptTokens / 1_000_000) * GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS +
     (usage.completionTokens / 1_000_000) * GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS;
 
-  await srv_addGenAIAction('createAIResumeRating', usage.promptTokens, usage.completionTokens, totalCostInCents);
+  // await srv_addGenAIAction('createAIResumeRating', usage.promptTokens, usage.completionTokens, totalCostInCents);
 
   // console.log(usage);
 
@@ -957,7 +969,7 @@ export async function srv_updateUserOnboarding(about: string) {
       { 
         $set: { 
           about,
-          onBoardingComplete: true 
+          onboardingComplete: true 
         }
       },
       { new: true }
@@ -1084,6 +1096,45 @@ export async function srv_getUserDetails() {
     return userDetails;
   } catch (error) {
     await Logger.error('Error fetching user details', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
+}
+
+export async function srv_addResume(fileUrl: string, fileName: string, fileKey: string) {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      await Logger.warning('Unauthorized attempt to add resume', {
+        path: "srv_addResume",
+        method: 'POST'
+      });
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const newResume = await prisma.resume.create({
+      data: {
+        userId: user.id,
+        fileId: fileKey,
+        resumeId: `RESUME_${fileKey}`,
+        fileUrl,
+        fileName,
+        dateCreated: new Date(),
+        dateUpdated: new Date()
+      }
+    });
+
+    await Logger.info('Resume added successfully', {
+      userId: user.id,
+      resumeId: newResume.resumeId,
+      fileName
+    });
+
+    return { success: true, data: newResume };
+  } catch (error) {
+    await Logger.error('Error adding resume', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });

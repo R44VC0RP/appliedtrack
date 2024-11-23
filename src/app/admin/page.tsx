@@ -41,7 +41,6 @@ import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
 import { LoggingDashboard } from './components/logging-dashboard'
 import { RoadMapPage } from './components/RoadMapPage'
-import MigrationPage from './components/MigrationPage'
 
 interface NavItem {
     title: string;
@@ -84,11 +83,6 @@ const navItems: NavItem[] = [
         title: "RoadMap",
         icon: MapIcon,
         component: RoadMapPage, // Placeholder
-    },
-    {
-        title: "Migrations",
-        icon: MapIcon,
-        component: MigrationPage, // Placeholder
     },
 ]
 

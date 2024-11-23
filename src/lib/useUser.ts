@@ -1,12 +1,14 @@
 'use server';
 
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
+import { createClerkClient } from "@clerk/backend";
+import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from '@/lib/logger';
 import { plain } from "./plain";
 
-import { UserRole, UserTier, PrismaClient } from '@prisma/client';
+import { UserRole, UserTier } from '@prisma/client';
+import { prisma } from "./prisma";
 
-const prisma = new PrismaClient();
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
 
 export interface CompleteUserProfile {
   // Clerk data

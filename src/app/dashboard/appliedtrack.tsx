@@ -159,6 +159,19 @@ const getStatusColor = (status: JobStatus): string => {
   }
 }
 
+export function jobStatusToLabel(status: JobStatus) {
+  switch (status) {
+    case JobStatus.YET_TO_APPLY: return 'Yet to Apply'
+    case JobStatus.APPLIED: return 'Applied'
+    case JobStatus.PHONE_SCREEN: return 'Phone Screen'
+    case JobStatus.INTERVIEW: return 'Interview'
+    case JobStatus.OFFER: return 'Offer'
+    case JobStatus.REJECTED: return 'Rejected'
+    case JobStatus.ACCEPTED: return 'Accepted'
+    default: return 'Unknown'
+  }
+}
+
 const getInitialSortPreference = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('jobSortPreference') || 'newest';
@@ -881,13 +894,13 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                               value={job.status}
                               onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
                             >
-                              <SelectTrigger className="w-[130px]">
-                                <SelectValue>{job.status}</SelectValue>
+                              <SelectTrigger className={"w-[130px] " + getStatusColor(job.status)}>
+                                <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {jobStatuses.map((status) => (
                                   <SelectItem key={status} value={status}>
-                                    {status}
+                                    {jobStatusToLabel(status)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

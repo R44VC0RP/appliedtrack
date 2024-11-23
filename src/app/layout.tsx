@@ -21,7 +21,6 @@ export const metadata: Metadata = {
   keywords: siteConfig.keywords,
   authors: siteConfig.authors,
   creator: siteConfig.creator,
-  themeColor: siteConfig.themeColor,
   icons: siteConfig.icons,
   manifest: siteConfig.manifest,
   openGraph: {

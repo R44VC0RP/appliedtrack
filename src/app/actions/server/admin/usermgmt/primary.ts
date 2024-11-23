@@ -1,16 +1,19 @@
 "use server"
 
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
+import { createClerkClient } from "@clerk/backend";
+import { currentUser } from "@clerk/nextjs/server";
 import { UserModel } from "@/models/User";
 import { Logger } from '@/lib/logger';
 import { srv_getCompleteUserProfile, CompleteUserProfile, srv_authAdminUser } from "@/lib/useUser";
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
 
 // Types
 interface UpdateUserParams {
   targetUserId: string;
   role?: string;
   tier?: string;
-  onBoardingComplete?: boolean;
+  onboardingComplete?: boolean;
 }
 
 /**
@@ -64,7 +67,7 @@ export async function srv_updateUser(adminUserId: string, params: UpdateUserPara
       throw new Error("Forbidden");
     }
 
-    const { targetUserId, role, tier, onBoardingComplete } = params;
+    const { targetUserId, role, tier, onboardingComplete } = params;
 
     await Logger.info('Admin attempting to update user', {
       adminUserId,
@@ -79,7 +82,7 @@ export async function srv_updateUser(adminUserId: string, params: UpdateUserPara
     };
     if (role) updateFields.role = role;
     if (tier) updateFields.tier = tier;
-    if (onBoardingComplete !== undefined) updateFields.onBoardingComplete = onBoardingComplete;
+    if (onboardingComplete !== undefined) updateFields.onboardingComplete = onboardingComplete;
 
     // Update in MongoDB
     await UserModel.findOneAndUpdate(

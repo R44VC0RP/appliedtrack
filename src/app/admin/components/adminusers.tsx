@@ -39,7 +39,7 @@ export function AdminUsers() {
     }
   };
 
-  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string, onBoardingComplete?: boolean }) => {
+  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string, onboardingComplete?: boolean }) => {
     if (isLocked) return;
 
     try {
@@ -202,8 +202,8 @@ export function AdminUsers() {
                     </TableCell>
                     <TableCell>
                       <Select
-                        defaultValue={user.onBoardingComplete.toString()}
-                        onValueChange={(value) => handleUserUpdate(user.id, { onBoardingComplete: value === 'true' })}
+                        defaultValue={user.onboardingComplete.toString()}
+                        onValueChange={(value) => handleUserUpdate(user.id, { onboardingComplete: value === 'true' })}
                         disabled={user.isUpdating || isLocked}
                       >
                         <SelectTrigger className="w-32">

@@ -8,7 +8,7 @@ import Image from 'next/image'
 import { User } from '@/models/User';
 import { useState, useEffect } from 'react';
 import { toast } from "sonner"
-import { useClientMediaQuery } from './appliedtrack';
+import { jobStatusToLabel, useClientMediaQuery } from './appliedtrack';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -475,12 +475,12 @@ const JobCard = React.forwardRef(({
                             onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
                         >
                             <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
-                                <SelectValue>{job.status}</SelectValue>
+                                <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {jobStatuses.map((status) => (
                                     <SelectItem key={status} value={status}>
-                                        {status}
+                                        {jobStatusToLabel(status)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -574,12 +574,12 @@ const JobCard = React.forwardRef(({
                                 onValueChange={handleStatusChange}
                             >
                                 <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
-                                    <SelectValue>{job.status}</SelectValue>
+                                    <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {jobStatuses.map((status) => (
                                         <SelectItem key={status} value={status}>
-                                            {status}
+                                            {jobStatusToLabel(status)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -659,12 +659,12 @@ const JobCard = React.forwardRef(({
                                 onValueChange={handleStatusChange}
                             >
                                 <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
-                                    <SelectValue>{job.status}</SelectValue>
+                                    <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {jobStatuses.map((status) => (
                                         <SelectItem key={status} value={status}>
-                                            {status}
+                                            {jobStatusToLabel(status)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

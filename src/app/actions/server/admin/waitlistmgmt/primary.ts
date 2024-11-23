@@ -9,9 +9,7 @@
 
 import { Logger } from "@/lib/logger";
 import { srv_authAdminUser } from "@/lib/useUser";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function srv_getWaitlist(): Promise<any[]> {
     try {
