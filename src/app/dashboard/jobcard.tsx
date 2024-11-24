@@ -293,6 +293,8 @@ const JobCard = React.forwardRef(({
         setMounted(true);
     }, []);
 
+    console.log(job);
+
     if (!mounted) return null;
 
     const handleStatusChange = (newStatus: string) => {
@@ -327,27 +329,58 @@ const JobCard = React.forwardRef(({
                 return;
             }
 
-            const hunterResult = data.data;
-
-            // Update the job with the hunter data
-            const updatedJob = {
-                ...job,
-                hunterData: {
-                    ...hunterResult,
-                    dateUpdated: new Date().toISOString()
-                }
-            };
-
-            await updateJobDetails(updatedJob);
+            // The hunterCompanies will be updated automatically by the server
+            // We just need to refresh the job data
+            if (updateJobDetails) {
+                const updatedJob: Job = {
+                    ...job,
+                    hunterCompanies: [{
+                        id: data.data.id,
+                        jobId: job.id,
+                        userId: job.userId,
+                        domain: domain,
+                        pattern: data.data.pattern || "",
+                        name: data.data.organization || null,
+                        industry: data.data.industry || null,
+                        type: data.data.company_type || null,
+                        country: data.data.country || null,
+                        locality: data.data.city || null,
+                        employees: data.data.headcount ? parseInt(data.data.headcount.split('-')[0]) : null,
+                        linkedin: data.data.linkedin || null,
+                        twitter: data.data.twitter || null,
+                        facebook: data.data.facebook || null,
+                        metadata: data.data,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        emails: data.data.emails?.map((email: any) => ({
+                            id: `${email.value}_${Date.now()}`,
+                            companyId: data.data.id,
+                            email: email.value,
+                            firstName: email.first_name || null,
+                            lastName: email.last_name || null,
+                            position: email.position || null,
+                            seniority: email.seniority || null,
+                            department: email.department || null,
+                            linkedin: email.linkedin || null,
+                            twitter: email.twitter || null,
+                            facebook: null,
+                            confidence: email.confidence || null,
+                            metadata: email,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        })) || []
+                    }]
+                };
+                await updateJobDetails(updatedJob);
+            }
 
             toast.success("Hunter Data Updated", {
-                description: `Found ${hunterResult.emails?.length || 0} email patterns for ${domain}`
+                description: `Found ${data.data.emails?.length || 0} email patterns for ${domain}`
             });
 
             setIsCategoryModalOpen(false);
         } catch (error) {
             console.error('Error fetching InsightLink&trade; data:', error);
-
             toast.error("Failed to fetch InsightLink&trade; data. Please check the domain and try again.");
         } finally {
             setIsLoading(false);
@@ -359,15 +392,16 @@ const JobCard = React.forwardRef(({
     };
 
     const renderHunterPreview = () => {
-        if (!job.hunterData?.emails?.length) return null;
+        const hunterCompany = job.hunterCompanies?.[0];
+        if (!hunterCompany?.emails?.length) return null;
 
-        const previewEmails = job.hunterData.emails.slice(0, 2);
-        const remainingCount = Math.max(0, job.hunterData.emails.length - 2);
+        const previewEmails = hunterCompany.emails.slice(0, 2);
+        const remainingCount = Math.max(0, hunterCompany.emails.length - 2);
 
         return (
             <div className="space-y-2">
-                {previewEmails.map((email, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
+                {previewEmails.map((email) => (
+                    <div key={email.id} className="flex items-center justify-between text-sm">
                         <span>{email.firstName} {email.lastName}</span>
                         <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
@@ -436,9 +470,16 @@ const JobCard = React.forwardRef(({
                         <div className="w-full">
                             <div className="flex items-center justify-between gap-2">
                                 <h3 className="font-semibold text-lg">{job.company}</h3>
-                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
-                                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                                </Badge>
+                                <TooltipProvider>
+                                    <TooltipTrigger>
+                                        <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 cursor-default">
+                                            {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        No AI Rating
+                                    </TooltipContent>
+                                </TooltipProvider>
                             </div>
                             <div className="flex items-center gap-2">
                                 <p className="text-sm text-gray-600">{job.position}</p>
@@ -848,7 +889,7 @@ const JobCard = React.forwardRef(({
                                     <span className="text-lg font-bold bg-clip-text bg-gradient-to-r from-[#ff7a00] to-[#ff3399] text-transparent">InsightLink&trade;</span>
                                 </div>
                                 <div className="flex items-center">
-                                    {!job.hunterData?.emails?.length && (
+                                    {!job.hunterCompanies?.[0]?.emails?.length && (
                                         <>
                                             <Button
                                                 variant="outline"
@@ -937,12 +978,12 @@ const JobCard = React.forwardRef(({
                                 </div>
                             </div>
 
-                            {job.hunterData?.emails?.length ? (
+                            {job.hunterCompanies?.[0]?.emails?.length ? (
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h4 className="font-semibold">Email Pattern</h4>
                                         <Badge variant="secondary" className="text-xs">
-                                            {job.hunterData.pattern}
+                                            {job.hunterCompanies?.[0]?.pattern}
                                         </Badge>
                                     </div>
                                     {renderHunterPreview()}

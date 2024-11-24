@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap, File, Sparkle, Mail, MailCheck } from 'lucide-react'
+import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap, File, Sparkle, Mail, MailCheck, Rocket } from 'lucide-react'
 import { Header } from '@/components/header'
 import dynamic from 'next/dynamic'
 import { FaRocket, FaChartLine, FaBrain } from 'react-icons/fa'
@@ -25,7 +25,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { homepageConfig } from '@/config/homepage'
-import { useSignUp } from "@clerk/nextjs";
+import { SignedIn, SignedOut, useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
 // Import Server Actions and Types
@@ -240,6 +240,7 @@ export default function Homepage() {
             {/* Waitlist Form */}
             <div className="w-full max-w-md mt-8">
               <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
+                <SignedOut>
                 <Input
                   className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
                   placeholder="Enter your email"
@@ -263,7 +264,19 @@ export default function Homepage() {
                     config.buttonText
                   )}
                 </Button>
+                </SignedOut>
+                
+
               </form>
+              <SignedIn>  
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
+                  onClick={() => router.push('/dashboard')}
+                >
+                  Jump to Dashboard <Rocket className="w-4 h-4 ml-2" />
+                </Button>
+                </SignedIn>
               <p className="text-xs md:text-sm text-gray-300 flex items-center justify-center gap-2 mt-2">
                 <span className="flex h-2 w-2 bg-green-400 rounded-full animate-pulse" />
                 {dailySignups ?? 35} people joined today

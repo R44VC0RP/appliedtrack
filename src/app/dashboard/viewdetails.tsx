@@ -198,7 +198,8 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
     };
 
     const renderHunterTab = () => {
-        if (!job.hunterData?.emails) {
+        const hunterCompany = job.hunterCompanies?.[0];
+        if (!hunterCompany?.emails?.length) {
             return (
                 <div className="text-center py-8 text-gray-500">
                     No Hunter.io data available
@@ -208,13 +209,46 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
 
         return (
             <div className="space-y-6">
+                {/* Company Information */}
+                <Card className="p-4">
+                    <h3 className="text-lg font-semibold mb-4">Company Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        {hunterCompany.name && (
+                            <div>
+                                <Label>Company Name</Label>
+                                <p className="text-sm">{hunterCompany.name}</p>
+                            </div>
+                        )}
+                        {hunterCompany.domain && (
+                            <div>
+                                <Label>Domain</Label>
+                                <p className="text-sm font-mono">{hunterCompany.domain}</p>
+                            </div>
+                        )}
+                        {hunterCompany.industry && (
+                            <div>
+                                <Label>Industry</Label>
+                                <p className="text-sm">{hunterCompany.industry}</p>
+                            </div>
+                        )}
+                        {hunterCompany.type && (
+                            <div>
+                                <Label>Company Type</Label>
+                                <p className="text-sm">{hunterCompany.type}</p>
+                            </div>
+                        )}
+                    </div>
+                </Card>
+
+                {/* Email Pattern Section */}
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Email Pattern</h3>
-                    <Badge variant="secondary">{job.hunterData?.pattern}</Badge>
+                    <Badge variant="secondary">{hunterCompany.pattern}</Badge>
                 </div>
 
+                {/* Email List Section */}
                 <div className="space-y-4">
-                    {job.hunterData?.emails?.map((email, index) => (
+                    {hunterCompany.emails.map((email, index) => (
                         <Card key={index} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -362,7 +396,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     className="whitespace-nowrap flex-shrink-0"
                                 >
                                     <Users className="h-4 w-4 mr-2" />
-                                    Contacts Found
+                                    Contacts Found <Badge className="ml-2">{job.hunterCompanies?.[0]?.emails?.length || 0}</Badge>
                                 </Button>
                             </div>
                         </div>

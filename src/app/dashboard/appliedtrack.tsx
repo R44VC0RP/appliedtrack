@@ -214,7 +214,7 @@ const createEmptyJob = (userId: string, resumes: { resumeId: string; fileUrl: st
     updatedAt: new Date(),
     latestGeneratedResume: null,
     latestGeneratedCoverLetter: null,
-    hunterData: null
+    hunterCompanies: null
   };
 };
 
@@ -414,7 +414,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           ...response,
           latestGeneratedResume: null,
           latestGeneratedCoverLetter: null,
-          hunterData: null
+          hunterCompanies: null
         };
         setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJobWithGeneratedContent : job));
       }

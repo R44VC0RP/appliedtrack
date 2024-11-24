@@ -11,5 +11,10 @@ export const homepageConfig = {
     description: "Track your job applications, generate custom resumes, and land your dream job.",
     buttonText: "Get Started",
     successMessage: "Account created successfully! Welcome to AppliedTrack.",
-  }
+  },
+  loginConfig: {
+    title: "What are you doing here?",
+    description: "Jump to your dashboard and start tracking those jobs!.",
+    buttonText: "Jump to Dashboard",
+  },
 } as const;
