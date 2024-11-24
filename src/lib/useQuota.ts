@@ -117,7 +117,7 @@ export async function createInitialQuota(userId: string, periodEnd?: Date) {
 
     // Parse tier limits from config
     const tierLimits = config.tierLimits as Record<string, Record<string, { limit: number }>>;
-    const userTierLimits = tierLimits[user.tier];
+    const userTierLimits = typeof tierLimits === 'string' ? JSON.parse(tierLimits)[user.tier] : tierLimits[user.tier];
     
     if (!userTierLimits) {
       throw new Error(`No tier limits found for tier: ${user.tier}`);

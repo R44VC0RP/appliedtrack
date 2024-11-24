@@ -24,18 +24,19 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-
-
+import { homepageConfig } from '@/config/homepage'
+import { useSignUp } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 // Import Server Actions and Types
 import { srv_handleWaitlistSignup, srv_recordPageVisit, srv_getHomepageData } from '@/app/actions/server/homepage/primary'
 import { srv_getServiceQuota } from '@/lib/tierlimits'
 
-
-
 const ReactPlayerNoSSR = dynamic(() => import('react-player'), { ssr: false })
 
 export default function Homepage() {
+  const { signUp, isLoaded } = useSignUp();
+  const router = useRouter();
   const [refItem, setRefItem] = useState<string | null>(null)
   const [homepageTest, setHomepageTest] = useState<string | null>("A")
   const [email, setEmail] = useState('')
@@ -43,6 +44,9 @@ export default function Homepage() {
   const [dailySignups, setDailySignups] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pricingTiers, setPricingTiers] = useState<any[] | null>(null)
+  
+  const config = homepageConfig.isWaitlist ? homepageConfig.waitlistConfig : homepageConfig.signupConfig
+
   const particlesInit = useCallback(async (engine: Engine): Promise<void> => {
     await loadFull(engine)
   }, [])
@@ -69,32 +73,52 @@ export default function Homepage() {
     fetchPricingTiers()
   }, [])
 
-  const handleWaitlistSignup = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      if (!email) {
-        throw new Error('Email is required')
+      if (homepageConfig.isWaitlist) {
+        await srv_handleWaitlistSignup(email, refItem || '')
+        toast.success(config.successMessage)
+      } else {
+        if (!isLoaded) {
+          toast.error('Authentication is not ready yet')
+          return
+        }
+
+        try {
+          console.log("Starting sign-up process...");
+          
+          // Start the sign-up process with email
+          const signUpAttempt = await signUp.create({
+            emailAddress: email,
+          });
+
+          console.log("Sign-up creation response:", signUpAttempt);
+
+          if (signUpAttempt.status !== "missing_requirements") {
+            console.error("Unexpected sign-up status:", signUpAttempt.status);
+            toast.error("Something went wrong during sign-up");
+            return;
+          }
+
+          // Start the email verification process
+          const verificationAttempt = await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+          console.log("Verification preparation response:", verificationAttempt);
+
+          // Redirect to the sign-up verification page
+          router.push('/sign-up/verify');
+          
+          toast.success('Check your email for a verification code');
+        } catch (err: any) {
+          console.error('Error during signup:', err);
+          toast.error(err.errors?.[0]?.message || 'Failed to start sign-up process');
+        }
       }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
-        toast.error('Please enter a valid email address')
-        return
-      }
-
-      const response = await srv_handleWaitlistSignup(email, refItem || '')
-      setEmail('')
-
-      toast.success("Success!", {
-        description: response.message
-      })
-
-    } catch (err: any) {
-      toast.error(err.message.includes('already on our waitlist') ? "Notice" : "Error", {
-        description: err.message
-      })
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -215,18 +239,20 @@ export default function Homepage() {
 
             {/* Waitlist Form */}
             <div className="w-full max-w-md mt-8">
-              <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleWaitlistSignup}>
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
                 <Input
                   className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
                   placeholder="Enter your email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
                 <Button
                   type="submit"
                   variant="secondary"
                   className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
+                  disabled={isSubmitting || !isLoaded}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
@@ -234,7 +260,7 @@ export default function Homepage() {
                       Joining...
                     </div>
                   ) : (
-                    'Join Waitlist'
+                    config.buttonText
                   )}
                 </Button>
               </form>
@@ -485,9 +511,6 @@ export default function Homepage() {
                     </CardHeader>
                     <CardContent className="flex-grow">
                       <ul className="space-y-4">
-                        {
-                          console.log('features', tier)
-                        }
                         {tier.features.map((feature: string, featureIndex: number) => (
                           <li key={featureIndex} className="flex items-center space-x-3">
                             <CheckCircle2 className="w-5 h-5 text-primary" />
@@ -775,7 +798,7 @@ export default function Homepage() {
         {/* Footer */}
         <footer className="w-full py-6 border-t dark:border-gray-700">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between">
-            <p className="text-xs text-gray-500 dark:text-gray-400">© {new Date().getFullYear()} AppliedTrack. All rights reserved.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400"> 2023 AppliedTrack. All rights reserved.</p>
             <nav className="flex gap-4 sm:gap-6 mt-4 sm:mt-0">
               <Link
                 href="/terms"

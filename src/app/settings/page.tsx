@@ -116,6 +116,8 @@ export default function SettingsPage() {
         srv_getConfigTiers()
       ]);
 
+      setLocalAbout(userDetails.about || '');
+
       // console.log('Config data received:', config.tierLimits);
       setUserDetails(userDetails);
       setResumes(userResumes);
@@ -377,7 +379,8 @@ export default function SettingsPage() {
                         avatarBox: "h-20 w-20",
                         userProfile: {
                           emailAddressesPageTitle: "Email Addresses"
-                        }
+                        },
+                        
                       }
                     }}
                   />

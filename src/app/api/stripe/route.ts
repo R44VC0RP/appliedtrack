@@ -3,7 +3,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { Logger } from '@/lib/logger';
 import Stripe from 'stripe';
-import { UserModel } from '@/models/User';
+import { prisma } from "@/lib/prisma";
+import { UserTier } from '@prisma/client';
+
 import { currentUser } from '@clerk/nextjs/server';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -44,24 +46,19 @@ export async function GET(request: NextRequest) {
 
     // Update user with new subscription details
     const updateData = {
-      tier: session.metadata.tier,
+      tier: session.metadata.tier as UserTier,
       stripeCustomerId: session.customer as string,
-      subscriptionDetails: {
-        status: subscription.status,
-        tier: session.metadata.tier,
-        startDate: new Date(subscription.current_period_start * 1000).toISOString(),
-        endDate: new Date(subscription.current_period_end * 1000).toISOString(),
-        subscriptionId: subscription.id,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end
-      },
-      dateUpdated: new Date().toISOString()
+      subscriptionId: subscription.id,
+      subscriptionStatus: subscription.status,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      updatedAt: new Date()
     };
 
-    const updatedUser = await UserModel.findOneAndUpdate(
-      { userId: user.id },
-      updateData,
-      { new: true }
-    );
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData
+    });
 
     await Logger.info('Subscription updated successfully', {
       userId: user.id,

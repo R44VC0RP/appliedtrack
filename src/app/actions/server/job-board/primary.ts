@@ -2,7 +2,6 @@
 
 import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from "@/lib/logger";
-import { UserModel, User } from "@/models/User";
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser";
 // import { srv_addGenAIAction } from "@/lib/useGenAI";
 import { plain } from "@/lib/plain";
@@ -612,22 +611,27 @@ export async function srv_uploadBaselineResume(data: BaselineResumeData): Promis
       throw new Error('User not found');
     }
 
-    // Update user with baseline resume
-    await prisma.user.update({
-      where: { id: user.id },
+    // Create a new resume entry
+    await prisma.resume.create({
       data: {
-        baselineResume: data.fileUrl
+        userId: user.id,
+        fileUrl: data.fileUrl,
+        fileId: data.fileId,
+        resumeId: `RESUME_${data.fileId}`,
+        fileName: data.fileName,
+        dateCreated: new Date(),
+        dateUpdated: new Date()
       }
     });
 
-    await Logger.info('Baseline resume uploaded successfully', {
+    await Logger.info('Resume uploaded successfully', {
       userId: user.id,
       fileName: data.fileName
     });
 
     return true;
   } catch (error) {
-    await Logger.error('Failed to upload baseline resume', {
+    await Logger.error('Failed to upload resume', {
       error: error instanceof Error ? error.message : 'Unknown error',
       data
     });
@@ -747,7 +751,7 @@ function isValidDomain(domain: string): boolean {
   return domainPattern.test(cleanDomain);
 }
 
-export async function srv_hunterDomainSearch(domain: string, departments: string[], limit: number) {
+export async function srv_hunterDomainSearch(domain: string, departments: string[], limit: number, jobId: string) {
   const user = await currentUser();
   if (!user) {
     await Logger.warning('Unauthorized Hunter domain search attempt', { domain });
@@ -801,11 +805,84 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
     const dataResponse = await initialResponse.json();
     const totalResults = dataResponse.meta.results;
 
+    // Create or update HunterCompany record
+    const hunterCompany = await prisma.hunterCompany.upsert({
+      where: {
+        id: `${domain}_${jobId}`
+      },
+      create: {
+        userId: user.id,
+        jobId,
+        domain,
+        pattern: dataResponse.data.pattern || "",
+        name: dataResponse.data.organization || null,
+        industry: dataResponse.data.industry || null,
+        type: dataResponse.data.company_type || null,
+        country: dataResponse.data.country || null,
+        locality: dataResponse.data.city || null,
+        employees: dataResponse.data.headcount ? parseInt(dataResponse.data.headcount.split('-')[0]) : null,
+        linkedin: dataResponse.data.linkedin || null,
+        twitter: dataResponse.data.twitter || null,
+        facebook: dataResponse.data.facebook || null,
+        metadata: dataResponse.data
+      },
+      update: {
+        pattern: dataResponse.data.pattern || "",
+        name: dataResponse.data.organization || null,
+        industry: dataResponse.data.industry || null,
+        type: dataResponse.data.company_type || null,
+        country: dataResponse.data.country || null,
+        locality: dataResponse.data.city || null,
+        employees: dataResponse.data.headcount ? parseInt(dataResponse.data.headcount.split('-')[0]) : null,
+        linkedin: dataResponse.data.linkedin || null,
+        twitter: dataResponse.data.twitter || null,
+        facebook: dataResponse.data.facebook || null,
+        metadata: dataResponse.data
+      }
+    });
+
+    // Create HunterEmail records
+    if (dataResponse.data.emails && dataResponse.data.emails.length > 0) {
+      await prisma.$transaction(
+        dataResponse.data.emails.map((email: any) => 
+          prisma.hunterEmail.upsert({
+            where: {
+              id: `${hunterCompany.id}_${email.value}`
+            },
+            create: {
+              companyId: hunterCompany.id,
+              email: email.value,
+              firstName: email.first_name || null,
+              lastName: email.last_name || null,
+              position: email.position || null,
+              seniority: email.seniority || null,
+              department: email.department || null,
+              linkedin: email.linkedin || null,
+              twitter: email.twitter || null,
+              confidence: email.confidence || null,
+              metadata: email
+            },
+            update: {
+              firstName: email.first_name || null,
+              lastName: email.last_name || null,
+              position: email.position || null,
+              seniority: email.seniority || null,
+              department: email.department || null,
+              linkedin: email.linkedin || null,
+              twitter: email.twitter || null,
+              confidence: email.confidence || null,
+              metadata: email
+            }
+          })
+        )
+      );
+    }
 
     await Logger.info('Hunter domain search completed', {
       domain,
       totalResults,
-      resultsReturned: limit
+      resultsReturned: limit,
+      companyId: hunterCompany.id
     });
 
     return { success: true, data: dataResponse, total_results: totalResults };
@@ -964,20 +1041,13 @@ export async function srv_updateUserOnboarding(about: string) {
       throw new Error('User not authenticated');
     }
 
-    const updatedUser = await UserModel.findOneAndUpdate(
-      { userId: user.id },
-      { 
-        $set: { 
-          about,
-          onboardingComplete: true 
-        }
-      },
-      { new: true }
-    );
-
-    if (!updatedUser) {
-      throw new Error('User not found');
-    }
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        about,
+        onboardingComplete: true 
+      }
+    });
 
     return plain(updatedUser);
   } catch (error) {

@@ -17,6 +17,21 @@ interface ClearbitAutocompleteProps {
   className?: string;
 }
 
+const ImageWithFallback = (props : any) => {
+  const { src, fallbackSrc, ...rest } = props;
+  const [imgSrc, setImgSrc] = useState(src);
+
+  return (
+      <Image
+          {...rest}
+          src={imgSrc}
+          onError={() => {
+              setImgSrc(fallbackSrc);
+          }}
+      />
+  );
+};
+
 const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
   onCompanySelect,
   onCustomInput,
@@ -152,11 +167,12 @@ const ClearbitAutocomplete: React.FC<ClearbitAutocompleteProps> = ({
               }}
             >
               <div className="flex-shrink-0">
-                <Image
+                <ImageWithFallback
                   src={company.logo}
                   alt={company.name}
                   width={32}
                   height={32}
+                  fallbackSrc="/qm.png"
                   className="rounded-md"
                 />
               </div>

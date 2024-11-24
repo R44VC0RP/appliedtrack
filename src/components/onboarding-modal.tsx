@@ -17,25 +17,26 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [bio, setBio] = useState('');
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [step, setStep] = useState(0);
+
   const minCharacters = 200;
 
-  const handleResumeUpload = async (res: any) => {
-    const uploadedFile = res[0];
-    try {
+  const handleUploadComplete = async (data: any) => {
+    if (data && data.length > 0) {
       const success = await srv_uploadBaselineResume({
-        fileUrl: uploadedFile.url,
-        fileId: uploadedFile.key,
-        fileName: uploadedFile.name,
+        fileUrl: data[0].url,
+        fileName: data[0].name,
+        fileId: data[0].id
       });
 
-      if (!success) throw new Error('Failed to save resume');
-      
-      setResumeUploaded(true);
-      toast.success("Resume uploaded");
-    } catch (error) {
-      console.error('Error saving resume:', error);
-      toast.error("Failed to upload resume. Please try again.");
+      if (success) {
+        toast.success('Resume uploaded successfully!');
+        // Move to the next step after successful upload
+        setStep(step + 1);
+        setResumeUploaded(true);
+      } else {
+        toast.error('Failed to upload resume. Please try again.');
+      }
     }
   };
 
@@ -83,7 +84,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
               ) : (
                 <UploadButton
                   endpoint="pdfUploader"
-                  onClientUploadComplete={handleResumeUpload}
+                  onClientUploadComplete={handleUploadComplete}
                   onUploadError={(error: Error) => {
                     console.error(error);
                     toast.error("Failed to upload resume. Please try again.");

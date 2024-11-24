@@ -24,6 +24,7 @@ import { useSearchParams } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import ClearbitAutocomplete from '@/components/ui/clearbit';
+import JobTitleAutocomplete from '@/components/ui/job-title-autocomplete';
 import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 import { OnboardingModal } from '@/components/onboarding-modal';
 import ViewDetailsModal from './viewdetails';
@@ -32,8 +33,8 @@ import KeyboardShortcut from '@/components/ui/keyboard-shortcut';
 import { Job, GeneratedResumeWithStatus, GeneratedCoverLetterWithStatus } from '../types/job';
 import { JobStatus, RemoteType, JobType } from '@prisma/client';
 import { toast } from "sonner"
-import { User } from '@/models/User';
 import JobCard from './jobcard';
+import { User } from '@prisma/client';
 
 // Server Actions
 import { srv_addJob, srv_createAIRating, srv_getJobs, srv_getResumes, srv_updateJob } from '@/app/actions/server/job-board/primary';
@@ -184,35 +185,38 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
-const createEmptyJob = (userId: string): Job => ({
-  id: crypto.randomUUID(),
-  userId,
-  company: '',
-  position: '',
-  status: JobStatus.YET_TO_APPLY,
-  website: null,
-  jobDescription: null,
-  dateApplied: new Date(),
-  notes: null,
-  contactName: null,
-  contactEmail: null,
-  contactPhone: null,
-  interviewDate: null,
-  salary: null,
-  location: null,
-  remoteType: null,
-  jobType: null,
-  flag: null,
-  resumeUrl: null,
-  aiRated: false,
-  aiNotes: null,
-  aiRating: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  latestGeneratedResume: null,
-  latestGeneratedCoverLetter: null,
-  hunterData: null
-});
+const createEmptyJob = (userId: string, resumes: { resumeId: string; fileUrl: string; fileName: string; }[]): Job => {
+  const mostRecentResume = resumes[resumes.length - 1];
+  return {
+    id: crypto.randomUUID(),
+    userId,
+    company: '',
+    position: '',
+    status: JobStatus.YET_TO_APPLY,
+    website: null,
+    jobDescription: null,
+    dateApplied: new Date(),
+    notes: null,
+    contactName: null,
+    contactEmail: null,
+    contactPhone: null,
+    interviewDate: null,
+    salary: null,
+    location: null,
+    remoteType: null,
+    jobType: null,
+    flag: null,
+    resumeUrl: mostRecentResume?.fileUrl || '',
+    aiRated: false,
+    aiNotes: null,
+    aiRating: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    latestGeneratedResume: null,
+    latestGeneratedCoverLetter: null,
+    hunterData: null
+  };
+};
 
 export function useClientMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
@@ -339,7 +343,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'n') {
         e.preventDefault();
-        setSelectedJob(createEmptyJob(user?.id || ''));
+        setSelectedJob(createEmptyJob(user?.id || '', resumes));
         setIsModalOpen(true);
       }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -635,7 +639,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSelectedJob(createEmptyJob(user?.id || ''));
+                  setSelectedJob(createEmptyJob(user?.id || '', resumes));
                   setIsModalOpen(true);
                 }}
                 className="flex items-center gap-2"
@@ -748,9 +752,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
               </p>
               <Button onClick={() => {
-                setSelectedJob(createEmptyJob(user?.id || ''));
+                setSelectedJob(createEmptyJob(user?.id || '', resumes));
                 setIsModalOpen(true);
-              }}>Add Your First Job Application</Button>
+              }}><span className='flex items-center gap-2 mr-2' >Add Your First Job Application </span><KeyboardShortcut text="N" /></Button>
 
             </div>
           </div>
@@ -991,7 +995,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         {/* <Button
           className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
           onClick={() => {
-            setSelectedJob(createEmptyJob(user?.id || ''));
+            setSelectedJob(createEmptyJob(user?.id || '', resumes));
             setIsModalOpen(true);
           }}
         >
@@ -1026,7 +1030,7 @@ interface AddJobModalProps {
 
 function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: AddJobModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<Job>(createEmptyJob(user?.id || ''));
+  const [formData, setFormData] = useState<Job>(() => createEmptyJob(user?.id || '', resumes));
 
   const handleSubmit = () => {
     if (!formData.company || !formData.position) {
@@ -1036,7 +1040,7 @@ function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: A
 
     onSubmit(formData);
     setCurrentStep(0);
-    setFormData(createEmptyJob(user?.id || ''));
+    setFormData(createEmptyJob(user?.id || '', resumes));
     onClose();
   };
 
@@ -1161,6 +1165,70 @@ function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: A
               </div>
             </div>
           </div>
+        ) : currentStepConfig.type === 'job-title' ? (
+          // Special layout for job title step
+          <div className="flex flex-col h-full">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl sm:text-2xl text-center sm:text-left">
+                {currentStepConfig.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="mt-4">
+              <JobTitleAutocomplete
+                placeholder={currentStepConfig.placeholder}
+                onTitleSelect={(title) => {
+                  console.log(title);
+                  setFormData(prev => ({
+                    ...prev,
+                    position: title,
+                    updatedAt: new Date()
+                  }));
+                }}
+                className="w-full p-2"
+              />
+            </div>
+
+            <div className="mt-auto pt-4">
+              {/* Progress indicators */}
+              <div className="flex gap-1 justify-center mb-4">
+                {addJobSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 w-4 sm:w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
+                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                      }`}
+                  />
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex flex-col sm:flex-row justify-between gap-2">
+                {currentStep > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="w-full sm:w-1/2"
+                  >
+                    <span className="flex items-center gap-2">
+                      Back <KeyboardShortcut text="left" />
+                    </span>
+                  </Button>
+                ) : <div className="hidden sm:block sm:w-1/2" />}
+
+                <Button
+                  onClick={handleNext}
+                  className="w-full sm:w-1/2"
+                  disabled={!formData[currentStepConfig.field]}
+                >
+                  <span className="flex items-center gap-2">
+                    {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                    <KeyboardShortcut text="cmd + enter" />
+                  </span>
+                </Button>
+              </div>
+            </div>
+          </div>
         ) : (
           // Original layout for other steps
           <>
@@ -1196,27 +1264,34 @@ function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: A
                     <Input
                       id="dateApplied"
                       type="date"
-                      value={formData.dateApplied?.toDateString() || ''}
+                      value={formData.dateApplied?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]}
                       onChange={(e) => setFormData({ ...formData, dateApplied: new Date(e.target.value), updatedAt: new Date(e.target.value) })}
                       required
                       className="w-full"
+                      max={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   <div>
                     <Label htmlFor="resumeUrl" className="block mb-2">Resume *</Label>
                     <Select
-                      value={formData.resumeUrl || ''}
+                      value={formData.resumeUrl || (resumes.length > 0 ? resumes[resumes.length - 1].fileUrl : 'No Resumes Uploaded')}
                       onValueChange={(value) => setFormData({ ...formData, resumeUrl: value })}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a resume" />
                       </SelectTrigger>
                       <SelectContent className="max-h-[60vh] sm:max-h-[40vh]">
-                        {resumes.map((resume) => (
-                          <SelectItem key={resume.resumeId} value={resume.fileUrl}>
-                            {resume.fileName}
+                        {resumes.length > 0 ? (
+                          resumes.map((resume) => (
+                            <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                              {resume.fileName}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="No Resumes Uploaded" disabled>
+                            No Resumes Uploaded
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                     <UploadButton
@@ -1292,4 +1367,3 @@ function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: A
     </Dialog>
   );
 }
-

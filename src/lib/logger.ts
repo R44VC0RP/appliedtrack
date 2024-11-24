@@ -31,7 +31,20 @@ export const Logger = {
       const user = await currentUser();
 
       // console.log(user?.id);
-      
+
+      // Verify that the user is authenticated and that the user id exists in prisma
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // Verify that the user id exists in prisma
+      const existingUser = await prisma.user.findUnique({
+        where: { id: user.id }
+      });
+      if (!existingUser) {
+        throw new Error('User not found in database');
+      }
+
       const log = await prisma.log.create({
         data: {
           level,

@@ -5,7 +5,7 @@ import { Job, GeneratedResumeWithStatus, GeneratedCoverLetterWithStatus } from '
 import { JobStatus, RemoteType } from '@prisma/client';
 import hunterLogo from '@/app/logos/hunter.png'
 import Image from 'next/image'
-import { User } from '@/models/User';
+import { User } from '@prisma/client';
 import { useState, useEffect } from 'react';
 import { toast } from "sonner"
 import { jobStatusToLabel, useClientMediaQuery } from './appliedtrack';
@@ -313,7 +313,7 @@ const JobCard = React.forwardRef(({
 
             // Updated API call with new parameters
             console.log(Array.from(selectedCategories));
-            const { success, data, total_results, quotaExceeded, error } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10);
+            const { success, data, total_results, quotaExceeded, error } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10, job.id);
 
             if (quotaExceeded) {
                 setIsLoading(false);

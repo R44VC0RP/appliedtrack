@@ -1,8 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { UserModel } from '@/models/User';
+import { prisma } from '@/lib/prisma';
+import { UserRole } from '@prisma/client';
 
-export async function checkRole(request: NextRequest, allowedRoles: string[]) {
+export async function checkRole(request: NextRequest, allowedRoles: UserRole[]) {
   const { userId } = getAuth(request);
   
   if (!userId) {
@@ -10,7 +11,9 @@ export async function checkRole(request: NextRequest, allowedRoles: string[]) {
   }
 
   try {
-    const user = await UserModel.findOne({ userId });
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
     
     if (!user) {
       return new NextResponse("User not found", { status: 404 });

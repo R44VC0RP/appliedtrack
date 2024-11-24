@@ -18,7 +18,6 @@ model User {
   subscriptionStatus String?
   cancelAtPeriodEnd  Boolean?
   currentPeriodEnd   DateTime?
-  baselineResume     String?         @db.Text
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   hunterCompanies    HunterCompany[]
@@ -63,10 +62,13 @@ model Job {
   hunterCompanies       HunterCompany[]
   user                  User                   @relation(fields: [userId], references: [id])
 
+
   @@index([userId])
   @@index([company])
   @@index([status])
 }
+
+
 
 model GeneratedResume {
   id             String   @id @default(uuid())
