@@ -17,7 +17,7 @@ export default function NotFound() {
             Looks like this page decided to take an unscheduled vacation. It's probably sipping cocktails on a beach somewhere, completely oblivious to your search.
           </p>
           <p className="text-sm italic">
-            (Or you've just typed something wrong. But let's blame the page, shall we?)
+            (Or you've just typed something wrong. But let&rsquo;s blame the page, shall we?)
           </p>
           <div className="pt-4">
             <Link href="/">
