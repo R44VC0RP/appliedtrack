@@ -215,3 +215,49 @@ export async function resetQuota({ userId, tier, resetDate }: QuotaResetOptions)
     throw error;
   }
 }
+
+export async function checkAndResetQuota(userId: string): Promise<void> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userQuota: true
+      }
+    });
+
+    if (!user || !user.userQuota) {
+      return;
+    }
+
+    const now = new Date();
+    const resetDate = user.userQuota.quotaResetDate;
+
+    // If the reset date has passed
+    if (resetDate && resetDate < now) {
+      // For paid tiers, use the subscription end date as next reset
+      // For free tier, use 30 days from now
+      const nextResetDate = user.tier === 'free' 
+        ? new Date(now.setDate(now.getDate() + 30))
+        : user.currentPeriodEnd || new Date(now.setDate(now.getDate() + 30));
+
+      await resetQuota({
+        userId,
+        tier: user.tier,
+        resetDate: nextResetDate
+      });
+
+      await Logger.info('Auto-reset quota on schedule', {
+        userId,
+        previousResetDate: resetDate,
+        newResetDate: nextResetDate,
+        tier: user.tier
+      });
+    }
+  } catch (error) {
+    await Logger.error('Error checking quota reset', {
+      userId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+  }
+}

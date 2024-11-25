@@ -10,7 +10,7 @@ import { useUser } from "@clerk/nextjs";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CircleProgress } from "@/components/ui/circle-progress";
 import { Header } from "@/components/header";
-import { Loader2, FileText, CreditCard, User2 } from "lucide-react";
+import { Loader2, FileText, CreditCard, User2, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ import {
   srv_getConfigTiers,
   srv_createStripeCheckout
 } from "@/app/actions/server/settings/primary";
+import { PDFViewerModal } from "@/components/pdf-viewer-modal";
 
 type UserDetails = {
   id: string;
@@ -101,6 +102,7 @@ export default function SettingsPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [quotaNotifications, setQuotaNotifications] = useState<QuotaNotification[]>([]);
+  const [selectedResume, setSelectedResume] = useState<{ url: string; name: string } | null>(null);
   
   // Simplified fetch functions using server actions
   const fetchAllData = useCallback(async () => {
@@ -341,50 +343,141 @@ export default function SettingsPage() {
 
           {/* Personal Info Tab */}
           <TabsContent value="personal">
-            <div className="space-y-6 flex flex-col gap-4 items-center">
-              {/* About Me Card */}
-              
-              <Card className="w-full">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* About Me Section */}
+              <Card className="md:col-span-2">
                 <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>
-                    This information helps generate more accurate cover letters and other documents.
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>About Me</CardTitle>
+                      <CardDescription>
+                        Share your professional background to help generate better cover letters and job matches.
+                      </CardDescription>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User2 className="h-6 w-6 text-primary" />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">About Me</label>
+                  <div className="space-y-4">
                     <Textarea
                       className="min-h-[200px] resize-none"
                       value={localAbout}
                       onChange={(e) => setLocalAbout(e.target.value)}
-                      placeholder="Tell us about your professional background, skills, and career goals..."
+                      placeholder="Tell us about your professional background, key skills, and career goals. This information helps us tailor your experience and create more personalized content."
                     />
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {localAbout.length === 0 ? (
+                          "Add some information about yourself"
+                        ) : (
+                          `${localAbout.length} characters`
+                        )}
+                      </p>
+                      <Button 
+                        onClick={handleSavePersonalInfo}
+                        className="gap-2"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Save Changes
+                      </Button>
+                    </div>
                   </div>
-                  <Button onClick={handleSavePersonalInfo}>
-                    Save Changes
-                  </Button>
                 </CardContent>
               </Card>
-              <Card className="w-full" id="user-profile">
+
+              {/* Quick Stats */}
+              <Card>
                 <CardHeader>
-                  <CardTitle>User Profile</CardTitle>
+                  <CardTitle>Profile Overview</CardTitle>
+                  <CardDescription>
+                    Your account statistics and information
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">If you have an .edu address, make sure to set it as your primary email address to get the most out of the platform.</p>
-                  <UserProfile routing="hash" 
-                    
-                    appearance={{
-                      elements: {
-                        avatarBox: "h-20 w-20",
-                        userProfile: {
-                          emailAddressesPageTitle: "Email Addresses"
-                        },
-                        
-                      }
-                    }}
-                  />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Member Since</p>
+                        <p className="text-2xl font-bold">
+                          {new Date(userDetails?.createdAt || Date.now()).toLocaleDateString('en-US', {
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Account Type</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={userDetails?.tier === 'power' ? 'default' : userDetails?.tier === 'pro' ? 'secondary' : 'outline'}>
+                            {userDetails?.tier?.toUpperCase() || 'FREE'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Resumes</p>
+                        <p className="text-2xl font-bold">{resumes.length}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Last Sign In</p>
+                        <p className="text-2xl font-bold">
+                          {userDetails?.lastSignInAt ? (
+                            new Date(userDetails.lastSignInAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          ) : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
+              </Card>
+
+              {/* User Profile Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email & Account</CardTitle>
+                  <CardDescription>
+                    Manage your email preferences and account settings
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      {userDetails?.imageUrl && (
+                        <img 
+                          src={userDetails.imageUrl} 
+                          alt="Profile" 
+                          className="h-16 w-16 rounded-full"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{userDetails?.name || 'User'}</p>
+                        <p className="text-sm text-muted-foreground truncate">{userDetails?.email}</p>
+                      </div>
+                    </div>
+                    
+                  </div>
+                  
+                </CardContent>
+              </Card>
+              <Card className="md:col-span-2 p-4 flex items-center justify-center">
+              
+                      <UserProfile 
+                        routing="hash"
+                        appearance={{
+                          // // elements: {
+                          // //   rootBox: "w-full border-none shadow-none",
+                          // //   card: "shadow-none p-0 border-none",
+                          // //   navbar: "hidden ",
+                          // //   pageScrollBox: "p-0"
+                            
+                          // }
+                        }}
+                      />
+              
               </Card>
             </div>
           </TabsContent>
@@ -400,52 +493,99 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                    {resumes.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-8">
-                        No resumes uploaded yet
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {resumes.map((resume) => (
-                          <div key={resume.resumeId} 
-                               className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                            <a
-                              href={resume.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center gap-2"
-                            >
-                              <FileText className="h-4 w-4" />
-                              {resume.fileName}
-                            </a>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveResume(resume.resumeId)}
-                              className="text-destructive hover:text-destructive/90"
-                            >
-                              Remove
-                            </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <Card className="bg-muted/50">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold">Upload Resume</h3>
+                            <p className="text-sm text-muted-foreground">Add a new resume to your collection</p>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Upload New Resume</label>
-                    <UploadButton
-                      endpoint="pdfUploader"
-                      onClientUploadComplete={handleResumeUpload}
-                      onUploadError={(error: Error) => {
-                        toast.error("Failed to upload resume");
-                      }}
-                      className="mt-2 ut-button:w-full ut-button:h-9 ut-button:bg-secondary ut-button:hover:bg-secondary/80 ut-button:text-secondary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
-                      appearance={{
-                        button: "Upload New Resume"
-                      }}
-                    />
+                          <FileText className="h-8 w-8 text-primary opacity-50" />
+                        </div>
+                        <UploadButton
+                          endpoint="pdfUploader"
+                          onClientUploadComplete={handleResumeUpload}
+                          onUploadError={(error: Error) => {
+                            toast.error("Failed to upload resume");
+                          }}
+                          className="w-full ut-button:w-full ut-button:h-10 ut-button:bg-primary ut-button:hover:bg-primary/90 ut-button:text-primary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
+                          appearance={{
+                            button: "Upload New Resume"
+                          }}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-muted/50">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-semibold">Resume Stats</h3>
+                            <p className="text-sm text-muted-foreground">Your resume collection</p>
+                          </div>
+                          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-xl font-bold text-primary">{resumes.length}</span>
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-4">
+                          {resumes.length === 0 ? (
+                            "No resumes uploaded yet"
+                          ) : (
+                            `You have ${resumes.length} resume${resumes.length === 1 ? '' : 's'} ready to use`
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="rounded-lg border bg-card">
+                    <div className="flex items-center p-4 border-b">
+                      <h3 className="text-lg font-semibold">Your Resumes</h3>
+                      <Badge variant="secondary" className="ml-2">{resumes.length}</Badge>
+                    </div>
+                    <ScrollArea className="h-[400px] w-full">
+                      {resumes.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-[300px] text-center p-4">
+                          <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                          <p className="text-lg font-medium text-muted-foreground">No resumes yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">Upload your first resume to get started</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y">
+                          {resumes.map((resume) => (
+                            <div key={resume.resumeId} 
+                                className="flex items-center justify-between p-4 group hover:bg-muted/50 transition-colors">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <FileText className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{resume.fileName}</p>
+                                  <p className="text-xs text-muted-foreground">Added {new Date().toLocaleDateString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setSelectedResume({ url: resume.fileUrl, name: resume.fileName })}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveResume(resume.resumeId)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
                   </div>
                 </div>
               </CardContent>
@@ -643,6 +783,13 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+      {/* PDF Viewer Modal */}
+      <PDFViewerModal
+        isOpen={!!selectedResume}
+        onClose={() => setSelectedResume(null)}
+        fileUrl={selectedResume?.url || ''}
+        fileName={selectedResume?.name || ''}
+      />
     </>
   );
 }

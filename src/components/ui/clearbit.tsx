@@ -17,7 +17,7 @@ interface ClearbitAutocompleteProps {
   className?: string;
 }
 
-const ImageWithFallback = (props : any) => {
+export const ImageWithFallback = (props : any) => {
   const { src, fallbackSrc, ...rest } = props;
   const [imgSrc, setImgSrc] = useState(src);
 

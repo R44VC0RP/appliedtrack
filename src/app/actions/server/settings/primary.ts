@@ -357,6 +357,7 @@ export async function srv_handleSubscriptionChange(
     }
 
     const previousTier = user.tier;
+    const tierChanged = previousTier !== newTier;
 
     // Update user with Prisma
     const updatedUser = await prisma.user.update({
@@ -373,21 +374,29 @@ export async function srv_handleSubscriptionChange(
       userId: clerkUserId,
       previousTier,
       newTier,
-      periodEnd
+      periodEnd,
+      tierChanged
     });
 
-    // Reset quotas based on new tier
-    await resetQuota({
-      userId: clerkUserId,
-      tier: newTier,
-      resetDate: periodEnd
-    });
+    // Only reset quotas if the tier has changed
+    if (tierChanged) {
+      await resetQuota({
+        userId: clerkUserId,
+        tier: newTier,
+        resetDate: periodEnd
+      });
+    } else {
+      // Just update the reset date without changing quotas
+      await prisma.userQuota.update({
+        where: { userId: clerkUserId },
+        data: {
+          quotaResetDate: periodEnd
+        }
+      });
+    }
 
     // Check quota limits after change
     const notifications = await checkQuotaLimits(clerkUserId, newTier);
-    // if (notifications.length > 0) {
-    //   await notifyQuotaStatus(notifications);
-    // }
 
     return updatedUser;
   } catch (error) {

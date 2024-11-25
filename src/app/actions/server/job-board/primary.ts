@@ -3,10 +3,8 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from "@/lib/logger";
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser";
-// import { srv_addGenAIAction } from "@/lib/useGenAI";
 import { plain } from "@/lib/plain";
-
-import { createInitialQuota } from "@/lib/useQuota";
+import { createInitialQuota, checkAndResetQuota } from "@/lib/useQuota";
 
 import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
@@ -49,6 +47,9 @@ export async function srv_checkUserAttributes(userId: string): Promise<CompleteU
 
 export async function srv_func_verifyTiers(userId: string, serviceKey: string, action: string = "increment"): Promise<QuotaCheck> {
   try {
+    // Check and reset quota if needed before verifying
+    await checkAndResetQuota(userId);
+
     // Get user and their tier
     const user = await prisma.user.findUnique({ 
       where: { id: userId },
@@ -781,7 +782,7 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
     return {
       success: false,
       quotaExceeded: true,
-      error: `Quota exceeded for InsightLink&trade; email search. Used: ${actionAllowed.used}/${actionAllowed.limit}. Consider upgrading your tier to access this feature.`
+      error: `Quota exceeded for InsightLink email search. Used: ${actionAllowed.used}/${actionAllowed.limit}. Consider upgrading your tier to access this feature.`
     };
   }
 

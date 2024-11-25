@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PDFViewerInline } from "@/components/pdf-viewer-modal";
 import { Job } from '@/app/types/job';
 import { JobStatus, RemoteType, JobType } from '@prisma/client';
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UploadButton } from "@/utils/uploadthing";
 import { toast } from "sonner";
 import { jobStatusToLabel } from "./appliedtrack";
+import { devLog } from '@/lib/devLog';
 
 const getStatusColor = (status: JobStatus): string => {
     switch (status) {
@@ -64,7 +66,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                     })));
                 }
             } catch (error) {
-                console.error('Failed to load resumes:', error);
+                devLog.error('Failed to load resumes:', error);
                 toast.error('Failed to load resumes');
             }
         };
@@ -85,8 +87,37 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
             const updatedJob = await srv_getJob(job.id || '');
             setSelectedJob(updatedJob as Job);
         } catch (error) {
-            console.error('Error fetching updated job details:', error);
+            devLog.error('Error fetching updated job details:', error);
         }
+    };
+
+    const handleQuotaAction = async (action: () => Promise<any>) => {
+        try {
+            await action();
+            // Notify quota update after any quota-affecting action
+            window.dispatchEvent(new Event('quotaUpdate'));
+        } catch (error) {
+            devLog.error('Error in quota action:', error);
+            throw error;
+        }
+    };
+
+    const handleGenerateResume = async () => {
+        await handleQuotaAction(async () => {
+            // ... existing resume generation code ...
+        });
+    };
+
+    const handleGenerateCoverLetter = async () => {
+        await handleQuotaAction(async () => {
+            // ... existing cover letter generation code ...
+        });
+    };
+
+    const handleEmailSearch = async () => {
+        await handleQuotaAction(async () => {
+            // ... existing email search code ...
+        });
     };
 
     if (!job) return null;
@@ -162,12 +193,12 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                         setEditingField(null);
                                         toast.success('Resume uploaded successfully');
                                     } catch (error) {
-                                        console.error('Error uploading resume:', error);
+                                        devLog.error('Error uploading resume:', error);
                                         toast.error('Failed to upload resume');
                                     }
                                 }}
                                 onUploadError={(error: any) => {
-                                    console.error('Upload error:', error);
+                                    devLog.error('Upload error:', error);
                                     toast.error(`Error uploading resume: ${error.message}`);
                                 }}
                                 className="mt-2 ut-button:w-full ut-button:h-9 ut-button:bg-secondary ut-button:hover:bg-secondary/80 ut-button:text-secondary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
@@ -496,9 +527,12 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                             <div>
                                                 {renderField("Resume", job.resumeUrl ? "Resume Uploaded" : "Resume Not Uploaded", "resumeUrl")}
                                                 {job.resumeUrl && (
-                                                    <div className="mt-2">
+                                                    <>
+                                                    <PDFViewerInline fileUrl={job.resumeUrl} fileName="resume.pdf" />
+                                                    {/* <div className="mt-2">
                                                         <embed src={job.resumeUrl} type="application/pdf" width="100%" height="400px" />
-                                                    </div>
+                                                    </div> */}
+                                                    </>
                                                 )}
                                             </div>
                                             {job.latestGeneratedCoverLetter && (

@@ -40,6 +40,7 @@ import { User } from '@prisma/client';
 import { srv_addJob, srv_createAIRating, srv_getJobs, srv_getResumes, srv_updateJob } from '@/app/actions/server/job-board/primary';
 import { CompleteUserProfile } from '@/lib/useUser';
 import { UploadButton } from "@/utils/uploadthing";
+import { ConfettiWrapper } from '@/components/confetti/confetti-wrapper';
 
 // IMPORTANT:
 function useWindowSize() {
@@ -381,7 +382,11 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
   const addNewJob = async (newJob: Job) => {
     try {
+      const addNewJobToast = toast.loading("Adding new job...", {
+        duration: 5000
+      });
       const response = await srv_addJob(newJob);
+      addNewJobToast && toast.dismiss(addNewJobToast);
       if (!response) {
         throw new Error('Failed to add new job');
       }
@@ -545,6 +550,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     );
   }
 
+  
+
   // Update the onboarding completion handler
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -553,6 +560,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     // Remove confetti after 5 seconds
     setTimeout(() => setShowConfetti(false), 5000);
   };
+
+  // Check if the param celebrate is true
 
   return (
     <div className="dark:bg-gray-950">
@@ -565,7 +574,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           gravity={0.2}
         />
       )}
-
+      <ConfettiWrapper />
       {showOnboarding && (
         <OnboardingModal
           isOpen={showOnboarding}

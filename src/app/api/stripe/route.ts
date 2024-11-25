@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
       subscriptionId: subscription.id
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.redirect(new URL('/dashboard?celebrate=true', request.url), {
+      status: 303
+    });
   } catch (error) {
     await Logger.error('Error processing Stripe success callback', {
       error: error instanceof Error ? error.message : 'Unknown error',

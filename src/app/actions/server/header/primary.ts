@@ -16,19 +16,41 @@
 import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser"
 import { plain } from "@/lib/plain"
 import { prisma } from "@/lib/prisma"
+import { QuotaNotification, QuotaUsage } from "@prisma/client"
 
-export interface HeaderData extends CompleteUserProfile {
-    quota: any | null // Using any temporarily until we define proper types
+export interface QuotaData {
+    id: string;
+    userId: string;
+    quotaResetDate: Date;
+    stripeCurrentPeriodEnd: Date | null;
+    dateCreated: Date;
+    dateUpdated: Date;
+    quotaUsage: Array<QuotaUsage>;
+    notifications: Array<QuotaNotification>;
 }
 
+export interface HeaderData extends CompleteUserProfile {
+    quota: QuotaData | null;
+}
 
 export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
-    const user = await srv_getCompleteUserProfile(userId) as CompleteUserProfile
+    const user = await srv_getCompleteUserProfile(userId) as CompleteUserProfile;
     const quota = await prisma.userQuota.findUnique({
         where: { userId },
         include: {
-            notifications: true
+            notifications: true,
+            quotaUsage: true
         }
-    })
-    return plain({ ...user, quota })
+    });
+
+    return plain({ 
+        ...user, 
+        quota: quota ? {
+            ...quota,
+            quotaResetDate: quota.quotaResetDate,
+            stripeCurrentPeriodEnd: quota.stripeCurrentPeriodEnd,
+            dateCreated: quota.dateCreated,
+            dateUpdated: quota.dateUpdated
+        } : null 
+    });
 }

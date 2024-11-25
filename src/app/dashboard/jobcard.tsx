@@ -27,6 +27,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { srv_archiveJob, srv_generateResume, srv_hunterDomainSearch } from '../actions/server/job-board/primary';
+import { ImageWithFallback } from '@/components/ui/clearbit';
+import { devLog } from '@/lib/devLog';
 
 const hunterCategories: { value: string; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -160,8 +162,9 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
             const updatedJob = await response.json();
             setIsGenerating("ready");
             await updateJobDetails(updatedJob);
+            window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
-            console.error('Error generating resume:', error);
+            devLog.error('Error generating resume:', error);
             setIsGenerating("failed");
         }
     };
@@ -221,8 +224,9 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
             const updatedJob = await response.json();
             setIsGenerating("ready");
             await updateJobDetails(updatedJob);
+            window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
-            console.error('Error generating cover letter:', error);
+            devLog.error('Error generating cover letter:', error);
             setIsGenerating("failed");
         }
     };
@@ -292,8 +296,6 @@ const JobCard = React.forwardRef(({
     useEffect(() => {
         setMounted(true);
     }, []);
-
-    console.log(job);
 
     if (!mounted) return null;
 
@@ -379,9 +381,10 @@ const JobCard = React.forwardRef(({
             });
 
             setIsCategoryModalOpen(false);
+            window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
-            console.error('Error fetching InsightLink&trade; data:', error);
-            toast.error("Failed to fetch InsightLink&trade; data. Please check the domain and try again.");
+            devLog.error('Error fetching InsightLink&trade; data:', error);
+            toast.error("Failed to fetch InsightLink data. Please check the domain and try again.");
         } finally {
             setIsLoading(false);
         }
@@ -420,7 +423,7 @@ const JobCard = React.forwardRef(({
                             openJobDetails(job);
                             setIsCategoryModalOpen(true);
                         }}
-                        className="w-full text-right text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        className="w-full text-right text-sm text-blue-600 hover:underline"
                     >
                         +{remainingCount} more contacts
                     </button>
@@ -578,15 +581,13 @@ const JobCard = React.forwardRef(({
                     <CardTitle className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             {job.company && (
-                                <Image
+                                <ImageWithFallback
                                     src={`https://logo.clearbit.com/${job.website}`}
                                     alt={job.company}
                                     width={32}
                                     height={32}
                                     className="rounded-md"
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                    }}
+                                    fallbackSrc={`https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${job.website}&size=200`}
                                 />
                             )}
                             <span className="text-2xl">{job.company}</span>
@@ -658,7 +659,8 @@ const JobCard = React.forwardRef(({
                                             <AlertDialogAction
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleStatusChange(JobStatus.ARCHIVED);
+                                                    handleArchive();
+                                                    window.dispatchEvent(new Event('quotaUpdate')); // Add this line
                                                 }}
                                                 className="bg-red-600 hover:bg-red-700 text-white"
                                             >
@@ -744,6 +746,7 @@ const JobCard = React.forwardRef(({
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleArchive();
+                                                    window.dispatchEvent(new Event('quotaUpdate')); // Add this line
                                                 }}
                                                 className="bg-red-600 hover:bg-red-700 text-white"
                                             >
@@ -860,6 +863,7 @@ const JobCard = React.forwardRef(({
                                                     const currentStatusIndex = jobStatuses.indexOf(job.status);
                                                     const nextStatusIndex = (currentStatusIndex + 1) % jobStatuses.length;
                                                     updateJobStatus(job.id || '', jobStatuses[nextStatusIndex] as Job['status']);
+                                                    window.dispatchEvent(new Event('quotaUpdate')); // Add this line
                                                     // Close modal logic
                                                     setIsConfirmStatusChangeOpen(false);
                                                 }}

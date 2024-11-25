@@ -22,6 +22,11 @@ const nextConfig = {
                 protocol: 'https',
                 hostname: 'logo.clearbit.com',
             },
+            {
+                protocol: 'https',
+                hostname: 't3.gstatic.com',
+                pathname: '/faviconV2**',
+            }
         ],
         formats: ['image/avif', 'image/webp'],
         deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
