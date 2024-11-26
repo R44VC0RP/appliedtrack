@@ -22,7 +22,6 @@ model User {
   updatedAt          DateTime        @updatedAt
   hunterCompanies    HunterCompany[]
   jobs               Job[]
-  logs               Log[]
   notifications      Notification[]
   roadmaps           RoadmapItem[]
   userQuota          UserQuota?
@@ -262,7 +261,6 @@ model Log {
   timestamp DateTime @default(now())
   service   String
   ip        String?
-  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([action])
   @@index([userId])

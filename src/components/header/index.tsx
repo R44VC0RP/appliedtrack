@@ -85,12 +85,14 @@ const serviceNames: { [key: string]: string } = {
 const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
   const [configData, setConfigData] = useState<ConfigData | null>(null);
   const [quota, setQuota] = useState<QuotaData | null>(initialQuota);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user: clerkUser } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
+  const { user: clerkUser, isSignedIn } = useUser();
 
   const fetchData = async () => {
-    if (!clerkUser?.id) return;
-    
+    if (!isSignedIn || !clerkUser?.id) {
+      return null;
+    }
+
     try {
       setIsLoading(true);
       const [config, headerData] = await Promise.all([
@@ -109,11 +111,15 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
 
   // Initial load
   useEffect(() => {
-    fetchData();
-  }, [clerkUser?.id]);
+    if (isSignedIn && clerkUser?.id) {
+      fetchData();
+    }
+  }, [isSignedIn, clerkUser?.id]);
 
   // Listen for quota updates
   useEffect(() => {
+    if (!isSignedIn) return;
+
     const handleQuotaUpdate = () => {
       devLog.log("Quota update event received in QuotaIndicator");
       fetchData();
@@ -121,7 +127,7 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
 
     window.addEventListener('quotaUpdate', handleQuotaUpdate);
     return () => window.removeEventListener('quotaUpdate', handleQuotaUpdate);
-  }, [clerkUser?.id]);
+  }, [isSignedIn, clerkUser?.id]);
 
   // Update local quota when prop changes
   useEffect(() => {
@@ -140,13 +146,21 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
   // Don't render until we have both quota and config data
   if (isLoading || !configData) {
     devLog.log("Loading or missing data:", { isLoading, quota, configData });
-    return null;
+    return (
+      <div className="flex items-center space-x-2 min-w-[100px] min-h-[60px] animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-full"></div>
+      </div>
+    );
   }
 
   // Don't render if we don't have quota data
   if (!quota?.quotaUsage) {
     devLog.log("Missing quota data:", { quota });
-    return null;
+    return (
+      <div className="flex items-center space-x-2 min-w-[100px] min-h-[60px] animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-full"></div>
+      </div>
+    );
   }
 
   const getServiceUsage = (serviceKey: string) => {
@@ -208,7 +222,7 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
   }
 
   // Calculate total percentage only from valid services
-  const totalUsagePercentage = services.reduce((acc, service) => 
+  const totalUsagePercentage = services.reduce((acc, service) =>
     acc + service.percentage, 0) / services.length;
 
   devLog.log("Total usage percentage:", totalUsagePercentage);
@@ -254,8 +268,8 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
                   <div className="space-y-1">
                     <h5 className="text-sm font-medium">{service.name}</h5>
                     <p className="text-xs text-muted-foreground">
-                      {service.limit === -1 ? 
-                        `${service.used} / Unlimited` : 
+                      {service.limit === -1 ?
+                        `${service.used} / Unlimited` :
                         `${service.used} of ${service.limit} used`}
                     </p>
                   </div>
@@ -267,8 +281,8 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
                   </span>
                 </div>
                 {service.limit !== -1 && (
-                  <Progress 
-                    value={Math.min(service.percentage, 100)} 
+                  <Progress
+                    value={Math.min(service.percentage, 100)}
                     className={cn(
                       "h-2",
                       service.percentage >= 100
@@ -282,8 +296,8 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
               </div>
             ))}
           </div>
-          <Link 
-            href="/settings?tab=subscription" 
+          <Link
+            href="/settings?tab=subscription"
             className="block w-full text-xs text-center text-muted-foreground hover:text-primary transition-colors"
           >
             View detailed usage in settings
@@ -296,28 +310,32 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
 
 export function Header({ onNotificationClick }: HeaderProps) {
   const { user: clerkUser, isSignedIn } = useUser();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [headerData, setHeaderData] = useState<HeaderData | null>(null);
 
   const fetchHeaderData = async () => {
-    if (isSignedIn) {
-      try {
-        setIsLoading(true);
-        const data = await srv_getHeaderData(clerkUser.id);
-        setHeaderData(data);
-      } catch (error) {
-        console.error('Error fetching header data:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!isSignedIn || !clerkUser?.id) return;
+
+    try {
+      setIsLoading(true);
+      const data = await srv_getHeaderData(clerkUser.id);
+      setHeaderData(data);
+    } catch (error) {
+      devLog.error('Error fetching header data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHeaderData();
+    if (isSignedIn && clerkUser?.id) {
+      fetchHeaderData();
+    }
   }, [isSignedIn, clerkUser?.id]);
 
   useEffect(() => {
+    if (!isSignedIn) return;
+
     const handleQuotaUpdate = () => {
       console.log("Quota update event received, refreshing header data");
       fetchHeaderData();
@@ -411,11 +429,14 @@ export function Header({ onNotificationClick }: HeaderProps) {
                   Power
                 </Badge>
               ) : null}
-              
+
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="/dashboard" className="focus:outline-none">
+                  <Link href="/dashboard" className="focus:outline-none group flex items-center">
                     <Grid className="h-5 w-5" />
+                    <span className="w-0 overflow-hidden transition-all duration-200 group-hover:w-20 group-hover:ml-2">
+                      Dashboard
+                    </span>
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -431,8 +452,11 @@ export function Header({ onNotificationClick }: HeaderProps) {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="/settings" className="focus:outline-none">
+                  <Link href="/settings" className="focus:outline-none group flex items-center">
                     <Settings className="h-5 w-5" />
+                    <span className="w-0 overflow-hidden transition-all duration-200 group-hover:w-16 group-hover:ml-2">
+                      Settings
+                    </span>
                   </Link>
                 </TooltipTrigger>
               </Tooltip>
@@ -443,7 +467,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
           )}
 
           <ThemeControl />
-          
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

@@ -26,9 +26,10 @@ import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { srv_archiveJob, srv_generateResume, srv_hunterDomainSearch } from '../actions/server/job-board/primary';
+import { srv_archiveJob, srv_hunterDomainSearch, srv_getJob } from '../actions/server/job-board/primary';
 import { ImageWithFallback } from '@/components/ui/clearbit';
 import { devLog } from '@/lib/devLog';
+import { srv_generateGPTResume } from '@/lib/genai/useGenAI';
 
 const hunterCategories: { value: string; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -147,22 +148,19 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
     const handleGenerateResume = async () => {
         setIsGenerating("generating");
         try {
-            const response = await fetch('/api/generate-resume', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ jobId: job.id }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to generate resume');
+            const result = await srv_generateGPTResume(job);
+            if (result?.success) {
+                // Fetch the updated job to get the new generated resume
+                const updatedJob = await srv_getJob(job.id);
+                if (updatedJob) {
+                    await updateJobDetails(updatedJob as Job);
+                    setIsGenerating("ready");
+                    window.dispatchEvent(new Event('quotaUpdate'));
+                }
+            } else {
+                setIsGenerating("failed");
+                toast.error(result.error);
             }
-
-            const updatedJob = await response.json();
-            setIsGenerating("ready");
-            await updateJobDetails(updatedJob);
-            window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
             devLog.error('Error generating resume:', error);
             setIsGenerating("failed");

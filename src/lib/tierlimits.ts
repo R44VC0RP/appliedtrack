@@ -247,6 +247,67 @@ export async function srv_resetAllQuotas(): Promise<void> {
   }
 }
 
+export async function srv_decrementServiceUsage(userId: string, serviceKey: string, amount: number = 1): Promise<boolean> {
+  try {
+    const userQuota = await prisma.userQuota.findUnique({
+      where: { userId },
+      include: { quotaUsage: true }
+    });
+
+    if (!userQuota) {
+      await Logger.error('Failed to find user quota for decrement', {
+        userId,
+        serviceKey,
+        error: 'User quota not found',
+        location: new Error().stack?.split('\n')[1]?.trim()
+      });
+      return false;
+    }
+
+    const quotaUsage = userQuota.quotaUsage.find(u => u.quotaKey === serviceKey);
+    
+    if (!quotaUsage) {
+      await Logger.warning('No quota usage found to decrement', {
+        userId,
+        serviceKey,
+        location: new Error().stack?.split('\n')[1]?.trim()
+      });
+      return false;
+    }
+
+    const newUsage = Math.max(0, quotaUsage.usageCount - amount);
+
+    await prisma.quotaUsage.update({
+      where: { id: quotaUsage.id },
+      data: {
+        usageCount: newUsage,
+        dateUpdated: new Date()
+      }
+    });
+
+    await Logger.info('Service usage decremented', {
+      userId,
+      serviceKey,
+      previousUsage: quotaUsage.usageCount,
+      newUsage,
+      amount,
+      location: new Error().stack?.split('\n')[1]?.trim()
+    });
+
+    return true;
+  } catch (error) {
+    await Logger.error('Error decrementing service usage', {
+      userId,
+      serviceKey,
+      amount,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      location: new Error().stack?.split('\n')[1]?.trim()
+    });
+    return false;
+  }
+}
+
 // Schedule the reset to run at midnight (00:00) on the first day of each month
 export async function initQuotaResetSchedule() {
   // '0 0 1 * *' = At 00:00 on day-of-month 1

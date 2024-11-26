@@ -412,9 +412,21 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
   const updateJobDetails = async (updatedJob: Job) => {
+    // Store the current state of jobs for potential rollback
+    const previousJobs = [...jobs];
+    
     try {
+      // Optimistically update the UI
+      setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJob : job));
+      
+      // Make the API call
       const response = await srv_updateJob(updatedJob);
+      
       if (response) {
+        // Update succeeded - show success toast
+        toast.success("Job updated successfully");
+        
+        // Update with the server response data
         const updatedJobWithGeneratedContent: Job = {
           ...response,
           latestGeneratedResume: null,
@@ -422,10 +434,16 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           hunterCompanies: null
         };
         setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJobWithGeneratedContent : job));
+      } else {
+        // Update failed - revert to previous state
+        setJobs(previousJobs);
+        toast.error("Failed to update the job. Changes have been reverted.");
       }
     } catch (error) {
+      // Error occurred - revert to previous state
+      setJobs(previousJobs);
       console.error('Error updating job:', error);
-      toast.error("Failed to update the job. Please try again.")
+      toast.error("Failed to update the job. Changes have been reverted.");
     }
   };
 

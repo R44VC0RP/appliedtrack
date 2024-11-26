@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    font-size: 16px;
+  }
+
+  h1 {
+    @apply text-4xl font-bold;
+  }
+
+  h2 {
+    @apply text-3xl font-bold;
+  }
+
+  h3 {
+    @apply text-2xl font-bold;
+  }
+
+  h4 {
+    @apply text-xl font-bold;
+  }
+
+  p {
+    @apply text-base;
+  }
+
+  small {
+    @apply text-sm;
+  }
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -95,8 +125,7 @@ body {
 
 
 /* CLERK SYNC FOR SHADCN/UI */
-
-.cl-formButtonPrimary {
+/* .cl-formButtonPrimary {
   @apply inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md bg-primary px-3  font-medium text-primary-foreground !shadow-none ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
 }
 
@@ -210,7 +239,7 @@ button[data-localization-key='userProfile.start.dangerSection.deleteAccountButto
 .cl-profileSectionPrimaryButton,
 .cl-accordionTriggerButton,
 .cl-navbarButton {
-  @apply dark:text-gray-300 hover:bg-accent hover:text-accent-foreground dark:hover:text-accent-foreground;
+  @apply hover:bg-accent hover:text-accent-foreground;
 }
 
 .cl-card {
@@ -311,4 +340,4 @@ h1[data-localization-key='userProfile.navbar.title'] {
 
 .cl-userButtonPopoverMain {
   @apply rounded-lg border-input bg-background;
-}
+} */

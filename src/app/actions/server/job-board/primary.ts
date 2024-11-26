@@ -17,6 +17,7 @@ import { JobStatus } from '@prisma/client'
 import { Job } from "@/app/types/job";
 import { prisma } from '@/lib/prisma';
 
+
 const utapi = new UTApi();
 
 
@@ -746,6 +747,16 @@ export async function srv_createAIRating(job: Job) {
   return { success: true, aiRating: object.ai_rating.rating, aiNotes: object.ai_rating.notes };
 }
 
+
+export async function srv_generateCoverLetter(job: Job) {
+  await Logger.info('Starting cover letter generation', {
+    jobId: job.id,
+    company: job.company,
+    userId: job.userId
+  });
+}
+
+
 function isValidDomain(domain: string): boolean {
   const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
   const domainPattern = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
@@ -897,143 +908,143 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
   }
 }
 
-export async function srv_generateResume(job: Job) {
-  await Logger.info('Starting resume generation', {
-    jobId: job.id,
-    company: job.company,
-    userId: job.userId
-  });
+// export async function srv_generateResume(job: Job) {
+//   await Logger.info('Starting resume generation', {
+//     jobId: job.id,
+//     company: job.company,
+//     userId: job.userId
+//   });
 
-  const user = await srv_getCompleteUserProfile(job.userId || '');
-  const jobData = await srv_getJob(job.id || '');
+//   const user = await srv_getCompleteUserProfile(job.userId || '');
+//   const jobData = await srv_getJob(job.id || '');
 
-  if (!user || !jobData) {
-    await Logger.warning('User or job not found during resume generation', {
-      userId: job.userId,
-      jobId: job.id
-    });
-    return { success: false, error: 'User or job not found' };
-  }
+//   if (!user || !jobData) {
+//     await Logger.warning('User or job not found during resume generation', {
+//       userId: job.userId,
+//       jobId: job.id
+//     });
+//     return { success: false, error: 'User or job not found' };
+//   }
 
-  // Extract text from resume PDF
-  const resumeText = await Pdf.getPDFText(job.resumeUrl || '');
+//   // Extract text from resume PDF
+//   const resumeText = await Pdf.getPDFText(job.resumeUrl || '');
   
-  const resumeSchema = z.object({
-    basics: z.object({
-      name: z.string(),
-      label: z.string().optional(),
-      email: z.string().optional(),
-      phone: z.string().optional(),
-      url: z.string().optional(),
-      summary: z.string(),
-      location: z.object({
-        address: z.string().optional(),
-        postalCode: z.string().optional(),
-        city: z.string().optional(),
-        countryCode: z.string().optional(),
-        region: z.string().optional()
-      }).optional(),
-      profiles: z.array(z.object({
-        network: z.string(),
-        username: z.string(),
-        url: z.string()
-      })).optional()
-    }),
-    work: z.array(z.object({
-      name: z.string(),
-      position: z.string(),
-      url: z.string().optional(),
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
-      summary: z.string(),
-      highlights: z.array(z.string())
-    })).optional(),
-    education: z.array(z.object({
-      institution: z.string(),
-      url: z.string().optional(),
-      area: z.string(),
-      studyType: z.string(),
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
-      score: z.string().optional(),
-      courses: z.array(z.string()).optional()
-    })).optional(),
-    skills: z.array(z.object({
-      name: z.string(),
-      level: z.string().optional(),
-      keywords: z.array(z.string())
-    })).optional(),
-    languages: z.array(z.object({
-      language: z.string(),
-      fluency: z.string()
-    })).optional(),
-    projects: z.array(z.object({
-      name: z.string(),
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
-      description: z.string(),
-      highlights: z.array(z.string()).optional(),
-      url: z.string().optional()
-    })).optional()
-  });
+//   const resumeSchema = z.object({
+//     basics: z.object({
+//       name: z.string(),
+//       label: z.string().optional(),
+//       email: z.string().optional(),
+//       phone: z.string().optional(),
+//       url: z.string().optional(),
+//       summary: z.string(),
+//       location: z.object({
+//         address: z.string().optional(),
+//         postalCode: z.string().optional(),
+//         city: z.string().optional(),
+//         countryCode: z.string().optional(),
+//         region: z.string().optional()
+//       }).optional(),
+//       profiles: z.array(z.object({
+//         network: z.string(),
+//         username: z.string(),
+//         url: z.string()
+//       })).optional()
+//     }),
+//     work: z.array(z.object({
+//       name: z.string(),
+//       position: z.string(),
+//       url: z.string().optional(),
+//       startDate: z.string().optional(),
+//       endDate: z.string().optional(),
+//       summary: z.string(),
+//       highlights: z.array(z.string())
+//     })).optional(),
+//     education: z.array(z.object({
+//       institution: z.string(),
+//       url: z.string().optional(),
+//       area: z.string(),
+//       studyType: z.string(),
+//       startDate: z.string().optional(),
+//       endDate: z.string().optional(),
+//       score: z.string().optional(),
+//       courses: z.array(z.string()).optional()
+//     })).optional(),
+//     skills: z.array(z.object({
+//       name: z.string(),
+//       level: z.string().optional(),
+//       keywords: z.array(z.string())
+//     })).optional(),
+//     languages: z.array(z.object({
+//       language: z.string(),
+//       fluency: z.string()
+//     })).optional(),
+//     projects: z.array(z.object({
+//       name: z.string(),
+//       startDate: z.string().optional(),
+//       endDate: z.string().optional(),
+//       description: z.string(),
+//       highlights: z.array(z.string()).optional(),
+//       url: z.string().optional()
+//     })).optional()
+//   });
 
-  try {
-    // const { object: generatedResume, usage } = await generateObject({
-    //   model: openai('gpt-4-turbo'),
-    //   schema: resumeSchema,
-    //   schemaName: 'JSONResume',
-    //   schemaDescription: 'A structured resume format optimized for the target job position',
-    //   prompt: `
-    //     Generate a professional resume in JSON Resume format for ${user.firstName + ' ' + user.lastName} 
-    //     applying to ${job.company} for the position of ${job.position}.
+//   try {
+//     // const { object: generatedResume, usage } = await generateObject({
+//     //   model: openai('gpt-4-turbo'),
+//     //   schema: resumeSchema,
+//     //   schemaName: 'JSONResume',
+//     //   schemaDescription: 'A structured resume format optimized for the target job position',
+//     //   prompt: `
+//     //     Generate a professional resume in JSON Resume format for ${user.firstName + ' ' + user.lastName} 
+//     //     applying to ${job.company} for the position of ${job.position}.
         
-    //     Original Resume Text: ${resumeText}
-    //     Personal Statement: ${user.about}
-    //     Target Job Description: ${job.jobDescription}
+//     //     Original Resume Text: ${resumeText}
+//     //     Personal Statement: ${user.about}
+//     //     Target Job Description: ${job.jobDescription}
 
-    //     Instructions:
-    //     1. Only include sections where you have reliable information from the provided resume and personal statement
-    //     2. Do not fabricate or assume any information
-    //     3. Tailor the content to highlight skills and experience relevant to ${job.position} at ${job.company}
-    //     4. Use clear, professional language
-    //     5. Include quantifiable achievements where possible
-    //     6. Format dates as YYYY-MM-DD if available, otherwise omit
-    //     7. Ensure all generated content is factual and based on the provided information
-    //   `
-    // });
+//     //     Instructions:
+//     //     1. Only include sections where you have reliable information from the provided resume and personal statement
+//     //     2. Do not fabricate or assume any information
+//     //     3. Tailor the content to highlight skills and experience relevant to ${job.position} at ${job.company}
+//     //     4. Use clear, professional language
+//     //     5. Include quantifiable achievements where possible
+//     //     6. Format dates as YYYY-MM-DD if available, otherwise omit
+//     //     7. Ensure all generated content is factual and based on the provided information
+//     //   `
+//     // });
 
-    // // Create temporary directory
-    // const tempDir = join(process.cwd(), 'tmp');
-    // await fs.mkdir(tempDir, { recursive: true });
+//     // // Create temporary directory
+//     // const tempDir = join(process.cwd(), 'tmp');
+//     // await fs.mkdir(tempDir, { recursive: true });
 
-    // // Save JSON resume to temporary file
-    // const jsonPath = join(tempDir, `${job.id}-resume.json`);
-    // await fs.writeFile(jsonPath, JSON.stringify(generatedResume, null, 2));
+//     // // Save JSON resume to temporary file
+//     // const jsonPath = join(tempDir, `${job.id}-resume.json`);
+//     // await fs.writeFile(jsonPath, JSON.stringify(generatedResume, null, 2));
 
-    console.log("User Details:", user);
-    console.log("Job Details:", job);
-    console.log("Resume Text:", resumeText);
+//     console.log("User Details:", user);
+//     console.log("Job Details:", job);
+//     console.log("Resume Text:", resumeText);
 
-    return { success: true };
+//     return { success: true };
 
-  } catch (error) {
-    if (error instanceof JSONParseError || error instanceof TypeValidationError) {
-      await Logger.error('Resume generation structured data error', {
-        jobId: job.id,
-        error: error.message,
-        errorType: error instanceof JSONParseError ? 'JSONParseError' : 'TypeValidationError',
-        details: error instanceof JSONParseError ? error.text : error.value
-      });
-    } else {
-      await Logger.error('Resume generation failed', {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
-    }
-    throw error;
-  }
-}
+//   } catch (error) {
+//     if (error instanceof JSONParseError || error instanceof TypeValidationError) {
+//       await Logger.error('Resume generation structured data error', {
+//         jobId: job.id,
+//         error: error.message,
+//         errorType: error instanceof JSONParseError ? 'JSONParseError' : 'TypeValidationError',
+//         details: error instanceof JSONParseError ? error.text : error.value
+//       });
+//     } else {
+//       await Logger.error('Resume generation failed', {
+//         jobId: job.id,
+//         error: error instanceof Error ? error.message : 'Unknown error',
+//         stack: error instanceof Error ? error.stack : undefined
+//       });
+//     }
+//     throw error;
+//   }
+// }
 
 export async function srv_updateUserOnboarding(about: string) {
   try {

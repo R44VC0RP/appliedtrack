@@ -1,15 +1,47 @@
-import { ClerkProvider } from '@clerk/nextjs'
+import { ClerkThemeProvider } from '@/components/providers/clerk-theme-provider'
 import './globals.css'
 import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
+
+
+const ApfelGrotezk = localFont({
+  src: [
+    {
+      path: 'fonts/Apfel/ApfelGrotezk-Regular.woff',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: 'fonts/Apfel/ApfelGrotezk-Mittel.woff',
+      weight: '700',
+      style: 'bold',
+    },
+  ],
+  variable: '--font-apfel-grotezk',
+})
+
+// Add alternative fonts for testing
+const interFont = Inter({ subsets: ['latin'] })
+
+// Font selection logic
+const getFontClass = () => {
+  const fontSelection = 'apfel'
+  
+  switch (fontSelection.toLowerCase()) {
+    case 'apfel':
+      return ApfelGrotezk.className
+    case 'inter':
+    default:
+      return interFont.className
+  }
+}
+
 import type { Metadata } from 'next'
 
 import { ThemeProvider } from "@/components/theme-provider"
 import Script from 'next/script'
 import { siteConfig } from '@/config/metadata'
 import { Toaster } from "@/components/ui/sonner"
-// import { srv_initQuotaResetSchedule } from '@/lib/scheduler'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -40,46 +72,35 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-
-  try {
-    const { default: dbConnect } = await import('@/lib/mongodb')
-    await dbConnect()
-  } catch (error) {
-    console.warn('MongoDB connection failed during build:', error)
-  }
-
-  // Initialize the scheduler when the app starts
-  // if (process.env.NODE_ENV === 'production') {
-  //   srv_initQuotaResetSchedule();
-  // }
-
+  const fontClass = getFontClass()
+  
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <head>
-          <Script
-            src="https://analytics.raavai.com/script.js"
-            data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"
-            strategy="lazyOnload"
-          />
-        </head>
-        <body className={`${inter.className} dark:bg-gray-950`} suppressHydrationWarning>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          src="https://analytics.raavai.com/script.js"
+          data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"
+          strategy="lazyOnload"
+        />
+      </head>
+      <body className={`${fontClass} dark:bg-gray-950 text-base antialiased`} suppressHydrationWarning>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ClerkThemeProvider>
             {children}
             <Toaster />
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+          </ClerkThemeProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   )
 }

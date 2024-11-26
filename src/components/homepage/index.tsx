@@ -25,7 +25,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { homepageConfig } from '@/config/homepage'
-import { SignedIn, SignedOut, useSignUp } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignUp, SignUpButton, useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
 // Import Server Actions and Types
@@ -44,7 +44,7 @@ export default function Homepage() {
   const [dailySignups, setDailySignups] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pricingTiers, setPricingTiers] = useState<any[] | null>(null)
-  
+
   const config = homepageConfig.isWaitlist ? homepageConfig.waitlistConfig : homepageConfig.signupConfig
 
   const particlesInit = useCallback(async (engine: Engine): Promise<void> => {
@@ -89,7 +89,7 @@ export default function Homepage() {
 
         try {
           console.log("Starting sign-up process...");
-          
+
           // Start the sign-up process with email
           const signUpAttempt = await signUp.create({
             emailAddress: email,
@@ -109,7 +109,7 @@ export default function Homepage() {
 
           // Redirect to the sign-up verification page
           router.push('/sign-up/verify');
-          
+
           toast.success('Check your email for a verification code');
         } catch (err: any) {
           console.error('Error during signup:', err);
@@ -129,7 +129,7 @@ export default function Homepage() {
       <Header />
       <main className="flex-1">
         {/* Particles Background */}
-        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950/80 overflow-hidden">
+        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-primary dark:bg-gray-950 overflow-hidden">
           <Particles
             id="tsparticles"
             init={particlesInit}
@@ -201,7 +201,7 @@ export default function Homepage() {
           />
           <div className="container relative mx-auto px-4 md:px-6 flex flex-col items-center text-center ">
             <div className="mb-6">
-              <span className="px-3 py-1 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-1">
+              <span className="px-3 py-1 text-sm bg-yellow-500 text-black rounded-full font-medium flex items-center gap-1">
                 <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
                 <span className="hidden md:inline">Beta Access</span>
                 <span className="md:hidden">Beta Soon</span>
@@ -210,7 +210,7 @@ export default function Homepage() {
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-white max-w-4xl">
               Your Job Search
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
+              <span className="text-yellow-300">
                 Supercharged and Simplified
               </span>
             </h1>
@@ -241,18 +241,18 @@ export default function Homepage() {
             <div className="w-full max-w-md mt-8">
               <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
                 <SignedOut>
-                <Input
-                  className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
-                  placeholder="Enter your email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Button
+                  <Input
+                    className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
+                    placeholder="Enter your email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  {/* <Button
                   type="submit"
                   variant="secondary"
-                  className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
+                  className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
                   disabled={isSubmitting || !isLoaded}
                 >
                   {isSubmitting ? (
@@ -263,20 +263,32 @@ export default function Homepage() {
                   ) : (
                     config.buttonText
                   )}
-                </Button>
+                </Button> */}
+                  <SignUpButton initialValues={{
+                    emailAddress: email,
+                  }}>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
+                    >
+                      {config.buttonText}
+
+                    </Button>
+                  </SignUpButton>
                 </SignedOut>
-                
+
 
               </form>
-              <SignedIn>  
+              <SignedIn>
                 <Button
                   variant="secondary"
-                  className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
+                  className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
                   onClick={() => router.push('/dashboard')}
                 >
                   Jump to Dashboard <Rocket className="w-4 h-4 ml-2" />
                 </Button>
-                </SignedIn>
+              </SignedIn>
               <p className="text-xs md:text-sm text-gray-300 flex items-center justify-center gap-2 mt-2">
                 <span className="flex h-2 w-2 bg-green-400 rounded-full animate-pulse" />
                 {dailySignups ?? 35} people joined today
@@ -303,7 +315,7 @@ export default function Homepage() {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                 Features that Make the{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+                <span className="text-primary">
                   Difference
                 </span>
               </h2>
@@ -316,9 +328,9 @@ export default function Homepage() {
               {/* Smart Application Tracking */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white">
+                    <div className="p-3 rounded-xl bg-blue-500 text-white">
                       <Briefcase className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">Application Tracking</CardTitle>
@@ -333,9 +345,9 @@ export default function Homepage() {
               {/* Email Discovery */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                    <div className="p-3 rounded-xl bg-purple-500 text-white">
                       <File className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">ATS Optimized Resumes</CardTitle>
@@ -350,9 +362,9 @@ export default function Homepage() {
               {/* Resume Management */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                    <div className="p-3 rounded-xl bg-orange-500 text-white">
                       <BarChart className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">Personalized Cover Letters</CardTitle>
@@ -367,9 +379,9 @@ export default function Homepage() {
               {/* Cover Letter Generator */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                    <div className="p-3 rounded-xl bg-green-500 text-white">
                       <Sparkle className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">JobMatch&trade; Insights</CardTitle>
@@ -384,9 +396,9 @@ export default function Homepage() {
               {/* Follow-up Reminders */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+                    <div className="p-3 rounded-xl bg-yellow-500 text-white">
                       <MailCheck className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">InsightLink&trade; Contacts<br /><span className='text-xs text-gray-500'>Powered by Hunter.io</span></CardTitle>
@@ -401,9 +413,9 @@ export default function Homepage() {
               {/* ATS Review */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-white">
+                    <div className="p-3 rounded-xl bg-teal-500 text-white">
                       <Calendar className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">ATS Review<br /><span className='text-xs text-gray-500'>Coming Soon</span></CardTitle>
@@ -424,7 +436,7 @@ export default function Homepage() {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                 See AppliedTrack in{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+                <span className="text-primary">
                   Action
                 </span>
               </h2>
@@ -437,7 +449,7 @@ export default function Homepage() {
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-xl">
                 <div className="relative mx-auto max-w-[1200px]">
                   <div className="relative rounded-lg overflow-hidden border shadow-lg dark:border-gray-800">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-black/10 pointer-events-none" />
                     <ReactPlayerNoSSR
                       url="https://utfs.io/f/HhaWmBOvDmlROQ3xTvtchYsK8zZDAp4J1TSadIxoHBWQ7lPq"
                       width="100%"
@@ -483,7 +495,7 @@ export default function Homepage() {
                 Choose the Right Plan for You
               </h2>
               <div className="mt-6 flex items-center justify-center gap-2 max-w-2xl mx-auto mb-2">
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
                   <span className="hidden sm:inline"><Sparkles className="w-4 h-4" /></span>
                   Students save 50% with .edu email verification
                 </span>
@@ -493,7 +505,7 @@ export default function Homepage() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">              
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {pricingTiers?.map((tier, index) => (
                 <motion.div
                   key={index}
@@ -505,7 +517,7 @@ export default function Homepage() {
                 >
                   {tier.name === 'Pro' && (
                     <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                      <span className="px-3 py-1 text-sm bg-gradient-to-r from-primary to-primary/80 text-white rounded-full font-medium">
+                      <span className="px-3 py-1 text-sm bg-primary text-white rounded-full font-medium">
                         Most Popular
                       </span>
                     </div>

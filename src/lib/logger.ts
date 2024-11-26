@@ -1,6 +1,4 @@
 
-
-import { headers } from 'next/headers';
 import { currentUser } from '@clerk/nextjs/server';
 import { LogLevel } from '@prisma/client';
 import { prisma } from './prisma';
@@ -27,33 +25,19 @@ export const Logger = {
     options?: LogOptions
   ) {
     try {
-      const headersList = headers();
+      // const headersList = headers();
       const user = await currentUser();
 
-      // console.log(user?.id);
-
-      // Verify that the user is authenticated and that the user id exists in prisma
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-
-      // Verify that the user id exists in prisma
-      const existingUser = await prisma.user.findUnique({
-        where: { id: user.id }
-      });
-      if (!existingUser) {
-        throw new Error('User not found in database');
-      }
+      const userId = user?.id || "No User ID";
 
       const log = await prisma.log.create({
         data: {
           level,
           action,
           details: details as any,
-          userId: user?.id,
+          userId: userId || "No User ID",
           metadata: options?.metadata as any,
           service: options?.service || 'appliedtrack',
-          ip: headersList.get('x-forwarded-for') || undefined
         }
       });
 

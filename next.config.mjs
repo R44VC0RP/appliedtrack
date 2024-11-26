@@ -44,8 +44,7 @@ const nextConfig = {
     },
     output: 'standalone',
     experimental: {
-        optimizePackageImports: ['lucide-react', 'react-icons'],
-        serverActions: true,
+        optimizePackageImports: ['lucide-react', 'react-icons']
     },
     webpack: (config, { isServer }) => {
         if (!isServer) {
