@@ -35,6 +35,7 @@ import {
   srv_createStripeCheckout
 } from "@/app/actions/server/settings/primary";
 import { PDFViewerModal } from "@/components/pdf-viewer-modal";
+import { Suspense } from "react";
 
 type UserDetails = {
   id: string;
@@ -86,7 +87,8 @@ interface ConfigData {
   };
 }
 
-export default function SettingsPage() {
+// Create a new component for the tabs content
+function SettingsTabs() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const defaultTab = searchParams.get('tab') || "personal";
@@ -120,8 +122,7 @@ export default function SettingsPage() {
 
       setLocalAbout(userDetails.about || '');
 
-      // console.log('Config data received:', config.tierLimits);
-      setUserDetails(userDetails);
+      setUserDetails(userDetails as UserDetails);
       setResumes(userResumes);
       setConfigData(config as ConfigData);
     } catch (error) {
@@ -295,501 +296,485 @@ export default function SettingsPage() {
     );
   }
 
+  // Return the tabs content
   return (
-    <>
-      <Header />
-      {showSuccessMessage && (
-        <div className="container mx-auto p-4 max-w-5xl">
-          <Alert className="bg-success/20 border-success mb-4">
-            <CheckCircle2 className="h-4 w-4 text-success" />
-            <AlertTitle>Success!</AlertTitle>
-            <AlertDescription>
-              Your subscription has been successfully activated. Welcome to your new plan!
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-        <Confetti active={showConfetti} config={confettiConfig} />
-      </div>
-      {searchParams.get('error') && (
-        <div className="container mx-auto p-4 max-w-5xl">
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              There was a problem processing your subscription. Please try again or contact support.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-      <div className="container mx-auto p-4 max-w-5xl">
-        <h1 className="text-3xl font-bold mb-6">Settings</h1>
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="personal" className="flex items-center gap-2">
-              <User2 className="h-4 w-4" />
-              Personal Info
-            </TabsTrigger>
-            <TabsTrigger value="resumes" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Resumes
-            </TabsTrigger>
-            <TabsTrigger value="subscription" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Subscription
-            </TabsTrigger>
-          </TabsList>
+    <Tabs value={activeTab} onValueChange={handleTabChange}>
+      <TabsList className="grid w-full grid-cols-3 mb-8">
+        <TabsTrigger value="personal" className="flex items-center gap-2">
+          <User2 className="h-4 w-4" />
+          Personal Info
+        </TabsTrigger>
+        <TabsTrigger value="resumes" className="flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          Resumes
+        </TabsTrigger>
+        <TabsTrigger value="subscription" className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4" />
+          Subscription
+        </TabsTrigger>
+      </TabsList>
 
-          {/* Personal Info Tab */}
-          <TabsContent value="personal">
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* About Me Section */}
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>About Me</CardTitle>
-                      <CardDescription>
-                        Share your professional background to help generate better cover letters and job matches.
-                      </CardDescription>
-                    </div>
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User2 className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <Textarea
-                      className="min-h-[200px] resize-none"
-                      value={localAbout}
-                      onChange={(e) => setLocalAbout(e.target.value)}
-                      placeholder="Tell us about your professional background, key skills, and career goals. This information helps us tailor your experience and create more personalized content."
-                    />
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        {localAbout.length === 0 ? (
-                          "Add some information about yourself"
-                        ) : (
-                          `${localAbout.length} characters`
-                        )}
-                      </p>
-                      <Button 
-                        onClick={handleSavePersonalInfo}
-                        className="gap-2"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Save Changes
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Stats */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Overview</CardTitle>
+      {/* Personal Info Tab */}
+      <TabsContent value="personal">
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* About Me Section */}
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>About Me</CardTitle>
                   <CardDescription>
-                    Your account statistics and information
+                    Share your professional background to help generate better cover letters and job matches.
                   </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Member Since</p>
-                        <p className="text-2xl font-bold">
-                          {new Date(userDetails?.createdAt || Date.now()).toLocaleDateString('en-US', {
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Account Type</p>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={userDetails?.tier === 'power' ? 'default' : userDetails?.tier === 'pro' ? 'secondary' : 'outline'}>
-                            {userDetails?.tier?.toUpperCase() || 'FREE'}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Resumes</p>
-                        <p className="text-2xl font-bold">{resumes.length}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Last Sign In</p>
-                        <p className="text-2xl font-bold">
-                          {userDetails?.lastSignInAt ? (
-                            new Date(userDetails.lastSignInAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric'
-                            })
-                          ) : 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* User Profile Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Email & Account</CardTitle>
-                  <CardDescription>
-                    Manage your email preferences and account settings
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      {userDetails?.imageUrl && (
-                        <img 
-                          src={userDetails.imageUrl} 
-                          alt="Profile" 
-                          className="h-16 w-16 rounded-full"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{userDetails?.name || 'User'}</p>
-                        <p className="text-sm text-muted-foreground truncate">{userDetails?.email}</p>
-                      </div>
-                    </div>
-                    
-                  </div>
-                  
-                </CardContent>
-              </Card>
-              <Card className="md:col-span-2 p-4 flex items-center justify-center">
-              
-                      <UserProfile 
-                        routing="hash"
-                        appearance={{
-                          // // elements: {
-                          // //   rootBox: "w-full border-none shadow-none",
-                          // //   card: "shadow-none p-0 border-none",
-                          // //   navbar: "hidden ",
-                          // //   pageScrollBox: "p-0"
-                            
-                          // }
-                        }}
-                      />
-              
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Resumes Tab */}
-          <TabsContent value="resumes">
-            <Card>
-              <CardHeader>
-                <CardTitle>Resume Management</CardTitle>
-                <CardDescription>
-                  Upload and manage your resumes for easy access when applying to jobs.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <Card className="bg-muted/50">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold">Upload Resume</h3>
-                            <p className="text-sm text-muted-foreground">Add a new resume to your collection</p>
-                          </div>
-                          <FileText className="h-8 w-8 text-primary opacity-50" />
-                        </div>
-                        <UploadButton
-                          endpoint="pdfUploader"
-                          onClientUploadComplete={handleResumeUpload}
-                          onUploadError={(error: Error) => {
-                            toast.error("Failed to upload resume");
-                          }}
-                          className="w-full ut-button:w-full ut-button:h-10 ut-button:bg-primary ut-button:hover:bg-primary/90 ut-button:text-primary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
-                          appearance={{
-                            button: "Upload New Resume"
-                          }}
-                        />
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-muted/50">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h3 className="text-lg font-semibold">Resume Stats</h3>
-                            <p className="text-sm text-muted-foreground">Your resume collection</p>
-                          </div>
-                          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-xl font-bold text-primary">{resumes.length}</span>
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-4">
-                          {resumes.length === 0 ? (
-                            "No resumes uploaded yet"
-                          ) : (
-                            `You have ${resumes.length} resume${resumes.length === 1 ? '' : 's'} ready to use`
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="rounded-lg border bg-card">
-                    <div className="flex items-center p-4 border-b">
-                      <h3 className="text-lg font-semibold">Your Resumes</h3>
-                      <Badge variant="secondary" className="ml-2">{resumes.length}</Badge>
-                    </div>
-                    <ScrollArea className="h-[400px] w-full">
-                      {resumes.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[300px] text-center p-4">
-                          <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                          <p className="text-lg font-medium text-muted-foreground">No resumes yet</p>
-                          <p className="text-sm text-muted-foreground mt-1">Upload your first resume to get started</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y">
-                          {resumes.map((resume) => (
-                            <div key={resume.resumeId} 
-                                className="flex items-center justify-between p-4 group hover:bg-muted/50 transition-colors">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                  <FileText className="h-5 w-5 text-primary" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{resume.fileName}</p>
-                                  <p className="text-xs text-muted-foreground">Added {new Date().toLocaleDateString()}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setSelectedResume({ url: resume.fileUrl, name: resume.fileName })}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleRemoveResume(resume.resumeId)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Subscription tab content remains largely the same but with updated styling */}
-          <TabsContent value="subscription">
-            {isLoadingConfig ? (
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User2 className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-4">
-                <Skeleton className="h-8 w-48 mb-2" />
-                <Skeleton className="h-4 w-72" />
-                <div className="space-y-4">
-                  <Skeleton className="h-6 w-32" />
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-                    <Skeleton className="h-8 w-24" />
-                    <Skeleton className="h-10 w-32" />
-                  </div>
+                <Textarea
+                  className="min-h-[200px] resize-none"
+                  value={localAbout}
+                  onChange={(e) => setLocalAbout(e.target.value)}
+                  placeholder="Tell us about your professional background, key skills, and career goals. This information helps us tailor your experience and create more personalized content."
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {localAbout.length === 0 ? (
+                      "Add some information about yourself"
+                    ) : (
+                      `${localAbout.length} characters`
+                    )}
+                  </p>
+                  <Button 
+                    onClick={handleSavePersonalInfo}
+                    className="gap-2"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Save Changes
+                  </Button>
                 </div>
-                
-                <div className="space-y-4">
-                  <Skeleton className="h-6 w-32" />
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {[1, 2, 3].map((i) => (
-                      <Card key={i}>
-                        <CardHeader>
-                          <Skeleton className="h-6 w-24" />
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {[1, 2, 3, 4].map((j) => (
-                              <div key={j} className="flex justify-between">
-                                <Skeleton className="h-4 w-24" />
-                                <Skeleton className="h-4 w-16" />
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Overview</CardTitle>
+              <CardDescription>
+                Your account statistics and information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Member Since</p>
+                    <p className="text-2xl font-bold">
+                      {new Date(userDetails?.createdAt || Date.now()).toLocaleDateString('en-US', {
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Account Type</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={userDetails?.tier === 'power' ? 'default' : userDetails?.tier === 'pro' ? 'secondary' : 'outline'}>
+                        {userDetails?.tier?.toUpperCase() || 'FREE'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Resumes</p>
+                    <p className="text-2xl font-bold">{resumes.length}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Last Sign In</p>
+                    <p className="text-2xl font-bold">
+                      {userDetails?.lastSignInAt ? (
+                        new Date(userDetails.lastSignInAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      ) : 'N/A'}
+                    </p>
                   </div>
                 </div>
               </div>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subscription Management</CardTitle>
-                  <CardDescription>
-                    Manage your subscription and view your usage
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Current Plan Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-                      <SubscriptionStatus userDetails={userDetails} />
-                      <div className="space-x-2">
-                        {userDetails?.tier === 'free' && (
-                          <>
-                            <Button
-                              onClick={async () => {
-                                try {
-                                  const { url } = await srv_createStripeCheckout('pro');
-                                  if (url) window.location.href = url;
-                                } catch (error) {
-                                  toast.error("Failed to start checkout");
-                                }
-                              }}
-                            >
-                              Upgrade to Pro
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={async () => {
-                                try {
-                                  const { url } = await srv_createStripeCheckout('power');
-                                  if (url) window.location.href = url;
-                                } catch (error) {
-                                  toast.error("Failed to start checkout");
-                                }
-                              }}
-                            >
-                              Upgrade to Power
-                            </Button>
-                          </>
-                        )}
-                        {userDetails?.tier === 'pro' && (
-                          <Button
-                            onClick={async () => {
-                              try {
-                                const { url } = await srv_createStripeCheckout('power');
-                                if (url) window.location.href = url;
-                              } catch (error) {
-                                toast.error("Failed to start checkout");
-                              }
-                            }}
-                          >
-                            Upgrade to Power
-                          </Button>
-                        )}
-                        {userDetails?.stripeCustomerId && (
-                          <Button
-                            variant="outline"
-                            onClick={async () => {
-                              try {
-                                const { url } = await srv_createCustomerPortal();
-                                if (url) window.location.href = url;
-                              } catch (error) {
-                                toast.error("Failed to access billing portal");
-                              }
-                            }}
-                          >
-                            Manage Subscription
-                          </Button>
-                        )}
+            </CardContent>
+          </Card>
+
+          {/* User Profile Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Email & Account</CardTitle>
+              <CardDescription>
+                Manage your email preferences and account settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  {userDetails?.imageUrl && (
+                    <img 
+                      src={userDetails.imageUrl} 
+                      alt="Profile" 
+                      className="h-16 w-16 rounded-full"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{userDetails?.name || 'User'}</p>
+                    <p className="text-sm text-muted-foreground truncate">{userDetails?.email}</p>
+                  </div>
+                </div>
+                
+              </div>
+              
+            </CardContent>
+          </Card>
+          <Card className="md:col-span-2 p-4 flex items-center justify-center">
+          
+                    <UserProfile 
+                      routing="hash"
+                      appearance={{
+                        // // elements: {
+                        // //   rootBox: "w-full border-none shadow-none",
+                        // //   card: "shadow-none p-0 border-none",
+                        // //   navbar: "hidden ",
+                        // //   pageScrollBox: "p-0"
+                            
+                        // }
+                      }}
+                    />
+          
+          </Card>
+        </div>
+      </TabsContent>
+
+      {/* Resumes Tab */}
+      <TabsContent value="resumes">
+        <Card>
+          <CardHeader>
+            <CardTitle>Resume Management</CardTitle>
+            <CardDescription>
+              Upload and manage your resumes for easy access when applying to jobs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <Card className="bg-muted/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold">Upload Resume</h3>
+                        <p className="text-sm text-muted-foreground">Add a new resume to your collection</p>
+                      </div>
+                      <FileText className="h-8 w-8 text-primary opacity-50" />
+                    </div>
+                    <UploadButton
+                      endpoint="pdfUploader"
+                      onClientUploadComplete={handleResumeUpload}
+                      onUploadError={(error: Error) => {
+                        toast.error("Failed to upload resume");
+                      }}
+                      className="w-full ut-button:w-full ut-button:h-10 ut-button:bg-primary ut-button:hover:bg-primary/90 ut-button:text-primary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
+                      appearance={{
+                        button: "Upload New Resume"
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-muted/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="text-lg font-semibold">Resume Stats</h3>
+                        <p className="text-sm text-muted-foreground">Your resume collection</p>
+                      </div>
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-xl font-bold text-primary">{resumes.length}</span>
                       </div>
                     </div>
-                  </div>
+                    <div className="text-sm text-muted-foreground mt-4">
+                      {resumes.length === 0 ? (
+                        "No resumes uploaded yet"
+                      ) : (
+                        `You have ${resumes.length} resume${resumes.length === 1 ? '' : 's'} ready to use`
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-                  {/* Quota Usage Section */}
-                  {userDetails && configData?.services && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Current Usage</h3>
-                      <div className="grid gap-4">
-                        {Object.entries(configData.services)
-                          .filter(([_, service]) => service && service.active)
-                          .map(([serviceKey, service]) => {
-                            if (!service || !service.name) return null;
+              <div className="rounded-lg border bg-card">
+                <div className="flex items-center p-4 border-b">
+                  <h3 className="text-lg font-semibold">Your Resumes</h3>
+                  <Badge variant="secondary" className="ml-2">{resumes.length}</Badge>
+                </div>
+                <ScrollArea className="h-[400px] w-full">
+                  {resumes.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[300px] text-center p-4">
+                      <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-lg font-medium text-muted-foreground">No resumes yet</p>
+                      <p className="text-sm text-muted-foreground mt-1">Upload your first resume to get started</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {resumes.map((resume) => (
+                        <div key={resume.resumeId} 
+                            className="flex items-center justify-between p-4 group hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{resume.fileName}</p>
+                              <p className="text-xs text-muted-foreground">Added {new Date().toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSelectedResume({ url: resume.fileUrl, name: resume.fileName })}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveResume(resume.resumeId)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Subscription tab content remains largely the same but with updated styling */}
+      <TabsContent value="subscription">
+        {isLoadingConfig ? (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-72" />
+            <div className="space-y-4">
+              <Skeleton className="h-6 w-32" />
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <Skeleton className="h-6 w-32" />
+              <div className="grid gap-4 md:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <Skeleton className="h-6 w-24" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {[1, 2, 3, 4].map((j) => (
+                          <div key={j} className="flex justify-between">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-4 w-16" />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Subscription Management</CardTitle>
+              <CardDescription>
+                Manage your subscription and view your usage
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Current Plan Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+                  <SubscriptionStatus userDetails={userDetails} />
+                  <div className="space-x-2">
+                    {userDetails?.tier === 'free' && (
+                      <>
+                        <Button
+                          onClick={async () => {
+                            try {
+                              const { url } = await srv_createStripeCheckout('pro');
+                              if (url) window.location.href = url;
+                            } catch (error) {
+                              toast.error("Failed to start checkout");
+                            }
+                          }}
+                        >
+                          Upgrade to Pro
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              const { url } = await srv_createStripeCheckout('power');
+                              if (url) window.location.href = url;
+                            } catch (error) {
+                              toast.error("Failed to start checkout");
+                            }
+                          }}
+                        >
+                          Upgrade to Power
+                        </Button>
+                      </>
+                    )}
+                    {userDetails?.tier === 'pro' && (
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const { url } = await srv_createStripeCheckout('power');
+                            if (url) window.location.href = url;
+                          } catch (error) {
+                            toast.error("Failed to start checkout");
+                          }
+                        }}
+                      >
+                        Upgrade to Power
+                      </Button>
+                    )}
+                    {userDetails?.stripeCustomerId && (
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const { url } = await srv_createCustomerPortal();
+                            if (url) window.location.href = url;
+                          } catch (error) {
+                            toast.error("Failed to access billing portal");
+                          }
+                        }}
+                      >
+                        Manage Subscription
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quota Usage Section */}
+              {userDetails && configData?.services && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Current Usage</h3>
+                  <div className="grid gap-4">
+                    {Object.entries(configData.services)
+                      .filter(([_, service]) => service && service.active)
+                      .map(([serviceKey, service]) => {
+                        if (!service || !service.name) return null;
+                        return (
+                          <QuotaUsageIndicator key={serviceKey} serviceKey={serviceKey} />
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Quota Notifications */}
+              {quotaNotifications.length > 0 && (
+                <div className="space-y-2">
+                  {quotaNotifications.map((notification, index) => (
+                    <Alert
+                      key={index}
+                      variant={notification.type === 'exceeded' ? 'destructive' : 'default'}
+                      className="bg-white dark:bg-gray-800"
+                    >
+                      <AlertTitle>
+                        {notification.type === 'exceeded' ? 'Quota Exceeded' : 'Quota Warning'}
+                      </AlertTitle>
+                      <AlertDescription>{notification.message}</AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              )}
+
+              {/* Plan Comparison */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Plan Comparison</h3>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {['free', 'pro', 'power'].map((tier) => (
+                    <Card 
+                      key={tier} 
+                      className={`
+                        ${tier === userDetails?.tier ? 'border-2 border-primary shadow-lg' : ''}
+                        ${tier === 'power' ? 'bg-muted/50' : ''}
+                      `}
+                    >
+                      <CardHeader>
+                        <CardTitle className="capitalize">{tier}</CardTitle>
+                        {tier === userDetails?.tier && (
+                          <Badge variant="secondary">Current Plan</Badge>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {configData?.services && Object.entries(configData.services).map(([key, service]) => {
+                            const limit = configData.tierLimits[tier as UserTier]?.[key]?.limit;
                             return (
-                              <QuotaUsageIndicator key={serviceKey} serviceKey={serviceKey} />
+                              <div key={key} className="flex justify-between text-sm">
+                                <span>{service.name}</span>
+                                <Badge variant="outline">
+                                  {limit === -1 ? 'Unlimited' : limit}
+                                </Badge>
+                              </div>
                             );
                           })}
-                      </div>
-                    </div>
-                  )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+}
 
-                  {/* Quota Notifications */}
-                  {quotaNotifications.length > 0 && (
-                    <div className="space-y-2">
-                      {quotaNotifications.map((notification, index) => (
-                        <Alert
-                          key={index}
-                          variant={notification.type === 'exceeded' ? 'destructive' : 'default'}
-                          className="bg-white dark:bg-gray-800"
-                        >
-                          <AlertTitle>
-                            {notification.type === 'exceeded' ? 'Quota Exceeded' : 'Quota Warning'}
-                          </AlertTitle>
-                          <AlertDescription>{notification.message}</AlertDescription>
-                        </Alert>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Plan Comparison */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Plan Comparison</h3>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {['free', 'pro', 'power'].map((tier) => (
-                        <Card 
-                          key={tier} 
-                          className={`
-                            ${tier === userDetails?.tier ? 'border-2 border-primary shadow-lg' : ''}
-                            ${tier === 'power' ? 'bg-muted/50' : ''}
-                          `}
-                        >
-                          <CardHeader>
-                            <CardTitle className="capitalize">{tier}</CardTitle>
-                            {tier === userDetails?.tier && (
-                              <Badge variant="secondary">Current Plan</Badge>
-                            )}
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              {configData?.services && Object.entries(configData.services).map(([key, service]) => {
-                                const limit = configData.tierLimits[tier as UserTier]?.[key]?.limit;
-                                return (
-                                  <div key={key} className="flex justify-between text-sm">
-                                    <span>{service.name}</span>
-                                    <Badge variant="outline">
-                                      {limit === -1 ? 'Unlimited' : limit}
-                                    </Badge>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+// Modify the main component
+export default function SettingsPage() {
+  return (
+    <>
+      <Header />
+      <div className="container mx-auto p-4 max-w-5xl">
+        <h1 className="text-3xl font-bold mb-6">Settings</h1>
+        <Suspense 
+          fallback={
+            <div className="h-screen w-full flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          }
+        >
+          <SettingsTabs />
+        </Suspense>
       </div>
-      {/* PDF Viewer Modal */}
-      <PDFViewerModal
-        isOpen={!!selectedResume}
-        onClose={() => setSelectedResume(null)}
-        fileUrl={selectedResume?.url || ''}
-        fileName={selectedResume?.name || ''}
-      />
     </>
   );
 }
