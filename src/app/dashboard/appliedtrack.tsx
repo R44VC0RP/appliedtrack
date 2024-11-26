@@ -292,6 +292,18 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     };
 
     checkOnboardingStatus();
+
+    const refreshedResumes = async () => {
+      if (!isLoaded || !userId) return;
+      try {
+        const resumes = await srv_getResumes();
+        setResumes(resumes);
+      } catch (error) {
+        console.error('Error getting resumes:', error);
+      }
+    };
+    refreshedResumes();
+    
   }, [isLoaded, userId]); // Add dependencies
 
   // Add useEffect to handle localStorage
@@ -1058,6 +1070,7 @@ interface AddJobModalProps {
 function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: AddJobModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Job>(() => createEmptyJob(user?.id || '', resumes));
+
 
   const handleSubmit = () => {
     if (!formData.company || !formData.position) {

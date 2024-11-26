@@ -584,6 +584,8 @@ export async function srv_getResumes() {
     where: { userId: user.id },
     orderBy: { dateCreated: 'desc' }
   });
+
+  console.log('Resumes:', resumes.length);
   
   return resumes;
 }
