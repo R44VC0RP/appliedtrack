@@ -101,10 +101,16 @@ export async function srv_markdownToPDF(
         where: { id: resumeId }
     });
 
+    
+
     if (!resume) {
         console.error('Resume not found', { resumeId });
         throw new Error('Resume not found');
     }
+
+    if (resume.resumePdfUrl) {
+        return resume.resumePdfUrl;
+    } 
 
     const markdown = resume.resumeMarkdown;
 
@@ -297,6 +303,16 @@ h1 + ul + p {
         console.log('Uploading PDF to UploadThing');
         const uploadResponse = await utapi.uploadFiles([file]);
         console.log('PDF uploaded successfully', uploadResponse);
+
+        if (uploadResponse[0]?.data?.url) {
+            await prisma.generatedResume.update({
+                where: { id: resumeId },
+                data: {
+                    resumePdfUrl: uploadResponse[0]?.data?.url,
+                    updatedAt: new Date()
+                }
+            });
+        }
 
         return uploadResponse[0]?.data?.url || '';
     } catch (error) {

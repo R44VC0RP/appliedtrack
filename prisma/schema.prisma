@@ -75,6 +75,7 @@ model GeneratedResume {
   jobId          String
   resumeMarkdown String   @db.Text
   resumeVersion  Decimal  @default(1.000000000000000000000000000000)
+  resumePdfUrl   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   job            Job      @relation(fields: [jobId], references: [id])
