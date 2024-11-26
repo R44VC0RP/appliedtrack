@@ -386,7 +386,7 @@ const JobCard = React.forwardRef(({
             });
 
             setIsCategoryModalOpen(false);
-            window.dispatchEvent(new Event('quotaUpdate')); // Add this line
+            // window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
             devLog.error('Error fetching InsightLink&trade; data:', error);
             toast.error("Failed to fetch InsightLink data. Please check the domain and try again.");
@@ -410,11 +410,13 @@ const JobCard = React.forwardRef(({
             <div className="space-y-2">
                 {previewEmails.map((email) => (
                     <div key={email.id} className="flex items-center justify-between text-sm">
-                        <span>{email.firstName} {email.lastName}</span>
+                        <span>{email.email}</span>
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                                {email.position}
-                            </Badge>
+                            {email.position && (
+                                <Badge variant="outline" className="text-xs">
+                                    {email.position}
+                                </Badge>
+                            )}
                             <Badge variant="secondary" className="text-xs">
                                 {email.confidence}%
                             </Badge>
