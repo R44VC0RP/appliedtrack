@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { DropdownMenu } from '../ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Bell, Grid, Settings, FileText, Users, CreditCard, Settings2, PieChart, Sparkles, CircleDot, GaugeCircle } from 'lucide-react'
+import { Bell, Grid, Settings, FileText, Users, CreditCard, Settings2, PieChart, Sparkles, CircleDot, GaugeCircle, RefreshCw } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ThemeControl } from '@/components/ui/themecontrol';
 import { Badge } from '@/components/ui/badge';
@@ -253,7 +253,22 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
       <PopoverContent className="w-80">
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium">Service Usage</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="font-medium">Service Usage</h4>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className={cn("h-8 w-8 p-0", isLoading && "animate-spin")}
+                onClick={(e) => {
+                  e.preventDefault();
+                  fetchData();
+                }}
+                disabled={isLoading}
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="sr-only">Refresh quota data</span>
+              </Button>
+            </div>
             <span className={cn(
               "text-sm font-medium",
               getStatusColor(totalUsagePercentage)

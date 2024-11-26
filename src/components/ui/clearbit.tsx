@@ -17,16 +17,21 @@ interface ClearbitAutocompleteProps {
   className?: string;
 }
 
-export const ImageWithFallback = (props : any) => {
-  const { src, fallbackSrc, ...rest } = props;
+export const ImageWithFallback = (props: any) => {
+  const { src, fallbackSrc = '/qm.png', ...rest } = props;
   const [imgSrc, setImgSrc] = useState(src);
+  const [error, setError] = useState(false);
 
   return (
       <Image
           {...rest}
-          src={imgSrc}
+          src={error ? '/qm.png' : imgSrc}
           onError={() => {
-              setImgSrc(fallbackSrc);
+              if (imgSrc === fallbackSrc) {
+                  setError(true);
+              } else {
+                  setImgSrc(fallbackSrc);
+              }
           }}
       />
   );

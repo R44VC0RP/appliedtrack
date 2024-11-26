@@ -613,6 +613,10 @@ export async function srv_uploadBaselineResume(data: BaselineResumeData): Promis
       throw new Error('User not found');
     }
 
+    if (!data.fileId) {
+      data.fileId = uuidv4();
+    }
+
     // Create a new resume entry
     await prisma.resume.create({
       data: {
@@ -671,12 +675,12 @@ export async function srv_createAIRating(job: Job) {
     return { success: false, error: 'User or job not found' };
   }
   // This is going to add the serivice usage.
-  if (!await srv_addServiceUsage(user.id, "GENAI_JOBMATCH", 1)) {
-    await Logger.warning('AI job match quota exceeded', {
-      userId: user.id,
-    });
-    return { success: false, error: 'AI job match quota exceeded' };
-  }
+  // if (!await srv_addServiceUsage(user.id, "GENAI_JOBMATCH", 1)) {
+  //   await Logger.warning('AI job match quota exceeded', {
+  //     userId: user.id,
+  //   });
+  //   return { success: false, error: 'AI job match quota exceeded' };
+  // }
 
   // Extract text from resume PDF
   console.log(job.resumeUrl);

@@ -125,7 +125,13 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!suggestions.length) return;
+    if (!suggestions.length) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSelect({ id: query.toLowerCase(), title: toCamelCase(query) });
+      }
+      return;
+    }
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -157,6 +163,16 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
     }
   };
 
+  const handleBlur = () => {
+    setTimeout(() => {
+      setIsOpen(false);
+      // If there's a value but no selection was made, use the input value
+      if (query && !suggestions.some(s => s.title === query)) {
+        onTitleSelect(toCamelCase(query));
+      }
+    }, 200);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -181,11 +197,7 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
             getSuggestions(query);
           }
         }}
-        onBlur={() => {
-          setTimeout(() => {
-            setIsOpen(false);
-          }, 200);
-        }}
+        onBlur={handleBlur}
         placeholder={placeholder}
         autoFocus
         className="w-full"
