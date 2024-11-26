@@ -144,9 +144,10 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
     const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
         job.latestGeneratedResume ? "ready" : "not_started"
     );
+    const [resumeId, setResumeId] = useState(job.latestGeneratedResume?.id);
 
     const handleViewResume = async () => {
-        const pdfUrl = await srv_markdownToPDF(job.latestGeneratedResume?.id || '');
+        const pdfUrl = await srv_markdownToPDF(resumeId || '');
         window.open(pdfUrl, '_blank');
     }
 
@@ -158,6 +159,7 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
                 // Fetch the updated job to get the new generated resume
                 const updatedJob = await srv_getJob(job.id);
                 if (updatedJob) {
+                    setResumeId(result.resumeId);
                     await updateJobDetails(updatedJob as Job);
                     setIsGenerating("ready");
                     window.dispatchEvent(new Event('quotaUpdate'));
@@ -184,7 +186,7 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
             return (
                 <Button variant="outline" onClick={handleViewResume}>
                     <FileText className="mr-2 h-4 w-4" />
-                    View Resume
+                    View Resume <code className="text-xs ml-2">{resumeId}</code>
                 </Button>
             );
         case 'failed':

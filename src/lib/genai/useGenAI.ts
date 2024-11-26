@@ -89,7 +89,7 @@ async function getBrowser() {
         });
     }
 }
-    
+
 export async function srv_markdownToPDF(
     resumeId: string,
     options: ConvertOptions = {}
@@ -415,14 +415,7 @@ export async function srv_generateGPTResume(job: Job) {
             console.log('Resume record created successfully', { resumeId: createdResume.id });
 
             // Add service usage after successful generation
-            console.log('Updating service usage quota');
-            if (!await srv_addServiceUsage(job.userId || '', "GENAI_RESUME", 1)) {
-                console.warn('Failed to increment resume generation quota');
-                await Logger.warning('Failed to increment resume generation quota', {
-                    userId: job.userId,
-                });
-                // We still return success since the resume was generated
-            }
+
 
             return { success: true, resumeId: createdResume.id };
         } else {

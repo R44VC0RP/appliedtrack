@@ -349,9 +349,47 @@ export async function srv_getJobs() {
 export async function srv_getJob(jobId: string) {
   try {
     const job = await prisma.job.findUnique({
-      where: { id: jobId }
+      where: { id: jobId },
+      include: {
+        generatedResumes: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        },
+        generatedCoverLetters: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        },
+        hunterCompanies: {
+          include: {
+            emails: true
+          }
+        }
+      }
     });
-    return job;
+
+    if (!job) return null;
+
+    // Transform the response to match srv_getJobs format
+    const transformedJob = {
+      ...job,
+      latestGeneratedResume: job.generatedResumes[0] 
+        ? {
+            id: job.generatedResumes[0].id,
+            resumeVersion: Number(job.generatedResumes[0].resumeVersion),
+            createdAt: job.generatedResumes[0].createdAt,
+            updatedAt: job.generatedResumes[0].updatedAt,
+          }
+        : null,
+      latestGeneratedCoverLetter: job.generatedCoverLetters[0] || null,
+      generatedResumes: undefined,
+      generatedCoverLetters: undefined
+    };
+
+    return transformedJob;
   } catch (error) {
     await Logger.error('Error fetching job', {
       jobId,
