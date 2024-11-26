@@ -66,7 +66,9 @@ async function getBrowser() {
                 '--disable-web-security'
             ],
             defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
+            executablePath: await chromium.executablePath(
+                `https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar`
+            ),
             headless: chromium.headless,
         });
     } else {
