@@ -42,14 +42,14 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
     const seen = new Set<string>();
     return titles
       .filter(title => {
-        const normalized = title.toLowerCase();
+        const normalized = (title as string).toLowerCase();
         if (seen.has(normalized)) return false;
         seen.add(normalized);
         return true;
       })
       .map(title => ({
-        id: title.toLowerCase(),
-        title: toCamelCase(title)
+        id: (title as string).toLowerCase(),
+        title: toCamelCase(title as string)
       }));
   }, []);
 

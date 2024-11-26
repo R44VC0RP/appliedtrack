@@ -271,11 +271,22 @@ export async function srv_getJobs() {
 
     // Transform the response to flatten the most recent resume
     const transformedJobs = jobs.map(job => {
+      const latestResume = job.generatedResumes[0] 
+        ? {
+            id: job.generatedResumes[0].id,
+            resumeVersion: Number(job.generatedResumes[0].resumeVersion),
+            createdAt: job.generatedResumes[0].createdAt,
+            updatedAt: job.generatedResumes[0].updatedAt,
+            // Explicitly exclude resumeMarkdown
+            // Convert Decimal to Number for resumeVersion
+          }
+        : null;
+
       return {
         ...job,
-        latestGeneratedResume: job.generatedResumes[0] || null,
+        latestGeneratedResume: latestResume,
         latestGeneratedCoverLetter: job.generatedCoverLetters[0] || null,
-        generatedResumes: undefined, // Remove the full array since we only need the latest
+        generatedResumes: undefined,
         generatedCoverLetters: undefined
       };
     });

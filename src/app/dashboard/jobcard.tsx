@@ -29,7 +29,7 @@ import { Label } from '@/components/ui/label';
 import { srv_archiveJob, srv_hunterDomainSearch, srv_getJob } from '../actions/server/job-board/primary';
 import { ImageWithFallback } from '@/components/ui/clearbit';
 import { devLog } from '@/lib/devLog';
-import { srv_generateGPTResume } from '@/lib/genai/useGenAI';
+import { srv_generateGPTResume, srv_markdownToPDF } from '@/lib/genai/useGenAI';
 
 const hunterCategories: { value: string; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -145,6 +145,11 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
         job.latestGeneratedResume ? "ready" : "not_started"
     );
 
+    const handleViewResume = async () => {
+        const pdfUrl = await srv_markdownToPDF(job.latestGeneratedResume?.id || '');
+        window.open(pdfUrl, '_blank');
+    }
+
     const handleGenerateResume = async () => {
         setIsGenerating("generating");
         try {
@@ -177,7 +182,7 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
             );
         case 'ready':
             return (
-                <Button variant="outline" onClick={() => window.open(job.latestGeneratedResume?.resumeMarkdown, '_blank')}>
+                <Button variant="outline" onClick={handleViewResume}>
                     <FileText className="mr-2 h-4 w-4" />
                     View Resume
                 </Button>
