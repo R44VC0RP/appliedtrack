@@ -63,6 +63,7 @@
     "pdf2json": "^3.1.4",
     "pdfjs-dist": "^4.8.69",
     "pdfkit": "^0.15.1",
+    "posthog-js": "^1.190.2",
     "puppeteer": "^23.9.0",
     "puppeteer-core": "^22.13.1",
     "react": "^18",

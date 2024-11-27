@@ -1,5 +1,6 @@
 import { ClerkThemeProvider } from '@/components/providers/clerk-theme-provider'
 import './globals.css'
+import { CSPostHogProvider } from './providers'
 import { Inter } from 'next/font/google'
 import localFont from 'next/font/local'
 
@@ -31,7 +32,7 @@ const interFont = Inter({ subsets: ['latin'] })
 // Font selection logic
 const getFontClass = () => {
   const fontSelection = 'apfel'
-  
+
   switch (fontSelection.toLowerCase()) {
     case 'apfel':
       return ApfelGrotezk.className
@@ -83,29 +84,31 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   const fontClass = getFontClass()
-  
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <Script
-          src="https://analytics.raavai.com/script.js"
-          data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"
-          strategy="lazyOnload"
-        />
-      </head>
-      <body className={`${fontClass} dark:bg-gray-950 text-base antialiased`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ClerkThemeProvider>
-            {children}
-            <Toaster />
-          </ClerkThemeProvider>
-        </ThemeProvider>
-      </body>
+      <CSPostHogProvider>
+        <head>
+          <Script
+            src="https://analytics.raavai.com/script.js"
+            data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"
+            strategy="lazyOnload"
+          />
+        </head>
+        <body className={`${fontClass} dark:bg-gray-950 text-base antialiased`} suppressHydrationWarning>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ClerkThemeProvider>
+              {children}
+              <Toaster />
+            </ClerkThemeProvider>
+          </ThemeProvider>
+        </body>
+      </CSPostHogProvider>
     </html>
   )
 }
