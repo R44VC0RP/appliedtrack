@@ -245,7 +245,7 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
           )}
         >
           <GaugeCircle className="h-4 w-4" />
-          <span className="font-medium">
+          <span className="font-medium hidden sm:inline">
             {Math.round(totalUsagePercentage)}% Used
           </span>
         </Button>
@@ -381,6 +381,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
 
                 <Button
                   onClick={() => navigator.clipboard.writeText(clerkUser.id)}
+                  className="hidden sm:inline-flex"
                 >
 
                   ADMIN
@@ -397,7 +398,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
             {headerData?.role === 'admin' && !isLoading && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="/admin" className="focus:outline-none">
+                  <Link href="/admin" className="hidden sm:inline-flex focus:outline-none">
                     <Settings2 className="h-5 w-5" />
                   </Link>
                 </TooltipTrigger>
@@ -430,20 +431,22 @@ export function Header({ onNotificationClick }: HeaderProps) {
           </TooltipProvider>
           {isSignedIn && (
             <TooltipProvider>
-              {headerData?.tier === 'free' ? (
-                <Badge>
-                  Free
-                </Badge>
-              ) : headerData?.tier === 'pro' ? (
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                  Pro
-                </Badge>
-              ) : headerData?.tier === 'power' ? (
-                <Badge className="bg-yellow-500 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-200">
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  Power
-                </Badge>
-              ) : null}
+              <div className="hidden sm:block">
+                {headerData?.tier === 'free' ? (
+                  <Badge>
+                    Free
+                  </Badge>
+                ) : headerData?.tier === 'pro' ? (
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    Pro
+                  </Badge>
+                ) : headerData?.tier === 'power' ? (
+                  <Badge className="bg-yellow-500 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-200">
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Power
+                  </Badge>
+                ) : null}
+              </div>
 
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -486,14 +486,16 @@ const JobCard = React.forwardRef(({
                             <div className="flex items-center justify-between gap-2">
                                 <h3 className="font-semibold text-lg">{job.company}</h3>
                                 <TooltipProvider>
-                                    <TooltipTrigger>
+                                    <Tooltip>
+                                        <TooltipTrigger>
                                         <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 cursor-default">
                                             {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
                                         </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         No AI Rating
-                                    </TooltipContent>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 </TooltipProvider>
                             </div>
                             <div className="flex items-center gap-2">
