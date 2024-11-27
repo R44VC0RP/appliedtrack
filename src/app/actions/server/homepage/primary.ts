@@ -76,30 +76,34 @@ export async function srv_getHomepageData() {
                 name: "Free",
                 price: "Free",
                 features: [
+                    "10 Jobs",   
                     "5 AI Resume Generations",
                     "5 AI Cover Letter Generations",
                     "5 JobMatch Reviews",
-                    "5 Hunter Email Searches "
+                    "2 InsightLink Email Searches "
+                ]
+            },
+            
+            {
+                name: "Power",
+                price: "$30",
+                features: [
+                    "Unlimited Jobs",
+                    "50 AI Resume Generations",
+                    "50 AI Cover Letter Generations",
+                    "20 JobMatch Reviews",
+                    "20 InsightLink Email Searches"
                 ]
             },
             {
                 name: "Pro",
                 price: "$10",
                 features: [
+                    "40 Jobs",
                     "20 AI Resume Generations",
                     "20 AI Cover Letter Generations",
                     "20 JobMatch Reviews",
-                    "10 Hunter Email Searches"
-                ]
-            },
-            {
-                name: "Power",
-                price: "$30",
-                features: [
-                    "50 AI Resume Generations",
-                    "50 AI Cover Letter Generations",
-                    "50 JobMatch Reviews",
-                    "20 Hunter Email Searches"
+                    "10 InsightLink Email Searches"
                 ]
             }
         ]
