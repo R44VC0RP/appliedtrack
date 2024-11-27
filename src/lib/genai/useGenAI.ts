@@ -131,10 +131,13 @@ async function srv_convertMarkdownToPDFUrl(
 
     // Load CSS if provided
     let css = `
+    @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Space+Grotesk:wght@300..700&display=swap');
+
+    
     body {
         color: #000000;
         background: #EEEEEE;
-        font: 1.1em "Times New Roman";
+        font: 1.1em "EB Garamond", sans-serif;
         line-height: 1.2;
         margin: 40px 0;
     }
