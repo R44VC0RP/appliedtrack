@@ -101,6 +101,7 @@
     "@types/react-dom": "^18",
     "@types/react-pdf": "^5.0.7",
     "@types/string-similarity": "^4.0.2",
+    "@types/uuid": "^10.0.0",
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.11.0",
     "@typescript-eslint/parser": "^8.11.0",

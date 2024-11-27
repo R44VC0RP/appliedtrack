@@ -23,7 +23,7 @@ import { srv_getJob, srv_getResumes, srv_uploadResume } from "../actions/server/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UploadButton } from "@/utils/uploadthing";
 import { toast } from "sonner";
-import { jobStatusToLabel } from "./appliedtrack";
+import { jobStatusToLabel, useClientMediaQuery } from "./appliedtrack";
 import { devLog } from '@/lib/devLog';
 
 const getStatusColor = (status: JobStatus): string => {
@@ -399,7 +399,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                     AI Recommendation
                                                     <Sparkles className="h-4 w-4 text-yellow-500" />
                                                 </h3>
-                                                <div className="text-xs sm:text-sm text-muted-foreground">
+                                                <div className="text-left text-xs sm:text-sm text-muted-foreground">
                                                     <p>Based on your profile and this job's requirements, you have a <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{job.aiRating}% match</span> for this position.</p>
                                                     {job.aiNotes && (
                                                         <div className="mt-2" dangerouslySetInnerHTML={{ __html: job.aiNotes }} />
@@ -528,17 +528,34 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                 {renderField("Resume", job.resumeUrl ? "Resume Uploaded" : "Resume Not Uploaded", "resumeUrl")}
                                                 {job.resumeUrl && (
                                                     <>
-                                                    <PDFViewerInline fileUrl={job.resumeUrl} fileName="resume.pdf" />
-                                                    {/* <div className="mt-2">
-                                                        <embed src={job.resumeUrl} type="application/pdf" width="100%" height="400px" />
-                                                    </div> */}
+                                                    {useClientMediaQuery("(min-width: 640px)") ? (
+                                                        <PDFViewerInline fileUrl={job.resumeUrl} fileName="resume.pdf" />
+                                                    ) : (
+                                                        <Button 
+                                                            variant="outline" 
+                                                            className="w-full mt-2"
+                                                            onClick={() => window.open(job.resumeUrl || '', '_blank')}
+                                                        >
+                                                            View Resume
+                                                        </Button>
+                                                    )}
                                                     </>
                                                 )}
                                             </div>
                                             {job.latestGeneratedCoverLetter && (
                                                 <div>
                                                     <Label className="font-semibold">Cover Letter</Label>
-                                                    <embed src={job.latestGeneratedCoverLetter.coverLetterMarkdown} type="application/pdf" width="100%" height="400px" />
+                                                    {useClientMediaQuery("(min-width: 640px)") ? (
+                                                        <embed src={job.latestGeneratedCoverLetter.coverLetterMarkdown} type="application/pdf" width="100%" height="400px" />
+                                                    ) : (
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full mt-2"
+                                                            onClick={() => window.open(job.latestGeneratedCoverLetter?.coverLetterMarkdown || '', '_blank')}
+                                                        >
+                                                            View Cover Letter
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

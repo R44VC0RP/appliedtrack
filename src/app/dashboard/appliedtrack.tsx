@@ -1,6 +1,6 @@
 'use client'
 
-
+import { v4 as uuidv4 } from 'uuid';
 import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
 import ReactConfetti from 'react-confetti';
 import { SubscriptionStatus } from '../components/subscription-status';
@@ -189,7 +189,7 @@ const isMobileDevice = () => {
 const createEmptyJob = (userId: string, resumes: { resumeId: string; fileUrl: string; fileName: string; }[]): Job => {
   const mostRecentResume = resumes[resumes.length - 1];
   return {
-    id: crypto.randomUUID(),
+    id: uuidv4(),
     userId,
     company: '',
     position: '',

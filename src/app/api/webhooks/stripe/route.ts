@@ -7,7 +7,7 @@ import { resetQuota, createInitialQuota } from '@/lib/useQuota';
 import { prisma } from '@/lib/prisma';
 import { UserTier } from '@/types/subscription';
 import { srv_handleSubscriptionChange } from '@/app/actions/server/settings/primary';
-import { UUID } from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -148,7 +148,7 @@ async function processWebhookEvent(event: Stripe.Event) {
         metadata: event.data.object as any
       },
       create: {
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         eventId: event.id,
         type: event.type,
         lastAttempt: new Date(),
