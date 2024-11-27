@@ -555,6 +555,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                         >
                                                             View Cover Letter
                                                         </Button>
+                                                        
                                                     )}
                                                 </div>
                                             )}
