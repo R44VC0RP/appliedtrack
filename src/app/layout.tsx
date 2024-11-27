@@ -89,6 +89,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <CSPostHogProvider>
         <head>
+          <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+          <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
           <Script
             src="https://analytics.raavai.com/script.js"
             data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"

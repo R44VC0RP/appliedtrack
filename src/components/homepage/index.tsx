@@ -515,13 +515,13 @@ export default function Homepage() {
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="relative"
                 >
-                  {tier.name === 'Power' && (
+                  {/* {tier.name === 'Power' && (
                     <div className="absolute -top-10 left-0 right-0 flex justify-center">
                       <span className="px-3 py-1 text-sm bg-yellow-500 text-primary-foreground rounded-full font-medium dark:text-primary-foreground/90">
                         Most Popular
                       </span>
                     </div>
-                  )}
+                  )} */}
 
                   <Card className={`h-full flex flex-col dark:bg-gray-900 ${tier.name === 'Power' ? 'border-yellow-500 shadow-lg scale-105' : ''
                     }`}>
