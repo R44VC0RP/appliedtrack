@@ -90,6 +90,7 @@ model GeneratedCoverLetter {
   jobId               String
   coverLetterMarkdown String   @db.Text
   coverLetterVersion  Decimal  @default(1.000000000000000000000000000000)
+  coverLetterPdfUrl   String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   job                 Job      @relation(fields: [jobId], references: [id])

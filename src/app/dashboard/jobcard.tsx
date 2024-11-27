@@ -29,7 +29,7 @@ import { Label } from '@/components/ui/label';
 import { srv_archiveJob, srv_hunterDomainSearch, srv_getJob } from '../actions/server/job-board/primary';
 import { ImageWithFallback } from '@/components/ui/clearbit';
 import { devLog } from '@/lib/devLog';
-import { srv_generateGPTResume, srv_markdownToPDF } from '@/lib/genai/useGenAI';
+import { srv_generateGPTResume, srv_markdownCoverLetterToPDF, srv_generateGPTCoverLetter, srv_markdownResumeToPDF } from '@/lib/genai/useGenAI';
 
 const hunterCategories: { value: string; label: string }[] = [
     { value: 'executive', label: 'Executive' },
@@ -147,7 +147,7 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
     const [resumeId, setResumeId] = useState(job.latestGeneratedResume?.id);
 
     const handleViewResume = async () => {
-        const pdfUrl = await srv_markdownToPDF(resumeId || '');
+        const pdfUrl = await srv_markdownResumeToPDF(resumeId || '');
         window.open(pdfUrl, '_blank');
     }
 
@@ -186,7 +186,8 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
             return (
                 <Button variant="outline" onClick={handleViewResume}>
                     <FileText className="mr-2 h-4 w-4" />
-                    View Resume <code className="text-xs ml-2">{resumeId}</code>
+                    View Resume 
+                    {/* <code className="text-xs ml-2">{resumeId}</code> */}
                 </Button>
             );
         case 'failed':
@@ -210,26 +211,30 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
     const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
         job.latestGeneratedCoverLetter ? "ready" : "not_started"
     );
+    const [coverLetterId, setCoverLetterId] = useState(job.latestGeneratedCoverLetter?.id);
+
+    const handleViewCoverLetter = async () => {
+        const pdfUrl = await srv_markdownCoverLetterToPDF(coverLetterId || '');
+        window.open(pdfUrl, '_blank');
+    }
 
     const handleGenerateCoverLetter = async () => {
         setIsGenerating("generating");
         try {
-            const response = await fetch('/api/generate-cover-letter', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ jobId: job.id }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to generate cover letter');
+            const result = await srv_generateGPTCoverLetter(job);
+            if (result?.success) {
+                // Fetch the updated job to get the new generated cover letter
+                const updatedJob = await srv_getJob(job.id);
+                if (updatedJob) {
+                    setCoverLetterId(result.coverLetterId);
+                    await updateJobDetails(updatedJob as Job);
+                    setIsGenerating("ready");
+                    window.dispatchEvent(new Event('quotaUpdate'));
+                }
+            } else {
+                setIsGenerating("failed");
+                toast.error(result.error);
             }
-
-            const updatedJob = await response.json();
-            setIsGenerating("ready");
-            await updateJobDetails(updatedJob);
-            window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
             devLog.error('Error generating cover letter:', error);
             setIsGenerating("failed");
@@ -246,7 +251,7 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
             );
         case 'ready':
             return (
-                <Button variant="outline" onClick={() => window.open(job.latestGeneratedCoverLetter?.coverLetterMarkdown, '_blank')}>
+                <Button variant="outline" onClick={handleViewCoverLetter}>
                     <FileText className="mr-2 h-4 w-4" />
                     View Cover Letter
                 </Button>

@@ -443,7 +443,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           ...response,
           latestGeneratedResume: null,
           latestGeneratedCoverLetter: null,
-          hunterCompanies: null
+          hunterCompanies: updatedJob.hunterCompanies  // Preserve Hunter data from the updated job
         };
         setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJobWithGeneratedContent : job));
       } else {
