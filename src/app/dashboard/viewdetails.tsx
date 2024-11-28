@@ -23,7 +23,7 @@ import { srv_getJob, srv_getResumes, srv_uploadResume } from "../actions/server/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UploadButton } from "@/utils/uploadthing";
 import { toast } from "sonner";
-import { jobStatusToLabel, useClientMediaQuery } from "./appliedtrack";
+import { jobStatusToLabel } from "./appliedtrack";
 import { devLog } from '@/lib/devLog';
 
 const getStatusColor = (status: JobStatus): string => {
@@ -39,6 +39,27 @@ const getStatusColor = (status: JobStatus): string => {
     }
 }
 
+function useClientMediaQuery(query: string): boolean {
+    const [matches, setMatches] = useState(false);
+    const [mounted, setMounted] = useState(false);
+  
+    useEffect(() => {
+      setMounted(true);
+      const mediaQuery = window.matchMedia(query);
+      setMatches(mediaQuery.matches);
+  
+      const listener = (e: MediaQueryListEvent) => {
+        setMatches(e.matches);
+      };
+  
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }, [query]);
+  
+    // Return false during SSR, actual value after mounting
+    return mounted ? matches : false;
+  }
+
 export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails, activeTab: initialActiveTab, handleAIRecommendation }: {
     isOpen: boolean;
     onClose: () => void;
@@ -53,6 +74,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
     const [editingField, setEditingField] = useState<keyof Job | null>(null);
     const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
     const [resumes, setResumes] = useState<Array<{ resumeId: string, fileUrl: string, fileName: string }>>([]);
+    const isMobile = useClientMediaQuery('(max-width: 640px)');
 
     useEffect(() => {
         const loadResumes = async () => {
@@ -528,7 +550,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                 {renderField("Resume", job.resumeUrl ? "Resume Uploaded" : "Resume Not Uploaded", "resumeUrl")}
                                                 {job.resumeUrl && (
                                                     <>
-                                                    {useClientMediaQuery("(min-width: 640px)") ? (
+                                                    {!isMobile ? (
                                                         <PDFViewerInline fileUrl={job.resumeUrl} fileName="resume.pdf" />
                                                     ) : (
                                                         <Button 
@@ -545,7 +567,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                             {job.latestGeneratedCoverLetter && (
                                                 <div>
                                                     <Label className="font-semibold">Cover Letter</Label>
-                                                    {useClientMediaQuery("(min-width: 640px)") ? (
+                                                    {!isMobile ? (
                                                         <embed src={job.latestGeneratedCoverLetter.coverLetterMarkdown} type="application/pdf" width="100%" height="400px" />
                                                     ) : (
                                                         <Button

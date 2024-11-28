@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser } from '@clerk/nextjs'
 import { AdminUsers } from './components/adminusers'
 import { Waitlist } from './components/waitlist'
+import { BackupManagement } from './components/backup-management'
 import logo from '@/app/logos/logo.png'
 import {
     Sidebar,
@@ -83,6 +84,11 @@ const navItems: NavItem[] = [
         title: "RoadMap",
         icon: MapIcon,
         component: RoadMapPage, // Placeholder
+    },
+    {
+        title: "Backups",
+        icon: FileText,
+        component: BackupManagement,
     },
 ]
 

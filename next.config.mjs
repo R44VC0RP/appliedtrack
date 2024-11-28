@@ -1,3 +1,6 @@
+import MillionLint from '@million/lint'
+import next from 'next';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
@@ -33,13 +36,9 @@ const nextConfig = {
         minimumCacheTTL: 60,
     },
     eslint: {
-        // Warning: This allows production builds to successfully complete even if
-        // your project has ESLint errors.
         ignoreDuringBuilds: true,
     },
     typescript: {
-        // Warning: This allows production builds to successfully complete even if
-        // your project has type errors.
         ignoreBuildErrors: true,
     },
     output: 'standalone',
@@ -54,54 +53,39 @@ const nextConfig = {
             };
         }
 
-        // Needed for html2canvas and other canvas-related dependencies
         config.resolve.alias.canvas = false;
         
-        // Suppress deprecation warnings
         config.ignoreWarnings = [
             { message: /\[DEP0040\] DeprecationWarning: The `punycode` module is deprecated/ }
         ];
 
-        // Disable Terser
         config.optimization = {
             ...config.optimization,
             minimize: false
         };
 
-        // Configure Terser to handle unicode properly
-        const terserOptions = {
-            parse: {
-                // Enable parsing of unicode escape sequences
-                unicode: true
-            },
-            compress: {
-                // Preserve unicode literals
-                unicode: true
-            },
-            mangle: {
-                // Keep variable names readable
-                keep_classnames: true,
-                keep_fnames: true
-            },
-            format: {
-                // Preserve unicode characters
-                ascii_only: false,
-                comments: false,
-                // Ensure proper unicode escaping
-                quote_style: 1
-            },
-            sourceMap: false
-        };
-
-        // Find and update the Terser plugin configuration
         if (config.optimization && config.optimization.minimizer) {
             const terserPlugin = config.optimization.minimizer.find(
                 plugin => plugin.constructor.name === 'TerserPlugin'
             );
             if (terserPlugin) {
                 terserPlugin.options.terserOptions = {
-                    ...terserPlugin.options.terserOptions,
-                    ...terserOptions
+                    parse: {
+                        unicode: true
+                    },
+                    compress: {
+                        unicode: true
+                    },
+                    mangle: {
+                        keep_classnames: true,
+                        keep_fnames: true
+                    },
+                    format: {
+                        ascii_only: false,
+                        comments: false,
+                        quote_style: 1
+                    },
+                    sourceMap: false
                 };
             }
         }
@@ -110,15 +94,16 @@ const nextConfig = {
     },
 };
 
-if (process.env.NODE_ENV === 'production') {
-    nextConfig.experimental = {
-        ...nextConfig.experimental,
-        optimizeCss: {
-            cssModules: true,
-            minify: true,
-            inlineThreshold: 4096,
+// Configure Million.js
+const millionConfig = {
+    // auto: true, // Enable auto-optimization
+    // You can add specific rules for components that should or shouldn't be optimized
+    rules: [
+        {
+            // Optimize all components under the app directory
+            pattern: 'app/**/*.{js,jsx,ts,tsx}',
         },
-    };
-}
+    ],
+};
 
-export default nextConfig;
+export default nextConfig

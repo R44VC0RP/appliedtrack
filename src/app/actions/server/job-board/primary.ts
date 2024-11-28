@@ -585,7 +585,7 @@ export async function srv_getResumes() {
     orderBy: { dateCreated: 'desc' }
   });
 
-  console.log('Resumes:', resumes.length);
+  // console.log('Resumes:', resumes.length);
   
   return resumes;
 }
