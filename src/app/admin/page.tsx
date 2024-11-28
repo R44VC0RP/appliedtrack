@@ -9,6 +9,7 @@ import { useUser } from '@clerk/nextjs'
 import { AdminUsers } from './components/adminusers'
 import { Waitlist } from './components/waitlist'
 import { BackupManagement } from './components/backup-management'
+import { AdminStats } from './components/dashboard'
 import logo from '@/app/logos/logo.png'
 import {
     Sidebar,
@@ -29,6 +30,7 @@ import {
     ShoppingCart,
     FileText,
     MessageSquare,
+    BarChart2,
     BarChart3,
     CreditCard,
     MapIcon
@@ -51,9 +53,14 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
+        title: "Dashboard",
+        icon: BarChart2,
+        component: () => <AdminStats />
+    },
+    {
         title: "User Management",
         icon: Users,
-        component: AdminUsers,
+        component: () => <AdminUsers />
     },
     {
         title: "Waitlist",
@@ -95,7 +102,7 @@ const navItems: NavItem[] = [
 export default function AdminDashboard() {
     const [activeComponent, setActiveComponent] = useState(() => {
         // Initialize from cookie or default to "User Management"
-        return Cookies.get('adminActiveComponent') || "User Management"
+        return Cookies.get('adminActiveComponent') || "Dashboard"
     })
     const { user, isLoaded } = useUser()
 

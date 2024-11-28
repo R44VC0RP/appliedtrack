@@ -98,7 +98,6 @@ export async function srv_getBackupDownloadUrl(key: string): Promise<{
 
     await Logger.info('Generated backup download URL', {
       key,
-      userId: authAdminUser.id
     });
 
     return {
