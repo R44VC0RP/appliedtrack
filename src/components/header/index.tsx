@@ -34,7 +34,7 @@ import { srv_getConfigTiers } from "@/app/actions/server/settings/primary"
 import { UserTier } from '@/types/subscription'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu'
 
-interface ConfigData {
+export interface ConfigData {
   services: {
     [key: string]: {
       name: string;
@@ -64,6 +64,7 @@ interface HeaderProps {
 interface QuotaIndicatorProps {
   quota: QuotaData | null;
   tier: UserTier;
+  initialConfig: ConfigData | null;
 }
 
 interface UserMetadata {
@@ -82,11 +83,13 @@ const serviceNames: { [key: string]: string } = {
   'JOBS_COUNT': 'Applications'
 };
 
-const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
-  const [configData, setConfigData] = useState<ConfigData | null>(null);
+const QuotaIndicator = ({ quota: initialQuota, tier, initialConfig }: QuotaIndicatorProps) => {
+  const [configData, setConfigData] = useState<ConfigData | null>(initialConfig);
   const [quota, setQuota] = useState<QuotaData | null>(initialQuota);
   const [isLoading, setIsLoading] = useState(false);
   const { user: clerkUser, isSignedIn } = useUser();
+
+  console.log(configData)
 
   const fetchData = async () => {
     if (!isSignedIn || !clerkUser?.id) {
@@ -111,9 +114,10 @@ const QuotaIndicator = ({ quota: initialQuota, tier }: QuotaIndicatorProps) => {
 
   // Initial load
   useEffect(() => {
-    if (isSignedIn && clerkUser?.id) {
+    if (isSignedIn && clerkUser?.id && configData === null) {
       fetchData();
     }
+    
   }, [isSignedIn, clerkUser?.id]);
 
   // Listen for quota updates
@@ -334,6 +338,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
     try {
       setIsLoading(true);
       const data = await srv_getHeaderData(clerkUser.id);
+      console.log('Fetched header data:', data);
       setHeaderData(data);
     } catch (error) {
       devLog.error('Error fetching header data:', error);
@@ -462,7 +467,7 @@ export function Header({ onNotificationClick }: HeaderProps) {
                 </TooltipContent>
               </Tooltip>
               {!isLoading && headerData && (
-                <QuotaIndicator quota={headerData.quota} tier={headerData.tier} />
+                <QuotaIndicator quota={headerData.quota} tier={headerData.tier} initialConfig={headerData.initConfig} />
               )}
             </TooltipProvider>
           )}

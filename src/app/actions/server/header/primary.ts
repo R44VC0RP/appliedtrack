@@ -20,6 +20,9 @@ import { QuotaNotification, QuotaUsage } from "@prisma/client"
 import { createInitialQuota, checkAndResetQuota } from "@/lib/useQuota"
 import { Logger } from "@/lib/logger"
 import Stripe from 'stripe';
+import { srv_getConfigTiers } from "../settings/primary"
+import { ConfigData } from "@/components/header"
+
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -64,10 +67,12 @@ export interface QuotaData {
 
 export interface HeaderData extends CompleteUserProfile {
     quota: QuotaData | null;
+    initConfig: ConfigData | null;
 }
 
 export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
     const user = await srv_getCompleteUserProfile(userId) as CompleteUserProfile;
+    const initConfig = await srv_getConfigTiers();
     const quota = await prisma.userQuota.findUnique({
         where: { userId },
         include: {
@@ -149,7 +154,8 @@ export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
                                 stripeCurrentPeriodEnd: updatedQuota.stripeCurrentPeriodEnd,
                                 dateCreated: updatedQuota.dateCreated,
                                 dateUpdated: updatedQuota.dateUpdated
-                            }
+                            },
+                            initConfig: initConfig
                         });
                     }
                 }
@@ -173,7 +179,8 @@ export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
                 stripeCurrentPeriodEnd: initialQuota.stripeCurrentPeriodEnd,
                 dateCreated: initialQuota.dateCreated,
                 dateUpdated: initialQuota.dateUpdated
-            } : null 
+            } : null ,
+            initConfig: initConfig
         });
     }
 
@@ -185,6 +192,7 @@ export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
             stripeCurrentPeriodEnd: quota.stripeCurrentPeriodEnd,
             dateCreated: quota.dateCreated,
             dateUpdated: quota.dateUpdated
-        } : null 
+        } : null ,
+        initConfig: initConfig
     });
 }
