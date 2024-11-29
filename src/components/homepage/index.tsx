@@ -619,12 +619,6 @@ export default function Homepage() {
                       </div>
                       <div className="mb-4">
                         <span className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <FaRocket
-                              key={i}
-                              className="w-4 h-4 text-yellow-400"
-                            />
-                          ))}
                         </span>
                       </div>
                       <p className="text-gray-600 dark:text-gray-300 italic">"{testimonial.content}"</p>
@@ -823,7 +817,7 @@ export default function Homepage() {
         {/* Footer */}
         <footer className="w-full py-6 border-t dark:border-gray-700">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between">
-            <p className="text-xs text-gray-500 dark:text-gray-400"> 2023 AppliedTrack. All rights reserved.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">&copy; {new Date().getFullYear()} AppliedTrack. All rights reserved.</p>
             <nav className="flex gap-4 sm:gap-6 mt-4 sm:mt-0">
               <Link
                 href="/terms"

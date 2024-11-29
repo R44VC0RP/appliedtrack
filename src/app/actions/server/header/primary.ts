@@ -17,6 +17,7 @@ import { srv_getCompleteUserProfile, CompleteUserProfile } from "@/lib/useUser"
 import { plain } from "@/lib/plain"
 import { prisma } from "@/lib/prisma"
 import { QuotaNotification, QuotaUsage } from "@prisma/client"
+import { createInitialQuota } from "@/lib/useQuota"
 
 export interface QuotaData {
     id: string;
@@ -42,6 +43,20 @@ export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
             quotaUsage: true
         }
     });
+
+    if (!quota) {   
+        const initialQuota = await createInitialQuota(userId);
+        return plain({ 
+            ...user, 
+            quota: initialQuota ? {
+                ...initialQuota,
+                quotaResetDate: initialQuota.quotaResetDate,
+                stripeCurrentPeriodEnd: initialQuota.stripeCurrentPeriodEnd,
+                dateCreated: initialQuota.dateCreated,
+                dateUpdated: initialQuota.dateUpdated
+            } : null 
+        });
+    }
 
     return plain({ 
         ...user, 

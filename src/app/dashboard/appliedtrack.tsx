@@ -338,6 +338,19 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     return () => window.removeEventListener('resize', updateLayout);
   }, [isMobile, isTablet, mounted]);
 
+  function refreshResumes() {
+    const refreshedResumes = async () => {
+      if (!isLoaded || !userId) return;
+      try {
+        const resumes = await srv_getResumes();
+        setResumes(resumes);
+      } catch (error) {
+        console.error('Error getting resumes:', error);
+      }
+    };
+    refreshedResumes();
+  }
+
 
 
   const handleKeyDown = (e: React.KeyboardEvent, job: Job) => {
@@ -587,6 +600,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     setShowOnboarding(false);
     setShowConfetti(true);
     setShowWelcomeModal(true);
+    refreshResumes();
     // Remove confetti after 5 seconds
     setTimeout(() => setShowConfetti(false), 5000);
   };
