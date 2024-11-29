@@ -42,6 +42,7 @@
     "@types/js-cookie": "^3.0.6",
     "@types/pdfjs-dist": "^2.10.377",
     "@types/pdfkit": "^0.13.5",
+    "@types/recharts": "^1.8.29",
     "@uploadthing/react": "^7.0.3",
     "@web-std/file": "^3.0.3",
     "ai": "^3.4.33",

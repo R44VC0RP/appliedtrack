@@ -16,6 +16,7 @@ import { UTApi } from "uploadthing/server";
 import { JobStatus } from '@prisma/client'
 import { Job } from "@/app/types/job";
 import { prisma } from '@/lib/prisma';
+import { srv_addHunterUsage, srv_addOpenAIUsage } from "./serviceUsage";
 
 
 const utapi = new UTApi();
@@ -785,12 +786,10 @@ export async function srv_createAIRating(job: Job) {
     prompt: prompt_to_create_ai_rating,
   });
 
-  const GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS = 15;
-  const GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS = 60;
-
-  const totalCostInCents =
-    (usage.promptTokens / 1_000_000) * GPT_4O_MINI_INPUT_COST_PER_1M_TOKENS_IN_CENTS +
-    (usage.completionTokens / 1_000_000) * GPT_4O_MINI_OUTPUT_COST_PER_1M_TOKENS_IN_CENTS;
+  await srv_addOpenAIUsage(usage.promptTokens, usage.completionTokens, usage.totalTokens, {
+    service: 'GENAI_JOBMATCH',
+    jobId: job.id,
+  });
 
   // await srv_addGenAIAction('createAIResumeRating', usage.promptTokens, usage.completionTokens, totalCostInCents);
 
@@ -861,6 +860,8 @@ export async function srv_hunterDomainSearch(domain: string, departments: string
       limit,
       departments
     });
+
+    await srv_addHunterUsage(limit, { domain, limit, departments, jobId });
 
     // First request to get total results
     const initialUrl = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterApiKey}&limit=${limit}`;

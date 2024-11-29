@@ -20,6 +20,7 @@ import { prisma } from '../prisma';
 import { srv_func_verifyTiers } from '@/app/actions/server/job-board/primary';
 import { srv_addServiceUsage, srv_decrementServiceUsage } from '@/lib/tierlimits';
 import puppeteerCore from 'puppeteer-core';
+import { srv_addOpenAIUsage } from '@/app/actions/server/job-board/serviceUsage';
 
 const utapi = new UTApi();
 
@@ -466,6 +467,13 @@ export async function srv_generateGPTResume(job: Job) {
 
         const generatedResume = completion.choices?.[0]?.message?.parsed?.markdown ?? null;
 
+        await srv_addOpenAIUsage(
+            completion.usage?.total_tokens || 0,
+            completion.usage?.prompt_tokens || 0,
+            completion.usage?.completion_tokens || 0,
+            { jobId: job.id, action: "GENAI_RESUME" }
+        );
+
         if (generatedResume) {
             console.log('Counting existing resumes');
             const existingResumesCount = await prisma.generatedResume.count({
@@ -594,6 +602,13 @@ export async function srv_generateGPTCoverLetter(job: Job) {
         });
 
         const generatedCoverLetter = completion.choices?.[0]?.message?.parsed?.markdown ?? null;
+
+        await srv_addOpenAIUsage(
+            completion.usage?.total_tokens || 0,
+            completion.usage?.prompt_tokens || 0,
+            completion.usage?.completion_tokens || 0,
+            { jobId: job.id, action: "GENAI_COVER_LETTER" }
+        );
 
         if (generatedCoverLetter) {
             console.log('Counting existing cover letters');

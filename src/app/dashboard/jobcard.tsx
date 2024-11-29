@@ -144,11 +144,19 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
     const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
         job.latestGeneratedResume ? "ready" : "not_started"
     );
+    const [isLoading, setIsLoading] = useState(false);
     const [resumeId, setResumeId] = useState(job.latestGeneratedResume?.id);
 
     const handleViewResume = async () => {
-        const pdfUrl = await srv_markdownResumeToPDF(resumeId || '');
-        window.open(pdfUrl, '_blank');
+        setIsLoading(true);
+        try {
+            const pdfUrl = await srv_markdownResumeToPDF(resumeId || '');
+            window.open(pdfUrl, '_blank');
+        } catch (error) {
+            toast.error("Error loading resume");
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     const handleGenerateResume = async () => {
@@ -184,10 +192,18 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
             );
         case 'ready':
             return (
-                <Button variant="outline" onClick={handleViewResume}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Resume 
-                    {/* <code className="text-xs ml-2">{resumeId}</code> */}
+                <Button variant="outline" onClick={handleViewResume} disabled={isLoading}>
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                        </>
+                    ) : (
+                        <>
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Resume
+                        </>
+                    )}
                 </Button>
             );
         case 'failed':
@@ -211,11 +227,19 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
     const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
         job.latestGeneratedCoverLetter ? "ready" : "not_started"
     );
+    const [isLoading, setIsLoading] = useState(false);
     const [coverLetterId, setCoverLetterId] = useState(job.latestGeneratedCoverLetter?.id);
 
     const handleViewCoverLetter = async () => {
-        const pdfUrl = await srv_markdownCoverLetterToPDF(coverLetterId || '');
-        window.open(pdfUrl, '_blank');
+        setIsLoading(true);
+        try {
+            const pdfUrl = await srv_markdownCoverLetterToPDF(coverLetterId || '');
+            window.open(pdfUrl, '_blank');
+        } catch (error) {
+            toast.error("Error loading cover letter");
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     const handleGenerateCoverLetter = async () => {
@@ -251,9 +275,18 @@ const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetai
             );
         case 'ready':
             return (
-                <Button variant="outline" onClick={handleViewCoverLetter}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Cover Letter
+                <Button variant="outline" onClick={handleViewCoverLetter} disabled={isLoading}>
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                        </>
+                    ) : (
+                        <>
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Cover Letter
+                        </>
+                    )}
                 </Button>
             );
         case 'failed':

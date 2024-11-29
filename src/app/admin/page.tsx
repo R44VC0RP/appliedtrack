@@ -10,6 +10,7 @@ import { AdminUsers } from './components/adminusers'
 import { Waitlist } from './components/waitlist'
 import { BackupManagement } from './components/backup-management'
 import { AdminStats } from './components/dashboard'
+import { ServiceUsage } from './components/service-usage'
 import logo from '@/app/logos/logo.png'
 import {
     Sidebar,
@@ -33,7 +34,9 @@ import {
     BarChart2,
     BarChart3,
     CreditCard,
-    MapIcon
+    MapIcon,
+    Activity,
+    Database
 } from 'lucide-react'
 import { ThemeControl } from '@/components/ui/themecontrol'
 import { Badge } from "@/components/ui/badge"
@@ -68,6 +71,16 @@ const navItems: NavItem[] = [
         component: Waitlist,
     },
     {
+        title: "Service Usage",
+        icon: Activity,
+        component: ServiceUsage,
+    },
+    {
+        title: "Backup Management",
+        icon: Database,
+        component: BackupManagement,
+    },
+    {
         title: "Billing & Subscriptions",
         icon: CreditCard,
         component: BillingDashboard, // We'll create this component
@@ -91,11 +104,6 @@ const navItems: NavItem[] = [
         title: "RoadMap",
         icon: MapIcon,
         component: RoadMapPage, // Placeholder
-    },
-    {
-        title: "Backups",
-        icon: FileText,
-        component: BackupManagement,
     },
 ]
 
