@@ -151,26 +151,54 @@ export async function srv_getResumes() {
         path: "srv_getResumes",
         method: 'GET'
       });
-      return [];
+      return { resumes: [], aiResumes: [] };
     }
 
-    const resumes = await prisma.resume.findMany({
-      where: { userId: user.id },
-      select: {
-        resumeId: true,
-        fileUrl: true,
-        fileName: true,
-        dateCreated: true
-      },
-      orderBy: { dateCreated: 'desc' }
-    });
+    // Get both regular and AI-generated resumes
+    const [resumes, aiResumes] = await Promise.all([
+      prisma.resume.findMany({
+        where: { userId: user.id },
+        select: {
+          resumeId: true,
+          fileUrl: true,
+          fileName: true,
+          dateCreated: true
+        },
+        orderBy: { dateCreated: 'desc' }
+      }),
+      prisma.generatedResume.findMany({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          resumePdfUrl: true,
+          resumeVersion: true,
+          createdAt: true,
+          job: {
+            select: {
+              company: true,
+              position: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
+
+    // Transform AI resumes to match regular resume format
+    const formattedAiResumes = aiResumes.map(resume => ({
+      resumeId: resume.id,
+      fileUrl: resume.resumePdfUrl || '',
+      fileName: `${resume.job.position} at ${resume.job.company} v${resume.resumeVersion}`,
+      dateCreated: resume.createdAt
+    }));
 
     await Logger.info('Resumes retrieved successfully', {
       userId: user.id,
-      count: resumes.length
+      regularCount: resumes.length,
+      aiCount: aiResumes.length
     });
 
-    return resumes;
+    return { resumes, aiResumes: formattedAiResumes };
   } catch (error) {
     await Logger.error('Error fetching resumes', {
       error: error instanceof Error ? error.message : 'Unknown error',

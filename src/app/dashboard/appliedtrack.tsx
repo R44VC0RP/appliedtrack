@@ -1231,8 +1231,9 @@ function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: A
             <div className="mt-4">
               <JobTitleAutocomplete
                 placeholder={currentStepConfig.placeholder}
+                value={formData.position}
                 onTitleSelect={(title) => {
-                  console.log(title);
+                  // console.log(title);
                   setFormData(prev => ({
                     ...prev,
                     position: title,

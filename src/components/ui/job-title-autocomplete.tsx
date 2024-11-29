@@ -9,6 +9,7 @@ interface JobTitleAutocompleteProps {
   onTitleSelect: (title: string) => void;
   placeholder?: string;
   className?: string;
+  value?: string;
 }
 
 // Convert string to camel case
@@ -27,8 +28,9 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
   onTitleSelect,
   placeholder = 'Enter job title...',
   className = '',
+  value,
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(value || '');
   const [suggestions, setSuggestions] = useState<Array<{ id: string; title: string }>>([]);
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -91,6 +93,7 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
+    onTitleSelect(query);
 
     // Set new timer
     debounceRef.current = setTimeout(() => {
@@ -120,7 +123,7 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
     setQuery(item.title);
     setSuggestions([]);
     setIsOpen(false);
-    onTitleSelect(item.title);
+    onTitleSelect(query);
     inputRef.current?.blur();
   };
 
@@ -166,10 +169,10 @@ const JobTitleAutocomplete: React.FC<JobTitleAutocompleteProps> = ({
   const handleBlur = () => {
     setTimeout(() => {
       setIsOpen(false);
-      // If there's a value but no selection was made, use the input value
-      if (query && !suggestions.some(s => s.title === query)) {
-        onTitleSelect(toCamelCase(query));
-      }
+      // // If there's a value but no selection was made, use the input value
+      // if (query && !suggestions.some(s => s.title === query)) {
+      //   onTitleSelect(toCamelCase(query));
+      // }
     }, 200);
   };
 

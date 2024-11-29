@@ -87,6 +87,13 @@ interface ConfigData {
   };
 }
 
+type ResumeWithDate = { 
+  resumeId: string; 
+  fileUrl: string; 
+  fileName: string; 
+  dateCreated: Date 
+};
+
 // Create a new component for the tabs content
 function SettingsTabs() {
   const searchParams = useSearchParams();
@@ -96,7 +103,8 @@ function SettingsTabs() {
   
   const { user: clerkUser, isSignedIn } = useUser();
   const [localAbout, setLocalAbout] = useState('');
-  const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>([]);
+  const [resumes, setResumes] = useState<ResumeWithDate[]>([]);
+  const [aiResumes, setAiResumes] = useState<ResumeWithDate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [configData, setConfigData] = useState<ConfigData | null>(null);
@@ -115,7 +123,7 @@ function SettingsTabs() {
 
     try {
       const userDetails = await srv_getUserDetails();
-      const [userResumes, config] = await Promise.all([
+      const [{ resumes: regularResumes, aiResumes }, config] = await Promise.all([
         srv_getResumes(),
         srv_getConfigTiers()
       ]);
@@ -123,7 +131,8 @@ function SettingsTabs() {
       setLocalAbout(userDetails.about || '');
 
       setUserDetails(userDetails as UserDetails);
-      setResumes(userResumes);
+      setResumes(regularResumes);
+      setAiResumes(aiResumes);
       setConfigData(config as ConfigData);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -154,8 +163,9 @@ function SettingsTabs() {
       await srv_addResume(uploadedFile.url, uploadedFile.name, uploadedFile.key);
       
       toast.success("Resume uploaded");
-      const updatedResumes = await srv_getResumes();
-      setResumes(updatedResumes);
+      const { resumes: regularResumes, aiResumes } = await srv_getResumes();
+      setResumes(regularResumes);
+      setAiResumes(aiResumes);
     } catch (error) {
       toast.error("Failed to upload resume");
     }
@@ -164,8 +174,9 @@ function SettingsTabs() {
   const handleRemoveResume = async (resumeId: string) => {
     try {
       await srv_removeResume(resumeId);
-      const updatedResumes = await srv_getResumes();
-      setResumes(updatedResumes);
+      const { resumes: regularResumes, aiResumes } = await srv_getResumes();
+      setResumes(regularResumes);
+      setAiResumes(aiResumes);
       toast.success("Resume removed");
     } catch (error) {
       toast.error("Failed to remove resume");
@@ -390,7 +401,7 @@ function SettingsTabs() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Resumes</p>
-                    <p className="text-2xl font-bold">{resumes.length}</p>
+                    <p className="text-2xl font-bold">{resumes.length + aiResumes.length}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Last Sign In</p>
@@ -498,14 +509,14 @@ function SettingsTabs() {
                         <p className="text-sm text-muted-foreground">Your resume collection</p>
                       </div>
                       <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-xl font-bold text-primary">{resumes.length}</span>
+                        <span className="text-xl font-bold text-primary">{resumes.length + aiResumes.length}</span>
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground mt-4">
-                      {resumes.length === 0 ? (
+                      {(resumes.length + aiResumes.length) === 0 ? (
                         "No resumes uploaded yet"
                       ) : (
-                        `You have ${resumes.length} resume${resumes.length === 1 ? '' : 's'} ready to use`
+                        `You have ${(resumes.length + aiResumes.length)} resume${(resumes.length + aiResumes.length) === 1 ? '' : 's'} ready to use`
                       )}
                     </div>
                   </CardContent>
@@ -515,10 +526,10 @@ function SettingsTabs() {
               <div className="rounded-lg border bg-card">
                 <div className="flex items-center p-4 border-b">
                   <h3 className="text-lg font-semibold">Your Resumes</h3>
-                  <Badge variant="secondary" className="ml-2">{resumes.length}</Badge>
+                  <Badge variant="secondary" className="ml-2">{resumes.length + aiResumes.length}</Badge>
                 </div>
                 <ScrollArea className="h-[400px] w-full">
-                  {resumes.length === 0 ? (
+                  {(resumes.length + aiResumes.length) === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[300px] text-center p-4">
                       <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                       <p className="text-lg font-medium text-muted-foreground">No resumes yet</p>
@@ -526,36 +537,45 @@ function SettingsTabs() {
                     </div>
                   ) : (
                     <div className="divide-y">
-                      {resumes.map((resume) => (
-                        <div key={resume.resumeId} 
-                            className="flex items-center justify-between p-4 group hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <FileText className="h-5 w-5 text-primary" />
+                      {[...resumes, ...aiResumes]
+                        .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
+                        .map((resume: ResumeWithDate) => (
+                          <div key={resume.resumeId} 
+                              className="flex items-center justify-between p-4 group hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <FileText className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium truncate">{resume.fileName}</p>
+                                  {aiResumes.some(r => r.resumeId === resume.resumeId) && (
+                                    <Badge variant="secondary" className="text-xs">AI Generated</Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Added {new Date(resume.dateCreated).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{resume.fileName}</p>
-                              <p className="text-xs text-muted-foreground">Added {new Date().toLocaleDateString()}</p>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSelectedResume({ url: resume.fileUrl, name: resume.fileName })}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveResume(resume.resumeId)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setSelectedResume({ url: resume.fileUrl, name: resume.fileName })}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveResume(resume.resumeId)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   )}
                 </ScrollArea>
