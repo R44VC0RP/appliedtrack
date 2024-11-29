@@ -283,10 +283,20 @@ export async function srv_getJobs() {
           }
         : null;
 
+      const latestCoverLetter = job.generatedCoverLetters[0] 
+        ? {
+            id: job.generatedCoverLetters[0].id,
+            coverLetterVersion: Number(job.generatedCoverLetters[0].coverLetterVersion),
+            createdAt: job.generatedCoverLetters[0].createdAt,
+            updatedAt: job.generatedCoverLetters[0].updatedAt,
+            // Explicitly exclude coverLetterMarkdown
+            // Convert Decimal to Number for coverLetterVersion
+          }
+        : null;
       return {
         ...job,
         latestGeneratedResume: latestResume,
-        latestGeneratedCoverLetter: job.generatedCoverLetters[0] || null,
+        latestGeneratedCoverLetter: latestCoverLetter,
         generatedResumes: undefined,
         generatedCoverLetters: undefined
       };

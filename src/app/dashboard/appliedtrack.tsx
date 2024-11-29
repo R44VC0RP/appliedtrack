@@ -686,6 +686,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           </div>
+          <div className="text-muted-foreground">
+            You have {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
+          </div>
           {/* Hide layout controls on mobile */}
           {!isMobile && (
             <div className="flex items-center space-x-4">

@@ -15,14 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Pencil, FileText, Archive } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { TooltipProvider, Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { Dispatch, SetStateAction } from 'react';
 import { Loader2, Download, CheckCircle2, AlertCircle, Sparkles, Clock, Calendar } from 'lucide-react';
 import { FaSync } from 'react-icons/fa';
 import { AlertDialogTrigger, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -335,6 +334,7 @@ const JobCard = React.forwardRef(({
     const isMobile = useClientMediaQuery('(max-width: 640px)');
     const [isConfirmStatusChangeOpen, setIsConfirmStatusChangeOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -521,12 +521,12 @@ const JobCard = React.forwardRef(({
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger>
-                                        <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 cursor-default">
-                                            {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                                        </Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        No AI Rating
+                                            <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 cursor-default">
+                                                {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                                            </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            No AI Rating
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -641,21 +641,32 @@ const JobCard = React.forwardRef(({
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Badge
-                                variant="outline"
-                                className={`text-sm h-9 ${job.aiRating
-                                    ? job.aiRating >= 80
-                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                        : job.aiRating >= 60
-                                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                    : ''
+                            {job.aiRating ? (
+                                <Badge
+                                    variant="outline"
+                                    className={`text-sm h-9 ${
+                                        job.aiRating >= 80
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : job.aiRating >= 60
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                     }`}
-                            >
-                                <Sparkles className="w-4 h-4 mr-1" />
-                                {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                            </Badge>
-
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {`${job.aiRating}% Match`}
+                                </Badge>
+                            ) : (
+                                <Badge
+                                    variant="outline"
+                                    className="text-sm h-9 cursor-pointer hover:bg-muted"
+                                    onClick={() => openJobDetails(job)}
+                                    onMouseEnter={() => setIsHovered(true)}
+                                    onMouseLeave={() => setIsHovered(false)}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {isHovered ? 'Generate Rating' : 'No AI Rating'}
+                                </Badge>
+                            )}
                             <Select
                                 open={isStatusSelectOpen}
                                 onOpenChange={setIsStatusSelectOpen}
@@ -729,17 +740,28 @@ const JobCard = React.forwardRef(({
                             {job.aiRating && (
                                 <Badge
                                     variant="outline"
-                                    className={`text-sm h-9 ${job.aiRating
-                                        ? job.aiRating >= 80
+                                    className={`text-sm h-9 ${
+                                        job.aiRating >= 80
                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                             : job.aiRating >= 60
                                                 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                                 : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                        : ''
-                                        }`}
+                                    }`}
                                 >
                                     <Sparkles className="w-4 h-4 mr-1" />
-                                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                                    {`${job.aiRating}% Match`}
+                                </Badge>
+                            )}
+                            {job.aiRating === null && (
+                                <Badge
+                                    variant="outline"
+                                    className="text-sm h-9 cursor-pointer hover:bg-muted"
+                                    onClick={() => openJobDetails(job)}
+                                    onMouseEnter={() => setIsHovered(true)}
+                                    onMouseLeave={() => setIsHovered(false)}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {isHovered ? 'Open Details' : 'No AI Rating'}
                                 </Badge>
                             )}
                             <Select

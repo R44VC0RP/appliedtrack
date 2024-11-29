@@ -27,6 +27,7 @@ export interface CompleteUserProfile {
   onboardingComplete: boolean;
   stripeCustomerId?: string | null;
   subscriptionId?: string | null;
+  subscriptionStatus?: string | null;
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean | null;
   updatedAt: Date;
@@ -76,6 +77,7 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       onboardingComplete: prismaUser.onboardingComplete,
       stripeCustomerId: prismaUser.stripeCustomerId,
       subscriptionId: prismaUser.subscriptionId,
+      subscriptionStatus: prismaUser.subscriptionStatus,
       currentPeriodEnd: prismaUser.currentPeriodEnd,
       cancelAtPeriodEnd: prismaUser.cancelAtPeriodEnd,
       updatedAt: prismaUser.updatedAt
