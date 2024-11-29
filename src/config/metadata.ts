@@ -2,7 +2,7 @@ export const siteConfig = {
     name: "AppliedTrack",
     description: "Track and manage your job applications with ease. Get insights, email lookup, and AI-powered tools to improve your job search.",
     url: "https://appliedtrack.com",
-    ogImage: "https://appliedtrack.com/opengraph-image",
+    ogImage: "https://utfs.io/f/HhaWmBOvDmlRT1AQmU60TEFMm719OtnIaBuN2egJ4rWh3lbv",
     links: {
         twitter: "https://twitter.com/appliedtrack",
         github: "https://github.com/appliedtrack"
