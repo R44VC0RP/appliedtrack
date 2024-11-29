@@ -450,11 +450,11 @@ const JobCard = React.forwardRef(({
                     <div key={email.id} className="flex items-center justify-between text-sm">
                         <span>{email.email}</span>
                         <div className="flex items-center gap-2">
-                            {email.position && (
+                            {/* {email.position && (
                                 <Badge variant="outline" className="text-xs">
                                     {email.position}
                                 </Badge>
-                            )}
+                            )} */}
                             <Badge variant="secondary" className="text-xs">
                                 {email.confidence}%
                             </Badge>
