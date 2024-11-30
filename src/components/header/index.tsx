@@ -33,6 +33,7 @@ import { srv_getHeaderData, HeaderData, QuotaData } from "@/app/actions/server/h
 import { srv_getConfigTiers } from "@/app/actions/server/settings/primary"
 import { UserTier } from '@/types/subscription'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu'
+import { QuestionMarkCircledIcon } from '@radix-ui/react-icons'
 
 export interface ConfigData {
   services: {
@@ -483,6 +484,16 @@ export function Header({ onNotificationClick }: HeaderProps) {
                     <Settings className="h-5 w-5" />
                     <span className="w-0 overflow-hidden transition-all duration-200 group-hover:w-16 group-hover:ml-2">
                       Settings
+                    </span>
+                  </Link>
+                </TooltipTrigger>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/contact" className="focus:outline-none group flex items-center">
+                    <QuestionMarkCircledIcon className="h-5 w-5" />
+                    <span className="w-0 overflow-hidden transition-all duration-200 group-hover:w-10 group-hover:ml-2">
+                      Help
                     </span>
                   </Link>
                 </TooltipTrigger>
