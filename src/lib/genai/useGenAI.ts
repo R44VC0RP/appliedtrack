@@ -126,7 +126,8 @@ async function getBrowser() {
 async function srv_convertMarkdownToPDFUrl(
     markdown: string,
     title: string,
-    options: ConvertOptions = {}
+    options: ConvertOptions = {},
+    resumeOrCoverLetter: 'resume' | 'coverLetter'
 ): Promise<string> {
     console.log('Starting markdown to PDF conversion', { title });
 
@@ -138,7 +139,7 @@ async function srv_convertMarkdownToPDFUrl(
     body {
         color: #000000;
         background: #EEEEEE;
-        font: 1.1em "EB Garamond", sans-serif;
+        font: ${resumeOrCoverLetter === 'resume' ? '1.1em' : '2em'} "EB Garamond", sans-serif;
         line-height: 1.2;
         margin: 40px 0;
     }
@@ -343,7 +344,7 @@ export async function srv_markdownResumeToPDF(resumeId: string, options: Convert
     }
 
     const title = options.title || (resume.resumeMarkdown ? resume.resumeMarkdown.match(/^#\s+(.+)$/m)?.[1] : 'Resume');
-    const pdfUrl = await srv_convertMarkdownToPDFUrl(resume.resumeMarkdown, title || 'Resume', options);
+    const pdfUrl = await srv_convertMarkdownToPDFUrl(resume.resumeMarkdown, title || 'Resume', options, 'resume');
 
     if (pdfUrl) {
         await prisma.generatedResume.update({
@@ -375,7 +376,7 @@ export async function srv_markdownCoverLetterToPDF(coverLetterId: string, option
     }
 
     const title = options.title || (coverLetter.coverLetterMarkdown ? coverLetter.coverLetterMarkdown.match(/^#\s+(.+)$/m)?.[1] : 'Cover Letter');
-    const pdfUrl = await srv_convertMarkdownToPDFUrl(coverLetter.coverLetterMarkdown, title || 'Cover Letter', options);
+    const pdfUrl = await srv_convertMarkdownToPDFUrl(coverLetter.coverLetterMarkdown, title || 'Cover Letter', options, 'coverLetter');
 
     if (pdfUrl) {
         await prisma.generatedCoverLetter.update({

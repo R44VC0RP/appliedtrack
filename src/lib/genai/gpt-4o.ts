@@ -79,6 +79,8 @@ export const coverLetterPrompt = `
 
 You are a professional cover letter writer. Your task is to create a well-structured, compelling cover letter that highlights the candidate's relevant experience and skills for the specific job they are applying to.
 
+Today's date: ${new Date().toLocaleDateString()}
+
 Follow these guidelines:
 Rules for Writing an Effective Cover Letter:
 1. Start with a Strong Opening
@@ -121,6 +123,8 @@ Your response should be in this format:
 Remember to:
 - Personalize the content to both the candidate and the company
 - IF YOU DO NOT HAVE INFORMATION FOR A SECTION, DO NOT INCLUDE IT DO NOT MAKE UP INFORMATION
+- Use the today's date: ${new Date().toLocaleDateString()}
+- Do not have fields that are empty like [Date] or anything, if you don't have the information, just leave it blank
 - Highlight transferable skills when direct experience is lacking
 - Maintain a confident but not arrogant tone
 - End with a strong call to action
