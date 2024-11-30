@@ -139,7 +139,7 @@ async function srv_convertMarkdownToPDFUrl(
     body {
         color: #000000;
         background: #EEEEEE;
-        font: ${resumeOrCoverLetter === 'resume' ? '1.1em' : '2em'} "EB Garamond", sans-serif;
+        font: ${resumeOrCoverLetter === 'resume' ? '1.1em' : '1.5em'} "EB Garamond", sans-serif;
         line-height: 1.2;
         margin: 40px 0;
     }
@@ -202,7 +202,7 @@ async function srv_convertMarkdownToPDFUrl(
     }
     @media print {
         body {
-            font-size: ${resumeOrCoverLetter === 'resume' ? '10pt' : '16pt'};
+            font-size: ${resumeOrCoverLetter === 'resume' ? '10pt' : '14pt'};
             margin: 0;
             padding: 0;
             background: none;
