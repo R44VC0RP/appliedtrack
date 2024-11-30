@@ -202,7 +202,7 @@ async function srv_convertMarkdownToPDFUrl(
     }
     @media print {
         body {
-            font-size: 10pt;
+            font-size: ${resumeOrCoverLetter === 'resume' ? '10pt' : '16pt'};
             margin: 0;
             padding: 0;
             background: none;
