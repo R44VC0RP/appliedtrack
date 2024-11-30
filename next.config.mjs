@@ -1,8 +1,13 @@
-import MillionLint from '@million/lint'
-import next from 'next';
+import fs from 'fs';
+import path from 'path';
+
+const version = fs.readFileSync(path.join(process.cwd(), 'src', 'app', 'version.txt'), 'utf8').trim();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    env: {
+        NEXT_PUBLIC_VERSION: version,
+    },
     images: {
         remotePatterns: [
             {

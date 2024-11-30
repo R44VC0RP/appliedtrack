@@ -47,6 +47,7 @@ import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
 import { LoggingDashboard } from './components/logging-dashboard'
 import { RoadMapPage } from './components/RoadMapPage'
+import { getVersion } from '@/lib/version'
 
 interface NavItem {
     title: string;
@@ -175,6 +176,7 @@ export default function AdminDashboard() {
                                 <div className="flex items-center gap-2">
                                     <SidebarTrigger />
                                     <p className="text-lg font-semibold">Hi {user?.firstName}!</p>
+                                    <Badge variant="outline">Version {getVersion()}</Badge>
                                 </div>
                                 <ThemeControl />
                             </div>
