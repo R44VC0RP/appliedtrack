@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { LogModel } from '@/models/Log';
 import { Logger } from '@/lib/logger';
-import { UserModel } from '@/models/User';
+import { Prisma, LogLevel } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +17,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Admin check
-    const user = await UserModel.findOne({ userId });
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId }
+    });
     if (!user?.role || user.role !== 'admin') {
       await Logger.warning('forbidden_logs_access', { 
         userId,
@@ -38,21 +41,21 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'timestamp';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    // Build query
-    const query: any = {};
+    // Build where clause for Prisma
+    const where: Prisma.LogWhereInput = {};
     
-    if (level) query.level = level;
-    if (service) query.service = service;
-    if (ip) query.ip = ip;
-    if (action) query.action = { $regex: action, $options: 'i' };
+    if (level) where.level = level as LogLevel;
+    if (service) where.service = service;
+    if (ip) where.ip = ip;
+    if (action) where.action = { contains: action };
     
     // Add search functionality across multiple fields
     if (search) {
-      query.$or = [
-        { action: { $regex: search, $options: 'i' } },
-        { service: { $regex: search, $options: 'i' } },
-        { 'details.message': { $regex: search, $options: 'i' } },
-        { userId: { $regex: search, $options: 'i' } }
+      where.OR = [
+        { action: { contains: search } },
+        { service: { contains: search } },
+        { details: { path: 'message', string_contains: search } },
+        { userId: { contains: search } }
       ];
     }
 
@@ -61,9 +64,9 @@ export async function GET(request: NextRequest) {
       const startDate = searchParams.get('startDate');
       const endDate = searchParams.get('endDate');
       if (startDate && endDate) {
-        query.timestamp = {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
+        where.timestamp = {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
         };
       }
     } else {
@@ -77,44 +80,44 @@ export async function GET(request: NextRequest) {
       };
       
       if (ranges[timeRange]) {
-        query.timestamp = {
-          $gte: new Date(now.getTime() - ranges[timeRange])
+        where.timestamp = {
+          gte: new Date(now.getTime() - ranges[timeRange])
         };
       }
     }
 
     // Execute query with pagination
     const skip = (page - 1) * limit;
-    const sortOptions: any = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+    const orderBy: Prisma.LogOrderByWithRelationInput = {
+      [sortBy]: sortOrder === 'desc' ? 'desc' : 'asc'
+    };
 
     const [logs, total] = await Promise.all([
-      LogModel.find(query)
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      LogModel.countDocuments(query)
+      prisma.log.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit
+      }),
+      prisma.log.count({ where })
     ]);
-
 
     return NextResponse.json({
       logs,
       pagination: {
-        total,
         page,
         limit,
+        total,
         pages: Math.ceil(total / limit)
       }
     });
+
   } catch (error) {
-    await Logger.error('Error in logs API route', {
+    console.error('Error fetching logs:', error);
+    await Logger.error('logs_fetch_error', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
-    
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
-} 
+}

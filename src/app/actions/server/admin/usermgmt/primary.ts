@@ -1,16 +1,20 @@
 "use server"
 
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
-import { UserModel } from "@/models/User";
+import { createClerkClient } from "@clerk/backend";
+import { currentUser } from "@clerk/nextjs/server";
+
 import { Logger } from '@/lib/logger';
 import { srv_getCompleteUserProfile, CompleteUserProfile, srv_authAdminUser } from "@/lib/useUser";
+import { prisma } from "@/lib/prisma";
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
 
 // Types
 interface UpdateUserParams {
   targetUserId: string;
   role?: string;
   tier?: string;
-  onBoardingComplete?: boolean;
+  onboardingComplete?: boolean;
 }
 
 /**
@@ -64,7 +68,7 @@ export async function srv_updateUser(adminUserId: string, params: UpdateUserPara
       throw new Error("Forbidden");
     }
 
-    const { targetUserId, role, tier, onBoardingComplete } = params;
+    const { targetUserId, role, tier, onboardingComplete } = params;
 
     await Logger.info('Admin attempting to update user', {
       adminUserId,
@@ -73,25 +77,24 @@ export async function srv_updateUser(adminUserId: string, params: UpdateUserPara
       updatedTier: tier
     });
 
-    // Create update object with only provided fields
-    const updateFields: any = {
-      dateUpdated: new Date()
+    // Create update data with only provided fields
+    const updateData: any = {
+      updatedAt: new Date()
     };
-    if (role) updateFields.role = role;
-    if (tier) updateFields.tier = tier;
-    if (onBoardingComplete !== undefined) updateFields.onBoardingComplete = onBoardingComplete;
+    if (role) updateData.role = role;
+    if (tier) updateData.tier = tier;
+    if (onboardingComplete !== undefined) updateData.onboardingComplete = onboardingComplete;
 
-    // Update in MongoDB
-    await UserModel.findOneAndUpdate(
-      { userId: targetUserId },
-      { 
-        $set: updateFields,
-        $setOnInsert: {
-          dateCreated: new Date()
-        }
+    // Update in Prisma
+    await prisma.user.upsert({
+      where: { id: targetUserId },
+      create: {
+        id: targetUserId,
+        ...updateData,
+        createdAt: new Date()
       },
-      { upsert: true, new: true }
-    );
+      update: updateData
+    });
 
     // Update metadata in Clerk if role is changed
     if (role) {
@@ -103,7 +106,7 @@ export async function srv_updateUser(adminUserId: string, params: UpdateUserPara
     await Logger.info('Successfully updated user', {
       adminUserId,
       targetUserId,
-      updatedFields: updateFields
+      updatedFields: updateData
     });
 
     return { success: true };

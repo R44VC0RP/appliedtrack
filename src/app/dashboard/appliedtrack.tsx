@@ -1,9 +1,9 @@
 'use client'
 
+import { v4 as uuidv4 } from 'uuid';
 import { useState, useEffect, useCallback, useMemo, Dispatch, SetStateAction } from 'react'
-
 import ReactConfetti from 'react-confetti';
-
+import { SubscriptionStatus } from '../components/subscription-status';
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Search, Pencil, Settings2, Check } from 'lucide-react'
+import { Search, Pencil, Settings2, Check, Command } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch } from "@/components/ui/switch"
 import { format } from 'date-fns'
@@ -24,19 +24,23 @@ import { useSearchParams } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import ClearbitAutocomplete from '@/components/ui/clearbit';
+import JobTitleAutocomplete from '@/components/ui/job-title-autocomplete';
 import { LayoutGrid, LayoutList, Table2 } from 'lucide-react'
 import { OnboardingModal } from '@/components/onboarding-modal';
 import ViewDetailsModal from './viewdetails';
-
+import KeyboardShortcut from '@/components/ui/keyboard-shortcut';
 // Model Imports
-import { IJob as Job } from '@/models/Job';
-import { JobStatus } from '@/models/Job';
+import { Job, GeneratedResumeWithStatus, GeneratedCoverLetterWithStatus } from '../types/job';
+import { JobStatus, RemoteType, JobType } from '@prisma/client';
 import { toast } from "sonner"
-import { User } from '@/models/User';
 import JobCard from './jobcard';
+import { User } from '@prisma/client';
 
 // Server Actions
-import { srv_addJob, srv_getJobs, srv_updateJob } from '@/app/actions/server/job-board/primary';
+import { srv_addJob, srv_createAIRating, srv_getJobs, srv_getResumes, srv_updateJob } from '@/app/actions/server/job-board/primary';
+import { CompleteUserProfile } from '@/lib/useUser';
+import { UploadButton } from "@/utils/uploadthing";
+import { ConfettiWrapper } from '@/components/confetti/confetti-wrapper';
 
 // IMPORTANT:
 function useWindowSize() {
@@ -61,6 +65,16 @@ function useWindowSize() {
 
   return size;
 }
+
+const SignedOutCallback = () => {
+  useEffect(() => {
+    window.location.href = "/";
+  }, []);
+  return null;
+};
+
+
+
 
 const jobStatuses = Object.values(JobStatus);
 
@@ -96,7 +110,7 @@ const columnDefs: ColumnDef[] = [
   { id: 'position', label: 'Position', sortable: true },
   { id: 'status', label: 'Status', required: true, sortable: true },
   { id: 'dateApplied', label: 'Date Applied', sortable: true },
-  { id: 'dateUpdated', label: 'Last Updated', sortable: true },
+  { id: 'updatedAt', label: 'Last Updated', sortable: true },
 ];
 
 const addJobSteps: AddJobStep[] = [
@@ -126,7 +140,7 @@ const addJobSteps: AddJobStep[] = [
   },
   {
     title: "Select resume and confirm date",
-    field: "resumeLink",
+    field: "resumeUrl",
     type: "resume-date"
   }
 ];
@@ -134,28 +148,31 @@ const addJobSteps: AddJobStep[] = [
 
 
 // ============= Utils =============
-const getStatusColor = (status: string): string => {
+const getStatusColor = (status: JobStatus): string => {
   switch (status) {
-      case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-      case 'Applied': return 'bg-blue-100 text-blue-800'
-      case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-      case 'Interview': return 'bg-purple-100 text-purple-800'
-      case 'Offer': return 'bg-green-100 text-green-800'
-      case 'Rejected': return 'bg-red-100 text-red-800'
-      case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-      default: return 'bg-gray-100 text-gray-800'
+    case JobStatus.YET_TO_APPLY: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    case JobStatus.APPLIED: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    case JobStatus.PHONE_SCREEN: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+    case JobStatus.INTERVIEW: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+    case JobStatus.OFFER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    case JobStatus.REJECTED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+    case JobStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
   }
 }
 
-const getUserInformation = async () => {
-  const response = await fetch('/api/user');
-  if (response.ok) {
-    return await response.json();
+export function jobStatusToLabel(status: JobStatus) {
+  switch (status) {
+    case JobStatus.YET_TO_APPLY: return 'Yet to Apply'
+    case JobStatus.APPLIED: return 'Applied'
+    case JobStatus.PHONE_SCREEN: return 'Phone Screen'
+    case JobStatus.INTERVIEW: return 'Interview'
+    case JobStatus.OFFER: return 'Offer'
+    case JobStatus.REJECTED: return 'Rejected'
+    case JobStatus.ACCEPTED: return 'Accepted'
+    default: return 'Unknown'
   }
-  return null;
 }
-
-
 
 const getInitialSortPreference = () => {
   if (typeof window !== 'undefined') {
@@ -169,6 +186,38 @@ const isMobileDevice = () => {
   return window.innerWidth <= 640;
 };
 
+const createEmptyJob = (userId: string, resumes: { resumeId: string; fileUrl: string; fileName: string; }[]): Job => {
+  const mostRecentResume = resumes[resumes.length - 1];
+  return {
+    id: uuidv4(),
+    userId,
+    company: '',
+    position: '',
+    status: JobStatus.YET_TO_APPLY,
+    website: null,
+    jobDescription: null,
+    dateApplied: new Date(),
+    notes: null,
+    contactName: null,
+    contactEmail: null,
+    contactPhone: null,
+    interviewDate: null,
+    salary: null,
+    location: null,
+    remoteType: null,
+    jobType: null,
+    flag: null,
+    resumeUrl: mostRecentResume?.fileUrl || '',
+    aiRated: false,
+    aiNotes: null,
+    aiRating: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    latestGeneratedResume: null,
+    latestGeneratedCoverLetter: null,
+    hunterCompanies: null
+  };
+};
 
 export function useClientMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
@@ -191,13 +240,27 @@ export function useClientMediaQuery(query: string): boolean {
   return mounted ? matches : false;
 }
 
-export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, tier }: { initJobs: Job[], initResumes: { resumeId: string; fileUrl: string, fileName: string }[], onboardingComplete: boolean, role: User['role'], tier: User['tier'] }) {
+export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, tier, user }: { initJobs: Job[], initResumes: { resumeId: string; fileUrl: string, fileName: string }[], onboardingComplete: boolean, role: User['role'], tier: User['tier'], user: CompleteUserProfile | null }) {
   const [jobs, setJobs] = useState<Job[]>(initJobs)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const [layoutMode, setLayoutMode] = useState<'list' | 'masonry' | 'table'>('list')
+
+  useEffect(() => {
+    const savedLayout = localStorage.getItem('layoutMode')
+    if (savedLayout && ['list', 'masonry', 'table'].includes(savedLayout)) {
+      setLayoutMode(savedLayout as 'list' | 'masonry' | 'table')
+    }
+  }, [])
+
+  function saveLayoutMode(mode: 'list' | 'masonry' | 'table') {
+    setLayoutMode(mode)
+    localStorage.setItem('layoutMode', mode)
+  }
+
+
   const [columns, setColumns] = useState(3)
   const isTablet = useClientMediaQuery('(max-width: 1024px)')
   const isMobile = useClientMediaQuery('(max-width: 640px)')
@@ -206,7 +269,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   const [resumes, setResumes] = useState<{ resumeId: string; fileUrl: string, fileName: string }[]>(initResumes);
   const searchParams = useSearchParams();
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
-  const [visibleColumns, setVisibleColumns] = useState<Set<keyof Job>>(
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
     new Set(columnDefs.map(col => col.id))
   );
   const [showColumnSelector, setShowColumnSelector] = useState(false);
@@ -221,16 +284,26 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (!isLoaded || !userId) return;
-
       try {
-        const data = await getUserInformation();
-        setShowOnboarding(!data.onBoardingComplete);
+        setShowOnboarding(!user?.onboardingComplete);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
       }
     };
 
     checkOnboardingStatus();
+
+    const refreshedResumes = async () => {
+      if (!isLoaded || !userId) return;
+      try {
+        const resumes = await srv_getResumes();
+        setResumes(resumes);
+      } catch (error) {
+        console.error('Error getting resumes:', error);
+      }
+    };
+    refreshedResumes();
+    
   }, [isLoaded, userId]); // Add dependencies
 
   // Add useEffect to handle localStorage
@@ -251,7 +324,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
     const updateLayout = () => {
       if (isMobile) {
-        setLayoutMode('list');
+        saveLayoutMode('list');
         setColumns(1);
       } else if (isTablet) {
         setColumns(2);
@@ -264,6 +337,19 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     window.addEventListener('resize', updateLayout);
     return () => window.removeEventListener('resize', updateLayout);
   }, [isMobile, isTablet, mounted]);
+
+  function refreshResumes() {
+    const refreshedResumes = async () => {
+      if (!isLoaded || !userId) return;
+      try {
+        const resumes = await srv_getResumes();
+        setResumes(resumes);
+      } catch (error) {
+        console.error('Error getting resumes:', error);
+      }
+    };
+    refreshedResumes();
+  }
 
 
 
@@ -282,44 +368,26 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'n') {
-        e.preventDefault()
-        // Open modal to add new job
-        setSelectedJob({
-          userId: userId || '',
-          company: '',
-          position: '',
-          status: JobStatus.YET_TO_APPLY,
-          website: '',
-          resumeLink: '',
-          coverLetterLink: '',
-          jobDescription: '',
-          notes: '',
-          contactName: '',
-          contactEmail: '',
-          contactPhone: '',
-          interviewDate: '',
-          dateApplied: new Date().toISOString().split('T')[0],
-          aiRated: false,
-          aiNotes: '',
-          aiRating: 0,
-        })
-        setIsModalOpen(true)
+        e.preventDefault();
+        setSelectedJob(createEmptyJob(user?.id || '', resumes));
+        setIsModalOpen(true);
       }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 5000);
+        // This focuses the search box
+        e.preventDefault()
+        document.getElementById('searchBox')?.focus()
       }
-    }
+    };
 
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [])
+  }, []);
 
   const updateJobStatus = (jobId: string, newStatus: Job['status']) => {
     const updatedJob = {
       ...jobs.find(job => job.id === jobId)!,
       status: newStatus,
-      dateUpdated: new Date().toISOString(),
+      updatedAt: new Date(),
       flag: 'update' as const
     };
 
@@ -339,11 +407,25 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
   const addNewJob = async (newJob: Job) => {
     try {
+      const addNewJobToast = toast.loading("Adding new job...", {
+        duration: 5000
+      });
       const response = await srv_addJob(newJob);
+      addNewJobToast && toast.dismiss(addNewJobToast);
       if (!response) {
         throw new Error('Failed to add new job');
       }
-      setJobs([...jobs, response]);
+      if (!response.success) {
+        toast.error(response.error);
+        return;
+      }
+      // Add type guard to check if response.data is an array
+      if (Array.isArray(response.data)) {
+        setJobs([...jobs, ...response.data]);
+      } else if (response.data) {
+        // If it's a single job, add it as a single item
+        setJobs([...jobs, response.data as Job]);
+      }
       setIsModalOpen(false);
       toast.success("Job Added")
     } catch (error) {
@@ -355,63 +437,70 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
   const updateJobDetails = async (updatedJob: Job) => {
+    // Store the current state of jobs for potential rollback
+    const previousJobs = [...jobs];
+    
     try {
-      if (!updatedJob.id) {
-        await addNewJob(updatedJob);
-        return;
-      }
-
+      // Optimistically update the UI
+      setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJob : job));
+      
+      // Make the API call
       const response = await srv_updateJob(updatedJob);
-      if (!response) {
-        throw new Error('Failed to update job');
+      
+      if (response) {
+        // Update succeeded - show success toast
+        toast.success("Job updated successfully");
+        
+        // Update with the server response data
+        const updatedJobWithGeneratedContent: Job = {
+          ...response,
+          latestGeneratedResume: null,
+          latestGeneratedCoverLetter: null,
+          hunterCompanies: updatedJob.hunterCompanies  // Preserve Hunter data from the updated job
+        };
+        setJobs(jobs.map(job => job.id === updatedJob.id ? updatedJobWithGeneratedContent : job));
+      } else {
+        // Update failed - revert to previous state
+        setJobs(previousJobs);
+        toast.error("Failed to update the job. Changes have been reverted.");
       }
-
-      console.log("Updated job:", response);
-      setJobs(jobs.map(job => job.id === updatedJob.id ? response : job));
-      setIsModalOpen(false);
     } catch (error) {
+      // Error occurred - revert to previous state
+      setJobs(previousJobs);
       console.error('Error updating job:', error);
-      toast.error("Failed to update the job. Please try again.")
+      toast.error("Failed to update the job. Changes have been reverted.");
     }
   };
 
   const handleAIRecommendation = async (job: Job) => {
     // Create a loading toast that we can update later
     const loadingToast = toast.loading("Analyzing job application...", {
-      duration: Infinity // Keep the toast until we dismiss it
+      duration: 5000
     });
 
     try {
-      const response = await fetch('/api/genai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ job, action: 'ai-rating' }),
-      });
+      const response = await srv_createAIRating(job);
 
-      if (!response.ok) {
+      if (!response.success) {
         throw new Error('Failed to generate AI rating');
       }
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         // Update the job with AI rating data
         const updatedJob = {
           ...job,
           aiRated: true,
-          aiRating: data.data.aiRating,
-          aiNotes: data.data.aiNotes,
-          dateUpdated: new Date().toISOString()
+          aiRating: response.aiRating,
+          aiNotes: response.aiNotes,
+          updatedAt: new Date()
         };
 
-        await updateJobDetails(updatedJob);
+        await updateJobDetails(updatedJob as Job);
 
         // Update the loading toast with success message
-        toast.success(`Your application received a ${data.data.aiRating}/100 match score.`, {
-          id: loadingToast, // Update the existing toast then dismiss it after 5 seconds
-          duration: 5000
+        toast.success(`Your application received a ${response.aiRating}/100 match score.`, {
+          id: loadingToast, // Update the existing toast
+          duration: 5000, // Keep the toast for 5 seconds
         });
       }
     } catch (error) {
@@ -426,26 +515,19 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
   const filteredJobs = useMemo(() => {
-    // console.log("Filtering jobs with status:", statusFilter);
-    // console.log("Current jobs:", jobs);
-
+    const searchTermLower = searchTerm.toLowerCase();
     let filtered = jobs.filter(job => {
-      // Search term filter
-      const matchesSearch =
-        job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.position?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || 
+        job.company?.toLowerCase().includes(searchTermLower) ||
+        job.position?.toLowerCase().includes(searchTermLower) ||
+        job.jobDescription?.toLowerCase().includes(searchTermLower) ||
+        job.notes?.toLowerCase().includes(searchTermLower);
 
-      // Status filter
       let matchesStatus = true;
       if (statusFilter !== 'All') {
-        if (statusFilter === 'Archived') {
-          matchesStatus = !!job.isArchived;
-        } else {
-          matchesStatus = job.status === statusFilter && !job.isArchived;
-        }
+        matchesStatus = job.status === statusFilter;
       } else {
-        // When "All" is selected, show all non-archived jobs
-        matchesStatus = !job.isArchived;
+        matchesStatus = job.status !== JobStatus.ARCHIVED;
       }
 
       return matchesSearch && matchesStatus;
@@ -455,51 +537,34 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'rating_asc':
-          return a.aiRating - b.aiRating;
+          return (a.aiRating ?? 0) - (b.aiRating ?? 0);
         case 'rating_desc':
-          return b.aiRating - a.aiRating;
+          return (b.aiRating ?? 0) - (a.aiRating ?? 0);
         case 'newest':
-          return new Date(b.dateCreated || '').getTime() - new Date(a.dateCreated || '').getTime();
+          return b.createdAt.getTime() - a.createdAt.getTime();
         case 'oldest':
-          return new Date(a.dateCreated || '').getTime() - new Date(b.dateCreated || '').getTime();
+          return a.createdAt.getTime() - b.createdAt.getTime();
         case 'updated':
-          return new Date(b.dateUpdated || '').getTime() - new Date(a.dateUpdated || '').getTime();
+          return b.updatedAt.getTime() - a.updatedAt.getTime();
         case 'company':
           return (a.company || '').localeCompare(b.company || '');
         case 'status':
-          return jobStatuses.indexOf(a.status) - jobStatuses.indexOf(b.status);
+          return a.status.localeCompare(b.status);
         default:
           return 0;
       }
     });
   }, [jobs, searchTerm, statusFilter, sortBy]);
 
-  const fetchResumes = useCallback(async () => {
-    try {
-      const response = await fetch('/api/resumes');
-      if (response.ok) {
-        const data = await response.json();
-        setResumes(data);
-      }
-    } catch (error) {
-      console.error('Error fetching resumes:', error);
-    }
-  }, []);
-
-  const openNewJobModal = async () => {
-    await fetchResumes();
-    setIsModalOpen(true);
-  };
-
-
+  
 
   const sortedJobs = useMemo(() => {
     // console.log(filteredJobs);
     if (!sortState.column || !sortState.direction) return filteredJobs;
 
     return [...filteredJobs].sort((a, b) => {
-      const aVal = a[sortState.column!];
-      const bVal = b[sortState.column!];
+      const aVal = a[sortState.column as keyof Job];
+      const bVal = b[sortState.column as keyof Job];
 
       if (!aVal && !bVal) return 0;
       if (!aVal) return 1;
@@ -512,7 +577,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
   // Add this helper function to check for active jobs
   const hasActiveJobs = useMemo(() => {
-    return filteredJobs.some(job => !job.isArchived);
+    // return filteredJobs.some(job => job.status !== 'Archived');
+    return filteredJobs.length > 0;
   }, [filteredJobs]);
 
   // Return null or loading state during SSR
@@ -527,17 +593,22 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
     );
   }
 
+  
+
   // Update the onboarding completion handler
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     setShowConfetti(true);
     setShowWelcomeModal(true);
+    refreshResumes();
     // Remove confetti after 5 seconds
     setTimeout(() => setShowConfetti(false), 5000);
   };
 
+  // Check if the param celebrate is true
+
   return (
-    <>
+    <div className="dark:bg-gray-950">
       {showConfetti && (
         <ReactConfetti
           width={width}
@@ -547,7 +618,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           gravity={0.2}
         />
       )}
-
+      <ConfettiWrapper />
       {showOnboarding && (
         <OnboardingModal
           isOpen={showOnboarding}
@@ -601,21 +672,37 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
       <SignedOut>
         <SignedOutCallback />
       </SignedOut>
-      <div className="container mx-auto p-4">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+      <div className="container mx-auto p-4 dark:bg-gray-950">
+      {/* <SubscriptionStatus user={user as CompleteUserProfile} /> */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 mt-4">
           <div className="relative w-full sm:w-64">
             <Input
               type="text"
               placeholder="Search jobs..."
               value={searchTerm}
+              id="searchBox"
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           </div>
+          <div className="text-muted-foreground">
+            You have {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
+          </div>
           {/* Hide layout controls on mobile */}
           {!isMobile && (
             <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedJob(createEmptyJob(user?.id || '', resumes));
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-2"
+              >
+                Add New Job
+                <KeyboardShortcut text="N" />
+              </Button>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
@@ -624,9 +711,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                   <SelectItem value="All">All Statuses</SelectItem>
                   {jobStatuses.map(status => (
                     <SelectItem key={status} value={status}>
-                      {status === 'Archived'
-                        ? `${status} (${jobs.filter(job => job.isArchived === true).length})`
-                        : `${status} (${jobs.filter(job => job.status === status && !job.isArchived).length})`
+                      {status === JobStatus.ARCHIVED
+                        ? `${status} (${jobs.filter(job => job.status === JobStatus.ARCHIVED).length})`
+                        : `${status} (${jobs.filter(job => job.status === status).length})`
                       }
                     </SelectItem>
                   ))}
@@ -663,7 +750,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                       <Button
                         variant={layoutMode === 'list' ? 'default' : 'ghost'}
                         size="icon"
-                        onClick={() => setLayoutMode('list')}
+                        onClick={() => saveLayoutMode('list')}
                         className="h-8 w-8"
                       >
                         <LayoutList className="h-4 w-4" />
@@ -679,7 +766,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                       <Button
                         variant={layoutMode === 'masonry' ? 'default' : 'ghost'}
                         size="icon"
-                        onClick={() => setLayoutMode('masonry')}
+                        onClick={() => saveLayoutMode('masonry')}
                         className="h-8 w-8"
                       >
                         <LayoutGrid className="h-4 w-4" />
@@ -695,7 +782,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                       <Button
                         variant={layoutMode === 'table' ? 'default' : 'ghost'}
                         size="icon"
-                        onClick={() => setLayoutMode('table')}
+                        onClick={() => saveLayoutMode('table')}
                         className="h-8 w-8"
                       >
                         <Table2 className="h-4 w-4" />
@@ -720,7 +807,10 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                 Click the + button to add your first job application or click here to add your first job application.
 
               </p>
-              <Button onClick={openNewJobModal}>Add Your First Job Application</Button>
+              <Button onClick={() => {
+                setSelectedJob(createEmptyJob(user?.id || '', resumes));
+                setIsModalOpen(true);
+              }}><span className='flex items-center gap-2 mr-2' >Add Your First Job Application </span><KeyboardShortcut text="N" /></Button>
 
             </div>
           </div>
@@ -777,7 +867,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow >
                       {columnDefs
                         .filter(col => visibleColumns.has(col.id))
                         .map((col) => (
@@ -824,7 +914,9 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                   </TableHeader>
                   <TableBody>
                     {sortedJobs.map((job) => (
-                      <TableRow key={job.id}>
+                      <TableRow
+                        key={job.id || `job-${job.company}-${job.position}-${job.dateApplied}`}
+                      >
                         {columnDefs
                           .filter(col => visibleColumns.has(col.id))
                           .map((col) => (
@@ -833,8 +925,8 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                                 <Badge className={`${getStatusColor(job.status)}`}>
                                   {job.status}
                                 </Badge>
-                              ) : col.id === 'dateApplied' || col.id === 'dateUpdated' ? (
-                                job[col.id] ? format(new Date(job[col.id]!), 'PP') : 'N/A'
+                              ) : col.id === 'dateApplied' ? (
+                                job.dateApplied ? format(new Date(job.dateApplied)!, 'PP') : 'N/A'
                               ) : col.id === 'contactName' ? (
                                 <div className="flex flex-col">
                                   <span>{job.contactName || 'N/A'}</span>
@@ -845,7 +937,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                                   )}
                                 </div>
                               ) : (
-                                String(job[col.id] || 'N/A')
+                                String(job[col.id as keyof Job] || 'N/A')
                               )}
                             </TableCell>
                           ))}
@@ -862,13 +954,13 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                               value={job.status}
                               onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
                             >
-                              <SelectTrigger className="w-[130px]">
-                                <SelectValue>{job.status}</SelectValue>
+                              <SelectTrigger className={"w-[130px] " + getStatusColor(job.status)}>
+                                <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {jobStatuses.map((status) => (
                                   <SelectItem key={status} value={status}>
-                                    {status}
+                                    {jobStatusToLabel(status)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -890,7 +982,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id || `job-${job.company}-${job.position}`}
+                    key={job.id || `job-${job.company}-${job.position}-${job.dateApplied}-${Date.now()}`}
                     layout
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -898,7 +990,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                     transition={{ duration: 0.3 }}
                   >
                     <JobCard
-                      job={job}
+                      job={job as Job}
                       openJobDetails={openJobDetails}
                       handleKeyDown={handleKeyDown}
                       layoutMode={layoutMode}
@@ -915,19 +1007,20 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="grid gap-6"
+                className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6 [column-fill:_balance]"
                 style={{
-                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                  columnCount: columns,
                 }}
               >
                 {filteredJobs.map((job) => (
                   <motion.div
-                    key={job.id || `job-${job.company}-${job.position}`}
+                    key={job.id || `job-${job.company}-${job.position}-${job.dateApplied}-${Date.now()}`}
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3 }}
+                    className="break-inside-avoid-column"
                   >
                     <JobCard
                       job={job}
@@ -946,19 +1039,24 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
           </AnimatePresence>
         )}
 
-        <SteppedAddJobModal
+        <AddJobModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSubmit={addNewJob}
           resumes={resumes}
+          setResumes={setResumes}
+          user={user}
         />
 
-        <Button
+        {/* <Button
           className="fixed bottom-4 right-4 rounded-full w-12 h-12 text-2xl shadow-lg hover:shadow-xl transition-shadow"
-          onClick={openNewJobModal}
+          onClick={() => {
+            setSelectedJob(createEmptyJob(user?.id || '', resumes));
+            setIsModalOpen(true);
+          }}
         >
           +
-        </Button>
+        </Button> */}
 
         <ViewDetailsModal
           isOpen={isViewDetailsModalOpen}
@@ -973,43 +1071,35 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
 
 
       </div>
-    </>
+    </div>
   )
 }
 
-//#endregion
-
-//#region ============= Small Components =============
-const SignedOutCallback = () => {
-  useEffect(() => {
-    window.location.href = "/";
-  }, []);
-  return null;
-};
-
-
-
-// ============= Card Components =============
-
-// ============= Modal Components =============
-function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
+interface AddJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (job: Job) => void;
   resumes: { resumeId: string; fileUrl: string; fileName: string; }[];
-}) {
+  setResumes: (resumes: { resumeId: string; fileUrl: string; fileName: string; }[]) => void;
+  user: CompleteUserProfile | null;
+}
+
+function AddJobModal({ isOpen, onClose, onSubmit, resumes, setResumes, user }: AddJobModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<Partial<Job>>({
-    dateApplied: new Date().toISOString().split('T')[0],
-    status: JobStatus.YET_TO_APPLY,
-    company: '',
-    position: '',
-    website: '',
-    jobDescription: '',
-    resumeLink: '',
-    userId: '',
-    dateUpdated: new Date().toISOString()
-  });
+  const [formData, setFormData] = useState<Job>(() => createEmptyJob(user?.id || '', resumes));
+
+
+  const handleSubmit = () => {
+    if (!formData.company || !formData.position) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    onSubmit(formData);
+    setCurrentStep(0);
+    setFormData(createEmptyJob(user?.id || '', resumes));
+    onClose();
+  };
 
   const handleBack = () => {
     if (currentStep > 0) {
@@ -1018,19 +1108,6 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
   };
 
   const handleNext = () => {
-    const currentField = addJobSteps[currentStep].field;
-
-    // Special validation for company step
-    if (currentField === 'company' && !formData.company) {
-      toast.error("Please select a company from the suggestions");
-      return;
-    }
-
-    if (!formData[currentField]) {
-      toast.error(`Please fill in the ${addJobSteps[currentStep].title.toLowerCase()}`);
-      return;
-    }
-
     if (currentStep < addJobSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
@@ -1038,27 +1115,26 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
     }
   };
 
-  const handleSubmit = () => {
-    if (!formData.company || !formData.position) {
-      toast.error("Company name and position are required.");
-      return;
-    }
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if modal is not open
+      if (!isOpen) return;
 
-    onSubmit(formData as Job);
-    setCurrentStep(0);
-    setFormData({
-      dateApplied: new Date().toISOString().split('T')[0],
-      status: JobStatus.YET_TO_APPLY,
-      company: '',
-      position: '',
-      website: '',
-      jobDescription: '',
-      resumeLink: '',
-      userId: '',
-      dateUpdated: new Date().toISOString()
-    });
-    onClose();
-  };
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft' && currentStep > 0) {
+        e.preventDefault();
+        handleBack();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentStep, handleNext, handleBack, onClose]);
 
   const currentStepConfig = addJobSteps[currentStep];
 
@@ -1091,7 +1167,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     ...prev,
                     company: company.name,
                     website: `https://${company.domain}`,
-                    dateUpdated: new Date().toISOString()
+                    updatedAt: new Date()
                   }));
                 }}
                 onCustomInput={(companyName) => {
@@ -1099,7 +1175,7 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     ...prev,
                     company: companyName,
                     website: '', // Clear website when custom input
-                    dateUpdated: new Date().toISOString()
+                    updatedAt: new Date()
                   }));
                 }}
                 className="w-full p-2"
@@ -1127,7 +1203,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     onClick={handleBack}
                     className="w-full sm:w-1/2"
                   >
-                    Back
+                    <span className="flex items-center gap-2">
+                      Back <KeyboardShortcut text="left" />
+                    </span>
                   </Button>
                 ) : <div className="hidden sm:block sm:w-1/2" />}
 
@@ -1136,7 +1214,75 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   className="w-full sm:w-1/2"
                   disabled={!formData[currentStepConfig.field]}
                 >
-                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                  <span className="flex items-center gap-2">
+                    {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                    <KeyboardShortcut text="cmd + enter" />
+                  </span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : currentStepConfig.type === 'job-title' ? (
+          // Special layout for job title step
+          <div className="flex flex-col h-full">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl sm:text-2xl text-center sm:text-left">
+                {currentStepConfig.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="mt-4">
+              <JobTitleAutocomplete
+                placeholder={currentStepConfig.placeholder}
+                value={formData.position}
+                onTitleSelect={(title) => {
+                  // console.log(title);
+                  setFormData(prev => ({
+                    ...prev,
+                    position: title,
+                    updatedAt: new Date()
+                  }));
+                }}
+                className="w-full p-2"
+              />
+            </div>
+
+            <div className="mt-auto pt-4">
+              {/* Progress indicators */}
+              <div className="flex gap-1 justify-center mb-4">
+                {addJobSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 w-4 sm:w-8 rounded-full ${index === currentStep ? 'bg-blue-600' :
+                      index < currentStep ? 'bg-blue-200' : 'bg-gray-200'
+                      }`}
+                  />
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex flex-col sm:flex-row justify-between gap-2">
+                {currentStep > 0 ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="w-full sm:w-1/2"
+                  >
+                    <span className="flex items-center gap-2">
+                      Back <KeyboardShortcut text="left" />
+                    </span>
+                  </Button>
+                ) : <div className="hidden sm:block sm:w-1/2" />}
+
+                <Button
+                  onClick={handleNext}
+                  className="w-full sm:w-1/2"
+                  disabled={!formData[currentStepConfig.field]}
+                >
+                  <span className="flex items-center gap-2">
+                    {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                    <KeyboardShortcut text="cmd + enter" />
+                  </span>
                 </Button>
               </div>
             </div>
@@ -1152,12 +1298,23 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
 
             <div className="py-4">
               {currentStepConfig.type === 'textarea' ? (
-                <Textarea
-                  placeholder={currentStepConfig.placeholder}
-                  value={formData[currentStepConfig.field] as string || ''}
-                  onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
-                  className="min-h-[150px] sm:min-h-[200px] w-full"
-                />
+                // Click to paste button
+                <>
+                  <Button variant="outline" className="mb-2" onClick={() => {
+                    navigator.clipboard.readText().then(text => {
+                      setFormData({ ...formData, [currentStepConfig.field]: text });
+                    });
+                  }}>
+                    Click to paste from clipboard
+                  </Button>
+                  <Textarea
+                    placeholder={currentStepConfig.placeholder}
+                    value={formData[currentStepConfig.field] as string || ''}
+                    onChange={(e) => setFormData({ ...formData, [currentStepConfig.field]: e.target.value })}
+                    className="min-h-[150px] sm:min-h-[200px] w-full"
+                    autoFocus
+                  />
+                </>
               ) : currentStepConfig.type === 'resume-date' ? (
                 <div className="space-y-4 w-full">
                   <div>
@@ -1165,31 +1322,52 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     <Input
                       id="dateApplied"
                       type="date"
-                      value={formData.dateApplied || ''}
-                      onChange={(e) => setFormData({ ...formData, dateApplied: e.target.value })}
+                      value={formData.dateApplied?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setFormData({ ...formData, dateApplied: new Date(e.target.value), updatedAt: new Date(e.target.value) })}
                       required
                       className="w-full"
+                      max={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="resumeLink" className="block mb-2">Resume *</Label>
+                    <Label htmlFor="resumeUrl" className="block mb-2">Resume *</Label>
                     <Select
-                      value={formData.resumeLink}
-                      onValueChange={(value) => setFormData({ ...formData, resumeLink: value })}
+                      value={formData.resumeUrl || (resumes.length > 0 ? resumes[resumes.length - 1].fileUrl : 'No Resumes Uploaded')}
+                      onValueChange={(value) => setFormData({ ...formData, resumeUrl: value })}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a resume" />
                       </SelectTrigger>
                       <SelectContent className="max-h-[60vh] sm:max-h-[40vh]">
-                        {resumes.map((resume) => (
-                          <SelectItem key={resume.resumeId} value={resume.fileUrl}>
-                            {resume.fileName}
+                        {resumes.length > 0 ? (
+                          resumes.map((resume) => (
+                            <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                              {resume.fileName}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="No Resumes Uploaded" disabled>
+                            No Resumes Uploaded
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
+                    <UploadButton
+                      endpoint="pdfUploader"
+                      onClientUploadComplete={(data: any) => {
+                        setResumes([...resumes, { resumeId: data[0].key, fileUrl: data[0].url, fileName: data[0].name }]);
+                        formData.resumeUrl = data[0].url;
+                      }}
+                      onUploadError={(error: any) => {
+                        toast.error(`Error uploading resume: ${error.message}`);
+                      }}
+                      className="mt-2 ut-button:w-full ut-button:h-9 ut-button:bg-secondary ut-button:hover:bg-secondary/80 ut-button:text-secondary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
+                      appearance={{
+                        button: "Upload New Resume"
+                      }}
+                    />
                   </div>
-                </div>
+                </div>  
               ) : (
                 <Input
                   type={currentStepConfig.type}
@@ -1223,7 +1401,9 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                     onClick={handleBack}
                     className="w-full sm:w-1/2 order-2 sm:order-1"
                   >
-                    Back
+                    <span className="flex items-center gap-2">
+                      Back <KeyboardShortcut text="left" />
+                    </span>
                   </Button>
                 ) : <div className="hidden sm:block sm:w-1/2" />}
 
@@ -1232,7 +1412,10 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
                   className="w-full sm:w-1/2 order-1 sm:order-2"
                   disabled={!formData[currentStepConfig.field]}
                 >
-                  {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                  <span className="flex items-center gap-2">
+                    {currentStep === addJobSteps.length - 1 ? 'Add Job' : 'Next'}
+                    <KeyboardShortcut text="cmd + enter" />
+                  </span>
                 </Button>
               </div>
             </div>
@@ -1242,4 +1425,3 @@ function SteppedAddJobModal({ isOpen, onClose, onSubmit, resumes }: {
     </Dialog>
   );
 }
-

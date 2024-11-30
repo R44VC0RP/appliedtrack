@@ -2,10 +2,9 @@ export const siteConfig = {
     name: "AppliedTrack",
     description: "Track and manage your job applications with ease. Get insights, email lookup, and AI-powered tools to improve your job search.",
     url: "https://appliedtrack.com",
-    ogImage: "https://appliedtrack.com/opengraph-image",
+    ogImage: "https://utfs.io/f/HhaWmBOvDmlRdv7vTGE1lmh90YReZSJuQPWcK1abTVCwkojr",
     links: {
         twitter: "https://twitter.com/appliedtrack",
-        github: "https://github.com/appliedtrack"
     },
     keywords: [
         "job tracking",
@@ -20,11 +19,11 @@ export const siteConfig = {
     ],
     authors: [
         {
-            name: "AppliedTrack Team",
-            url: "https://appliedtrack.com",
+            name: "Ryan Vogel",
+            url: "https://theryanvogel.com",
         }
     ],
-    creator: "AppliedTrack",
+    creator: "Ryan Vogel",
     themeColor: [
         { media: "(prefers-color-scheme: light)", color: "white" },
         { media: "(prefers-color-scheme: dark)", color: "black" }

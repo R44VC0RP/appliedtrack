@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap, File, Sparkle, Mail, MailCheck } from 'lucide-react'
+import { Briefcase, Calendar, Search, Users, BarChart, Clock, Zap, File, Sparkle, Mail, MailCheck, Rocket } from 'lucide-react'
 import { Header } from '@/components/header'
 import dynamic from 'next/dynamic'
 import { FaRocket, FaChartLine, FaBrain } from 'react-icons/fa'
@@ -24,25 +24,29 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-
-
+import { homepageConfig } from '@/config/homepage'
+import { SignedIn, SignedOut, SignUp, SignUpButton, useSignUp } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 // Import Server Actions and Types
 import { srv_handleWaitlistSignup, srv_recordPageVisit, srv_getHomepageData } from '@/app/actions/server/homepage/primary'
-import { PricingTier } from '@/models/Config'
-
-
+import { srv_getServiceQuota } from '@/lib/tierlimits'
 
 const ReactPlayerNoSSR = dynamic(() => import('react-player'), { ssr: false })
 
 export default function Homepage() {
+  const { signUp, isLoaded } = useSignUp();
+  const router = useRouter();
   const [refItem, setRefItem] = useState<string | null>(null)
   const [homepageTest, setHomepageTest] = useState<string | null>("A")
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [dailySignups, setDailySignups] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
+  const [pricingTiers, setPricingTiers] = useState<any[] | null>(null)
+
+  const config = homepageConfig.isWaitlist ? homepageConfig.waitlistConfig : homepageConfig.signupConfig
+
   const particlesInit = useCallback(async (engine: Engine): Promise<void> => {
     await loadFull(engine)
   }, [])
@@ -69,32 +73,52 @@ export default function Homepage() {
     fetchPricingTiers()
   }, [])
 
-  const handleWaitlistSignup = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      if (!email) {
-        throw new Error('Email is required')
+      if (homepageConfig.isWaitlist) {
+        await srv_handleWaitlistSignup(email, refItem || '')
+        toast.success(config.successMessage)
+      } else {
+        if (!isLoaded) {
+          toast.error('Authentication is not ready yet')
+          return
+        }
+
+        try {
+          console.log("Starting sign-up process...");
+
+          // Start the sign-up process with email
+          const signUpAttempt = await signUp.create({
+            emailAddress: email,
+          });
+
+          console.log("Sign-up creation response:", signUpAttempt);
+
+          if (signUpAttempt.status !== "missing_requirements") {
+            console.error("Unexpected sign-up status:", signUpAttempt.status);
+            toast.error("Something went wrong during sign-up");
+            return;
+          }
+
+          // Start the email verification process
+          const verificationAttempt = await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+          console.log("Verification preparation response:", verificationAttempt);
+
+          // Redirect to the sign-up verification page
+          router.push('/sign-up/verify');
+
+          toast.success('Check your email for a verification code');
+        } catch (err: any) {
+          console.error('Error during signup:', err);
+          toast.error(err.errors?.[0]?.message || 'Failed to start sign-up process');
+        }
       }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
-        toast.error('Please enter a valid email address')
-        return
-      }
-
-      const response = await srv_handleWaitlistSignup(email, refItem || '')
-      setEmail('')
-
-      toast.success("Success!", {
-        description: response.message
-      })
-
-    } catch (err: any) {
-      toast.error(err.message.includes('already on our waitlist') ? "Notice" : "Error", {
-        description: err.message
-      })
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -105,7 +129,7 @@ export default function Homepage() {
       <Header />
       <main className="flex-1">
         {/* Particles Background */}
-        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary via-primary/90 to-primary/80 dark:from-gray-950 dark:via-gray-950/90 dark:to-gray-950/80 overflow-hidden">
+        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-primary dark:bg-gray-950 overflow-hidden">
           <Particles
             id="tsparticles"
             init={particlesInit}
@@ -175,9 +199,9 @@ export default function Homepage() {
               detectRetina: true,
             }}
           />
-          <div className="container relative mx-auto px-4 md:px-6 flex flex-col items-center text-center">
+          <div className="container relative mx-auto px-4 md:px-6 flex flex-col items-center text-center ">
             <div className="mb-6">
-              <span className="px-3 py-1 text-sm bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-full font-medium flex items-center gap-1">
+              <span className="px-3 py-1 text-sm bg-yellow-500 text-black rounded-full font-medium flex items-center gap-1">
                 <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
                 <span className="hidden md:inline">Beta Access</span>
                 <span className="md:hidden">Beta Soon</span>
@@ -186,7 +210,7 @@ export default function Homepage() {
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-white max-w-4xl">
               Your Job Search
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200">
+              <span className="text-yellow-300">
                 Supercharged and Simplified
               </span>
             </h1>
@@ -215,18 +239,21 @@ export default function Homepage() {
 
             {/* Waitlist Form */}
             <div className="w-full max-w-md mt-8">
-              <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleWaitlistSignup}>
-                <Input
-                  className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
-                  placeholder="Enter your email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <Button
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
+                <SignedOut>
+                  <Input
+                    className="flex-1 bg-white/90 dark:bg-gray-800/90 text-primary dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 border-gray-200 dark:border-gray-700 focus:ring-primary/20 dark:focus:ring-primary/40"
+                    placeholder="Enter your email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  {/* <Button
                   type="submit"
                   variant="secondary"
-                  className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black font-semibold"
+                  className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
+                  disabled={isSubmitting || !isLoaded}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
@@ -234,10 +261,34 @@ export default function Homepage() {
                       Joining...
                     </div>
                   ) : (
-                    'Join Waitlist'
+                    config.buttonText
                   )}
-                </Button>
+                </Button> */}
+                  <SignUpButton initialValues={{
+                    emailAddress: email,
+                  }}>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
+                    >
+                      {config.buttonText}
+
+                    </Button>
+                  </SignUpButton>
+                </SignedOut>
+
+
               </form>
+              <SignedIn>
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-semibold"
+                  onClick={() => router.push('/dashboard')}
+                >
+                  Jump to Dashboard <Rocket className="w-4 h-4 ml-2" />
+                </Button>
+              </SignedIn>
               <p className="text-xs md:text-sm text-gray-300 flex items-center justify-center gap-2 mt-2">
                 <span className="flex h-2 w-2 bg-green-400 rounded-full animate-pulse" />
                 {dailySignups ?? 35} people joined today
@@ -264,7 +315,7 @@ export default function Homepage() {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                 Features that Make the{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+                <span className="text-primary">
                   Difference
                 </span>
               </h2>
@@ -277,9 +328,9 @@ export default function Homepage() {
               {/* Smart Application Tracking */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white">
+                    <div className="p-3 rounded-xl bg-blue-500 text-white">
                       <Briefcase className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">Application Tracking</CardTitle>
@@ -294,9 +345,9 @@ export default function Homepage() {
               {/* Email Discovery */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                    <div className="p-3 rounded-xl bg-purple-500 text-white">
                       <File className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">ATS Optimized Resumes</CardTitle>
@@ -311,9 +362,9 @@ export default function Homepage() {
               {/* Resume Management */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                    <div className="p-3 rounded-xl bg-orange-500 text-white">
                       <BarChart className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">Personalized Cover Letters</CardTitle>
@@ -328,9 +379,9 @@ export default function Homepage() {
               {/* Cover Letter Generator */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                    <div className="p-3 rounded-xl bg-green-500 text-white">
                       <Sparkle className="w-6 h-6" />
                     </div>
                     <CardTitle className="dark:text-white">JobMatch&trade; Insights</CardTitle>
@@ -345,12 +396,12 @@ export default function Homepage() {
               {/* Follow-up Reminders */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+                    <div className="p-3 rounded-xl bg-yellow-500 text-white">
                       <MailCheck className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">InsightLink&trade; Contacts<br/><span className='text-xs text-gray-500'>Powered by Hunter.io</span></CardTitle>
+                    <CardTitle className="dark:text-white">InsightLink&trade; Contacts<br /><span className='text-xs text-gray-500'>Powered by Hunter.io</span></CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -362,12 +413,12 @@ export default function Homepage() {
               {/* ATS Review */}
               <Card className="relative group hover:shadow-lg transition-all duration-300 dark:bg-gray-950/50 dark:border-gray-800">
                 <CardHeader>
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-white">
+                    <div className="p-3 rounded-xl bg-teal-500 text-white">
                       <Calendar className="w-6 h-6" />
                     </div>
-                    <CardTitle className="dark:text-white">ATS Review<br/><span className='text-xs text-gray-500'>Coming Soon</span></CardTitle>
+                    <CardTitle className="dark:text-white">ATS Review<br /><span className='text-xs text-gray-500'>Coming Soon</span></CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -385,7 +436,7 @@ export default function Homepage() {
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
                 See AppliedTrack in{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+                <span className="text-primary">
                   Action
                 </span>
               </h2>
@@ -398,7 +449,7 @@ export default function Homepage() {
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-xl">
                 <div className="relative mx-auto max-w-[1200px]">
                   <div className="relative rounded-lg overflow-hidden border shadow-lg dark:border-gray-800">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-black/10 pointer-events-none" />
                     <ReactPlayerNoSSR
                       url="https://utfs.io/f/HhaWmBOvDmlROQ3xTvtchYsK8zZDAp4J1TSadIxoHBWQ7lPq"
                       width="100%"
@@ -428,7 +479,7 @@ export default function Homepage() {
           {/* Background decoration */}
           <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
           <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent dark:from-gray-900 dark:to-transparent" />
-          
+
           <div className="container relative mx-auto px-4 md:px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -444,7 +495,7 @@ export default function Homepage() {
                 Choose the Right Plan for You
               </h2>
               <div className="mt-6 flex items-center justify-center gap-2 max-w-2xl mx-auto mb-2">
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium">
                   <span className="hidden sm:inline"><Sparkles className="w-4 h-4" /></span>
                   Students save 50% with .edu email verification
                 </span>
@@ -464,17 +515,16 @@ export default function Homepage() {
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="relative"
                 >
-                  {tier.name === 'Pro' && (
-                    <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                      <span className="px-3 py-1 text-sm bg-gradient-to-r from-primary to-primary/80 text-white rounded-full font-medium">
+                  {/* {tier.name === 'Power' && (
+                    <div className="absolute -top-10 left-0 right-0 flex justify-center">
+                      <span className="px-3 py-1 text-sm bg-yellow-500 text-primary-foreground rounded-full font-medium dark:text-primary-foreground/90">
                         Most Popular
                       </span>
                     </div>
-                  )}
-                  
-                  <Card className={`h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 ${
-                    tier.name === 'Pro' ? 'border-primary shadow-lg scale-105' : ''
-                  }`}>
+                  )} */}
+
+                  <Card className={`h-full flex flex-col dark:bg-gray-900 ${tier.name === 'Power' ? 'border-yellow-500 shadow-lg scale-105' : ''
+                    }`}>
                     <CardHeader>
                       <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
                       <CardDescription className="flex items-baseline mt-4">
@@ -486,13 +536,95 @@ export default function Homepage() {
                     </CardHeader>
                     <CardContent className="flex-grow">
                       <ul className="space-y-4">
-                        {tier.features.map((feature, featureIndex) => (
+                        {tier.features.map((feature: string, featureIndex: number) => (
                           <li key={featureIndex} className="flex items-center space-x-3">
                             <CheckCircle2 className="w-5 h-5 text-primary" />
                             <span className="dark:text-gray-300">{feature}</span>
                           </li>
                         ))}
                       </ul>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="w-full py-24 bg-white dark:bg-gray-950 relative overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-grid-black/[0.02] dark:bg-grid-white/[0.02]" />
+          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white to-transparent dark:from-gray-950 dark:to-transparent" />
+
+          <div className="container relative mx-auto px-4 md:px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl font-bold tracking-tighter sm:text-5xl mb-4 dark:text-white">
+                Loved by Job Seekers
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+                See what our users are saying about their experience with AppliedTrack
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {[
+                {
+                  name: "Sarah Chen",
+                  role: "Software Engineer",
+                  company: "Recently hired at Microsoft",
+                  content: "AppliedTrack's AI-powered resume optimization helped me land interviews at top tech companies. The personalized insights were game-changing!",
+                  image: "https://d2pasa6bkzkrjd.cloudfront.net/_resize/consensus2024/speaker/300/site/consensus2024/images/userfiles/speakers/e344eea533f9623cc91fefd17a915b5d.jpg"
+                },
+                {
+                  name: "Michael Rodriguez",
+                  role: "Marketing Manager",
+                  company: "Landed role at HubSpot",
+                  content: "The automated cover letter generator saved me hours of time, and the quality was impressive. Each letter felt personal and tailored to the role.",
+                  image: "https://www.leehealth.org/getmedia/9671f1ff-2aaa-4856-a770-58588d4f7faf/Rodriquez-Michael-Psy-D_480x480.jpg?width=479&height=479&ext=.jpg"
+                },
+                {
+                  name: "Emily Thompson",
+                  role: "Product Manager",
+                  company: "Hired at Stripe",
+                  content: "The job matching insights helped me focus on roles where I had the best chance. Landed my dream job in half the time I expected!",
+                  image: "https://pbs.twimg.com/profile_images/1460356790131040258/e62OCGsm_400x400.jpg"
+                }
+              ].map((testimonial, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <Card className="h-full dark:bg-gray-900/50 dark:border-gray-800 relative overflow-hidden">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4 mb-4">
+                        <img
+                          src={testimonial.image}
+                          alt={testimonial.name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                        <div>
+                          <h3 className="font-semibold dark:text-white">{testimonial.name}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{testimonial.role}</p>
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                        <span className="flex gap-1">
+                        </span>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-300 italic">"{testimonial.content}"</p>
+                      <div className="mt-4 pt-4 border-t dark:border-gray-800">
+                        <p className="text-sm text-primary dark:text-primary/80">{testimonial.company}</p>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -512,7 +644,7 @@ export default function Homepage() {
                 Everything you need to know about AppliedTrack
               </p>
             </div>
-            
+
             <div className="max-w-3xl mx-auto">
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="item-1">
@@ -592,25 +724,25 @@ export default function Homepage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <span className="flex h-2 w-2 bg-green-500 rounded-full" />
-                    Current Quarter (Q2 2024)
+                    {`Current Quarter (Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()})`}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="text-left">
-                        Enhanced Job Search Integration
+                        Job Auto-Add with LinkedIn and Indeed
                       </AccordionTrigger>
                       <AccordionContent>
-                        Direct integration with major job boards and company career pages for seamless application tracking.
+                        Automatically add jobs from LinkedIn and Indeed to your dashboard for easy tracking.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="item-2">
                       <AccordionTrigger className="text-left">
-                        AI Resume Optimization
+                        Filtered Job Search
                       </AccordionTrigger>
                       <AccordionContent>
-                        Advanced AI-powered resume tailoring for specific job postings and improved ATS compatibility.
+                        Filter jobs by location, company, and more to find the perfect fit, also fiters out all the BS spam jobs.
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -623,25 +755,25 @@ export default function Homepage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <span className="flex h-2 w-2 bg-blue-500 rounded-full" />
-                    Next Quarter (Q3 2024)
+                    {`Next Quarter (Q${((Math.ceil((new Date().getMonth() + 1) / 3) + 1) % 4) || 4} ${new Date().getFullYear() + (Math.ceil((new Date().getMonth() + 1) / 3) + 1 > 4 ? 1 : 0)})`}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="text-left">
-                        Interview Preparation Tools
+                        Hiring Tools
                       </AccordionTrigger>
                       <AccordionContent>
-                        AI-powered interview practice sessions with industry-specific questions and feedback.
+                        Hiring tools to help you add potential candidates, that seem most suited for your open positions.
                       </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="item-2">
                       <AccordionTrigger className="text-left">
-                        Network Analytics
+                        Job Posting
                       </AccordionTrigger>
                       <AccordionContent>
-                        Advanced networking features with LinkedIn integration and connection tracking.
+                        Post Jobs directly to AppliedTrack, and track applications all in one place.
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -685,7 +817,7 @@ export default function Homepage() {
         {/* Footer */}
         <footer className="w-full py-6 border-t dark:border-gray-700">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between">
-            <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 AppliedTrack. All rights reserved.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">&copy; {new Date().getFullYear()} AppliedTrack. All rights reserved.</p>
             <nav className="flex gap-4 sm:gap-6 mt-4 sm:mt-0">
               <Link
                 href="/terms"

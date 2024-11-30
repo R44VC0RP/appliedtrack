@@ -6,6 +6,8 @@ import { UploadButton } from "@/utils/uploadthing";
 import { Progress } from "@/components/ui/progress";
 import { FileText, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { srv_updateUserOnboarding, srv_uploadBaselineResume } from '@/app/actions/server/job-board/primary';
+
 interface OnboardingModalProps {
   isOpen: boolean;
   onComplete: () => void;
@@ -15,32 +17,26 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const [bio, setBio] = useState('');
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [step, setStep] = useState(0);
+
   const minCharacters = 200;
 
-  const handleResumeUpload = async (res: any) => {
-    const uploadedFile = res[0];
-    try {
-      const response = await fetch('/api/resumes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileUrl: uploadedFile.url,
-          fileId: uploadedFile.key,
-          resumeId: "RESUME_" + uploadedFile.key,
-          fileName: uploadedFile.name,
-        }),
+  const handleUploadComplete = async (data: any) => {
+    if (data && data.length > 0) {
+      const success = await srv_uploadBaselineResume({
+        fileUrl: data[0].url,
+        fileName: data[0].name,
+        fileId: data[0].id
       });
 
-      if (!response.ok) throw new Error('Failed to save resume');
-      
-      setResumeUploaded(true);
-      toast.success("Resume uploaded");
-    } catch (error) {
-      console.error('Error saving resume:', error);
-      toast.error("Failed to upload resume. Please try again.");
+      if (success) {
+        toast.success('Resume uploaded successfully!');
+        // Move to the next step after successful upload
+        setStep(step + 1);
+        setResumeUploaded(true);
+      } else {
+        toast.error('Failed to upload resume. Please try again.');
+      }
     }
   };
 
@@ -49,19 +45,8 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
     
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/user', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          about: bio,
-          onBoardingComplete: true,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update user');
-
+      await srv_updateUserOnboarding(bio);
+      
       toast.success("Profile Complete! Thanks for completing your profile. You can now start tracking your job applications.");
       
       // Call the onComplete callback to close the modal
@@ -99,7 +84,7 @@ export function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
               ) : (
                 <UploadButton
                   endpoint="pdfUploader"
-                  onClientUploadComplete={handleResumeUpload}
+                  onClientUploadComplete={handleUploadComplete}
                   onUploadError={(error: Error) => {
                     console.error(error);
                     toast.error("Failed to upload resume. Please try again.");

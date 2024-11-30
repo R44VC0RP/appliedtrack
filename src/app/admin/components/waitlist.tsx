@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Server Actions
 import { srv_getWaitlist, srv_deleteWaitlistUser, srv_sendInvitation } from "@/app/actions/server/admin/waitlistmgmt/primary";
-import { WaitlistUser } from "@/models/WaitlistUser";
+import { type WaitlistUser } from "@prisma/client";
 
 export function Waitlist() {
   const [waitlistUsers, setWaitlistUsers] = useState<WaitlistUser[]>([]);

@@ -8,6 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser } from '@clerk/nextjs'
 import { AdminUsers } from './components/adminusers'
 import { Waitlist } from './components/waitlist'
+import { BackupManagement } from './components/backup-management'
+import { AdminStats } from './components/dashboard'
+import { ServiceUsage } from './components/service-usage'
 import logo from '@/app/logos/logo.png'
 import {
     Sidebar,
@@ -28,9 +31,12 @@ import {
     ShoppingCart,
     FileText,
     MessageSquare,
+    BarChart2,
     BarChart3,
     CreditCard,
-    MapIcon
+    MapIcon,
+    Activity,
+    Database
 } from 'lucide-react'
 import { ThemeControl } from '@/components/ui/themecontrol'
 import { Badge } from "@/components/ui/badge"
@@ -40,7 +46,7 @@ import { BillingDashboard } from './components/billing-dashboard'
 import { TierConfig } from './components/tier-config'
 import { CampaignManagement } from './components/campaign-management'
 import { LoggingDashboard } from './components/logging-dashboard'
-import { RoadMapPage} from './components/RoadMapPage'
+import { RoadMapPage } from './components/RoadMapPage'
 
 interface NavItem {
     title: string;
@@ -50,14 +56,29 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
+        title: "Dashboard",
+        icon: BarChart2,
+        component: () => <AdminStats />
+    },
+    {
         title: "User Management",
         icon: Users,
-        component: AdminUsers,
+        component: () => <AdminUsers />
     },
     {
         title: "Waitlist",
         icon: Users,
         component: Waitlist,
+    },
+    {
+        title: "Service Usage",
+        icon: Activity,
+        component: ServiceUsage,
+    },
+    {
+        title: "Backup Management",
+        icon: Database,
+        component: BackupManagement,
     },
     {
         title: "Billing & Subscriptions",
@@ -89,12 +110,12 @@ const navItems: NavItem[] = [
 export default function AdminDashboard() {
     const [activeComponent, setActiveComponent] = useState(() => {
         // Initialize from cookie or default to "User Management"
-        return Cookies.get('adminActiveComponent') || "User Management"
+        return Cookies.get('adminActiveComponent') || "Dashboard"
     })
-    const { user } = useUser()
+    const { user, isLoaded } = useUser()
 
     // If user is not signed in, redirect to home
-    if (!user) {
+    if (!user && isLoaded) {
         window.location.href = "/";
     }
 
@@ -104,7 +125,7 @@ export default function AdminDashboard() {
     }, [activeComponent])
 
     return (
-        <AdminOnly>
+        <AdminOnly fallback={<div>You are not authorized to access this page.</div>}>
             <SidebarProvider>
                 {/* <div className="grid grid-cols-[auto,1fr] h-screen"> */}
                 <div className="flex h-screen w-full">
@@ -146,7 +167,7 @@ export default function AdminDashboard() {
                             </div>
                         </SidebarFooter>
                     </Sidebar>
-                    
+
 
                     <div className="flex-1 overflow-auto">
                         <div className="w-full">
@@ -161,20 +182,25 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="h-full p-6">
-                            {navItems.map(item => (
-                                activeComponent === item.title && (
-                                    <div key={item.title} className="h-full w-full">
+                            <Tabs value={activeComponent}>
+                                <TabsList>
+                                    {navItems.map(item => (
+                                        <TabsTrigger key={item.title} value={item.title}>{item.title}</TabsTrigger>
+                                    ))}
+                                </TabsList>
+                                {navItems.map(item => (
+                                    <TabsContent key={item.title} value={item.title} className="space-y-4">
                                         <item.component />
-                                    </div>
-                                )
-                            ))}
+                                    </TabsContent>
+                                ))}
+                            </Tabs>
                         </div>
                     </div>
-                    
+
                 </div>
-                
+
             </SidebarProvider>
-            
+
         </AdminOnly>
     )
 }

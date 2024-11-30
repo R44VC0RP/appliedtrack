@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { IJob } from '@/models/Job';
+import { PDFViewerInline } from "@/components/pdf-viewer-modal";
+import { Job } from '@/app/types/job';
+import { JobStatus, RemoteType, JobType } from '@prisma/client';
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Check, Pencil } from "lucide-react";
@@ -17,61 +19,132 @@ import { Globe2 } from "lucide-react";
 import { LinkedInLogoIcon } from "@radix-ui/react-icons";
 import { Bot, Sparkles, FileText, Users } from "lucide-react";
 import JobTitleAutocomplete from "@/components/ui/job-title-autocomplete";
+import { srv_getJob, srv_getResumes, srv_uploadResume } from "../actions/server/job-board/primary";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UploadButton } from "@/utils/uploadthing";
+import { toast } from "sonner";
+import { jobStatusToLabel } from "./appliedtrack";
+import { devLog } from '@/lib/devLog';
 
-const getStatusColor = (status: string): string => {
+const getStatusColor = (status: JobStatus): string => {
     switch (status) {
-        case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-        case 'Applied': return 'bg-blue-100 text-blue-800'
-        case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-        case 'Interview': return 'bg-purple-100 text-purple-800'
-        case 'Offer': return 'bg-green-100 text-green-800'
-        case 'Rejected': return 'bg-red-100 text-red-800'
-        case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-        default: return 'bg-gray-100 text-gray-800'
+        case JobStatus.YET_TO_APPLY: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.APPLIED: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.PHONE_SCREEN: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        case JobStatus.INTERVIEW: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+        case JobStatus.OFFER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        case JobStatus.REJECTED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        case JobStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
 }
+
+function useClientMediaQuery(query: string): boolean {
+    const [matches, setMatches] = useState(false);
+    const [mounted, setMounted] = useState(false);
+  
+    useEffect(() => {
+      setMounted(true);
+      const mediaQuery = window.matchMedia(query);
+      setMatches(mediaQuery.matches);
+  
+      const listener = (e: MediaQueryListEvent) => {
+        setMatches(e.matches);
+      };
+  
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }, [query]);
+  
+    // Return false during SSR, actual value after mounting
+    return mounted ? matches : false;
+  }
 
 export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob, setIsModalOpen, updateJobDetails, activeTab: initialActiveTab, handleAIRecommendation }: {
     isOpen: boolean;
     onClose: () => void;
-    job: IJob | null;
-    setSelectedJob: React.Dispatch<React.SetStateAction<IJob | null>>;
+    job: Job | null;
+    setSelectedJob: React.Dispatch<React.SetStateAction<Job | null>>;
     setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    updateJobDetails: (job: IJob) => void;
-    activeTab?: 'details' | 'hunter';  // Add this type
-    handleAIRecommendation: (job: IJob) => void;
+    updateJobDetails: (job: Job) => void;
+    activeTab?: 'details' | 'hunter';  
+    handleAIRecommendation: (job: Job) => void;
 }) {
     const [activeTab, setActiveTab] = useState<'details' | 'hunter'>(initialActiveTab || 'details');
-    const [editingField, setEditingField] = useState<keyof IJob | null>(null);
+    const [editingField, setEditingField] = useState<keyof Job | null>(null);
     const [isJobDescriptionCollapsed, setIsJobDescriptionCollapsed] = useState<boolean>(true);
+    const [resumes, setResumes] = useState<Array<{ resumeId: string, fileUrl: string, fileName: string }>>([]);
+    const isMobile = useClientMediaQuery('(max-width: 640px)');
 
-    // Add this useEffect to update the selected job when the job prop changes
+    useEffect(() => {
+        const loadResumes = async () => {
+            try {
+                const userResumes = await srv_getResumes();
+                if (Array.isArray(userResumes)) {
+                    setResumes(userResumes.map(resume => ({
+                        resumeId: resume.id,
+                        fileUrl: resume.fileUrl,
+                        fileName: resume.fileName || 'Resume'
+                    })));
+                }
+            } catch (error) {
+                devLog.error('Failed to load resumes:', error);
+                toast.error('Failed to load resumes');
+            }
+        };
+        loadResumes();
+    }, []);
+
     useEffect(() => {
         if (job) {
             setSelectedJob(job);
         }
     }, [job, setSelectedJob]);
 
-    // Add a wrapper function for handleAIRecommendation
     const handleAIAnalysis = async () => {
         if (!job) return;
 
         await handleAIRecommendation(job);
-        // After AI recommendation is complete, fetch the latest job data
         try {
-            const response = await fetch(`/api/jobs/${job.id}`);
-            if (response.ok) {
-                const updatedJob = await response.json();
-                setSelectedJob(updatedJob);
-            }
+            const updatedJob = await srv_getJob(job.id || '');
+            setSelectedJob(updatedJob as Job);
         } catch (error) {
-            console.error('Error fetching updated job details:', error);
+            devLog.error('Error fetching updated job details:', error);
         }
+    };
+
+    const handleQuotaAction = async (action: () => Promise<any>) => {
+        try {
+            await action();
+            // Notify quota update after any quota-affecting action
+            window.dispatchEvent(new Event('quotaUpdate'));
+        } catch (error) {
+            devLog.error('Error in quota action:', error);
+            throw error;
+        }
+    };
+
+    const handleGenerateResume = async () => {
+        await handleQuotaAction(async () => {
+            // ... existing resume generation code ...
+        });
+    };
+
+    const handleGenerateCoverLetter = async () => {
+        await handleQuotaAction(async () => {
+            // ... existing cover letter generation code ...
+        });
+    };
+
+    const handleEmailSearch = async () => {
+        await handleQuotaAction(async () => {
+            // ... existing email search code ...
+        });
     };
 
     if (!job) return null;
 
-    const renderField = (label: string, value: string | number | undefined, field: keyof IJob) => {
+    const renderField = (label: string, value: string | number | undefined, field: keyof Job) => {
         const isEditing = editingField === field;
 
         return (
@@ -105,6 +178,57 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                             className="mt-1"
                             onBlur={() => setEditingField(null)}
                         />
+                    ) : field === 'resumeUrl' ? (
+                        <div className="space-y-2">
+                            <Select
+                                value={value?.toString() || ''}
+                                onValueChange={(value) => {
+                                    setSelectedJob(prev => prev ? { ...prev, resumeUrl: value } : null);
+                                    setEditingField(null);
+                                }}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select a resume" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[60vh] sm:max-h-[40vh]">
+                                    {resumes.map((resume) => (
+                                        <SelectItem key={resume.resumeId} value={resume.fileUrl}>
+                                            {resume.fileName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <UploadButton
+                                endpoint="pdfUploader"
+                                onClientUploadComplete={async (data: any) => {
+                                    try {
+                                        const uploadData = {
+                                            fileUrl: data[0].url,
+                                            fileId: data[0].key,
+                                            resumeId: data[0].key,
+                                            fileName: data[0].name
+                                        };
+                                        await srv_uploadResume(uploadData);
+                                        const newResume = { resumeId: data[0].key, fileUrl: data[0].url, fileName: data[0].name };
+                                        setResumes([...resumes, newResume]);
+                                        setSelectedJob(prev => prev ? { ...prev, resumeUrl: data[0].url } : null);
+                                        setEditingField(null);
+                                        toast.success('Resume uploaded successfully');
+                                    } catch (error) {
+                                        devLog.error('Error uploading resume:', error);
+                                        toast.error('Failed to upload resume');
+                                    }
+                                }}
+                                onUploadError={(error: any) => {
+                                    devLog.error('Upload error:', error);
+                                    toast.error(`Error uploading resume: ${error.message}`);
+                                }}
+                                className="mt-2 ut-button:w-full ut-button:h-9 ut-button:bg-secondary ut-button:hover:bg-secondary/80 ut-button:text-secondary-foreground ut-button:rounded-md ut-button:text-sm ut-button:font-medium ut-allowed-content:hidden"
+                                appearance={{
+                                    button: "Upload New Resume"
+                                }}
+                            />
+                        </div>
                     ) : (
                         <Input
                             value={value || ''}
@@ -127,7 +251,8 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
     };
 
     const renderHunterTab = () => {
-        if (!job.hunterData?.emails?.length) {
+        const hunterCompany = job.hunterCompanies?.[0];
+        if (!hunterCompany?.emails?.length) {
             return (
                 <div className="text-center py-8 text-gray-500">
                     No Hunter.io data available
@@ -137,18 +262,51 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
 
         return (
             <div className="space-y-6">
+                {/* Company Information */}
+                <Card className="p-4">
+                    <h3 className="text-lg font-semibold mb-4">Company Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        {hunterCompany.name && (
+                            <div>
+                                <Label>Company Name</Label>
+                                <p className="text-sm">{hunterCompany.name}</p>
+                            </div>
+                        )}
+                        {hunterCompany.domain && (
+                            <div>
+                                <Label>Domain</Label>
+                                <p className="text-sm font-mono">{hunterCompany.domain}</p>
+                            </div>
+                        )}
+                        {hunterCompany.industry && (
+                            <div>
+                                <Label>Industry</Label>
+                                <p className="text-sm">{hunterCompany.industry}</p>
+                            </div>
+                        )}
+                        {hunterCompany.type && (
+                            <div>
+                                <Label>Company Type</Label>
+                                <p className="text-sm">{hunterCompany.type}</p>
+                            </div>
+                        )}
+                    </div>
+                </Card>
+
+                {/* Email Pattern Section */}
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Email Pattern</h3>
-                    <Badge variant="secondary">{job.hunterData.pattern}</Badge>
+                    <Badge variant="secondary">{hunterCompany.pattern}</Badge>
                 </div>
 
+                {/* Email List Section */}
                 <div className="space-y-4">
-                    {job.hunterData.emails.map((email, index) => (
+                    {hunterCompany.emails.map((email, index) => (
                         <Card key={index} className="p-4">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h4 className="font-semibold">
-                                        {email.first_name} {email.last_name}
+                                        {email.firstName} {email.lastName}
                                     </h4>
                                     <p className="text-sm text-gray-600">{email.position}</p>
                                 </div>
@@ -158,14 +316,8 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                             <div className="mt-4 grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Email</Label>
-                                    <p className="text-sm font-mono">{email.value}</p>
+                                    <p className="text-sm font-mono">{email.email}</p>
                                 </div>
-                                {email.phone_number && (
-                                    <div>
-                                        <Label>Phone</Label>
-                                        <p className="text-sm">{email.phone_number}</p>
-                                    </div>
-                                )}
                                 {email.department && (
                                     <div>
                                         <Label>Department</Label>
@@ -194,6 +346,11 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                         <Button variant="outline" size="sm">Twitter</Button>
                                     </a>
                                 )}
+                                {email.facebook && (
+                                    <a href={`https://facebook.com/${email.facebook}`} target="_blank" rel="noopener noreferrer">
+                                        <Button variant="outline" size="sm">Facebook</Button>
+                                    </a>
+                                )}
                             </div>
                         </Card>
                     ))}
@@ -217,12 +374,12 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     <div className="flex flex-wrap items-center gap-2">
                                         <h2 className="text-base sm:text-lg text-muted-foreground">{job?.position}</h2>
                                         <Badge className={`${getStatusColor(job.status)}`}>
-                                            {job.status}
+                                            {jobStatusToLabel(job.status)}
                                         </Badge>
                                     </div>
                                 </div>
                                 <a
-                                    href={job.website}
+                                    href={job.website || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 whitespace-nowrap"
@@ -264,7 +421,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                     AI Recommendation
                                                     <Sparkles className="h-4 w-4 text-yellow-500" />
                                                 </h3>
-                                                <div className="text-xs sm:text-sm text-muted-foreground">
+                                                <div className="text-left text-xs sm:text-sm text-muted-foreground">
                                                     <p>Based on your profile and this job's requirements, you have a <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{job.aiRating}% match</span> for this position.</p>
                                                     {job.aiNotes && (
                                                         <div className="mt-2" dangerouslySetInnerHTML={{ __html: job.aiNotes }} />
@@ -292,7 +449,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     className="whitespace-nowrap flex-shrink-0"
                                 >
                                     <Users className="h-4 w-4 mr-2" />
-                                    Contacts Found
+                                    Contacts Found <Badge className="ml-2">{job.hunterCompanies?.[0]?.emails?.length || 0}</Badge>
                                 </Button>
                             </div>
                         </div>
@@ -339,7 +496,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                                 className="min-h-[200px]"
                                             />
                                         ) : (
-                                            <div className={`relative ${isJobDescriptionCollapsed ? 'max-h-[100px]' : 'max-h-none'} overflow-hidden`}>
+                                            <div className={`relative ${isJobDescriptionCollapsed ? 'max-h-[200px]' : 'max-h-none'} overflow-hidden`}>
                                                 <p className="text-sm whitespace-pre-wrap">{job.jobDescription}</p>
                                                 {isJobDescriptionCollapsed && job.jobDescription && job.jobDescription.length > 300 && (
                                                     <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
@@ -382,29 +539,52 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                     <Separator />
                                     <div className="space-y-2">
                                         <h4 className="font-semibold">Important Dates</h4>
-                                        {renderField("Interview Date", job.interviewDate, "interviewDate")}
-                                        {renderField("Date Applied", job.dateApplied, "dateApplied")}
+                                        {renderField("Interview Date", job.interviewDate?.toDateString(), "interviewDate")}
+                                        {renderField("Date Applied", job.dateApplied?.toDateString(), "dateApplied")}
                                     </div>
                                     <Separator />
                                     <div className="space-y-2">
                                         <h4 className="font-semibold">Documents</h4>
                                         <div className="space-y-4">
-                                            {job.resumeLink && (
-                                                <div>
-                                                    <Label className="font-semibold">Resume</Label>
-                                                    <embed src={job.resumeLink} type="application/pdf" width="100%" height="400px" />
-                                                </div>
-                                            )}
-                                            {job.coverLetterLink && (
+                                            <div>
+                                                {renderField("Resume", job.resumeUrl ? "Resume Uploaded" : "Resume Not Uploaded", "resumeUrl")}
+                                                {job.resumeUrl && (
+                                                    <>
+                                                    {!isMobile ? (
+                                                        <PDFViewerInline fileUrl={job.resumeUrl} fileName="resume.pdf" />
+                                                    ) : (
+                                                        <Button 
+                                                            variant="outline" 
+                                                            className="w-full mt-2"
+                                                            onClick={() => window.open(job.resumeUrl || '', '_blank')}
+                                                        >
+                                                            View Resume
+                                                        </Button>
+                                                    )}
+                                                    </>
+                                                )}
+                                            </div>
+                                            {job.latestGeneratedCoverLetter && (
                                                 <div>
                                                     <Label className="font-semibold">Cover Letter</Label>
-                                                    <embed src={job.coverLetterLink} type="application/pdf" width="100%" height="400px" />
+                                                    {!isMobile ? (
+                                                        <embed src={job.latestGeneratedCoverLetter.coverLetterMarkdown} type="application/pdf" width="100%" height="400px" />
+                                                    ) : (
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full mt-2"
+                                                            onClick={() => window.open(job.latestGeneratedCoverLetter?.coverLetterMarkdown || '', '_blank')}
+                                                        >
+                                                            View Cover Letter
+                                                        </Button>
+                                                        
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                     <Separator />
-                                    <div className="space-y-4">
+                                    {/* <div className="space-y-4">
                                         <h4 className="font-semibold">Additional Details</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             {renderField("Salary", job.salary, "salary")}
@@ -412,7 +592,7 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
                                             {renderField("Remote Type", job.remoteType, "remoteType")}
                                             {renderField("Job Type", job.jobType, "jobType")}
                                         </div>
-                                    </div>
+                                    </div> */}
                                 </div>
                             ) : (
                                 <div className="p-3 sm:p-6">
@@ -448,4 +628,3 @@ export default function ViewDetailsModal({ isOpen, onClose, job, setSelectedJob,
         </Dialog>
     );
 }
-

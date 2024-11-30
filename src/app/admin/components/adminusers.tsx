@@ -39,7 +39,7 @@ export function AdminUsers() {
     }
   };
 
-  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string, onBoardingComplete?: boolean }) => {
+  const handleUserUpdate = async (userId: string, updates: { role?: string, tier?: string, onboardingComplete?: boolean }) => {
     if (isLocked) return;
 
     try {
@@ -202,8 +202,8 @@ export function AdminUsers() {
                     </TableCell>
                     <TableCell>
                       <Select
-                        defaultValue={user.onBoardingComplete.toString()}
-                        onValueChange={(value) => handleUserUpdate(user.id, { onBoardingComplete: value === 'true' })}
+                        defaultValue={user.onboardingComplete.toString()}
+                        onValueChange={(value) => handleUserUpdate(user.id, { onboardingComplete: value === 'true' })}
                         disabled={user.isUpdating || isLocked}
                       >
                         <SelectTrigger className="w-32">
@@ -216,10 +216,10 @@ export function AdminUsers() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      {new Date(user.lastSignInAt || '').toLocaleDateString()}
+                      {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString() : 'Never'}
                     </TableCell>
                     <TableCell>
-                      {new Date(user.dateCreated).toLocaleDateString()}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" disabled={isLocked}>

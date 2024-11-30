@@ -7,14 +7,11 @@
     - Delete a user from the waitlist
 */
 
-import { WaitlistUser } from "@/models/WaitlistUser";
-import { WaitlistUserModel } from "@/models/WaitlistUser";
-import dbConnect from "@/lib/mongodb";
-import { plain } from "@/lib/plain";
 import { Logger } from "@/lib/logger";
 import { srv_authAdminUser } from "@/lib/useUser";
+import { prisma } from "@/lib/prisma";
 
-export async function srv_getWaitlist(): Promise<WaitlistUser[]> {
+export async function srv_getWaitlist(): Promise<any[]> {
     try {
         const authAdminUser = await srv_authAdminUser();
         if (!authAdminUser) {
@@ -23,9 +20,14 @@ export async function srv_getWaitlist(): Promise<WaitlistUser[]> {
             });
             throw new Error('Forbidden');
         }
-        await dbConnect();
-        const waitlist = await WaitlistUserModel.find();
-        return plain(waitlist);
+
+        const waitlist = await prisma.waitlistUser.findMany({
+            orderBy: {
+                dateSignedUp: 'desc'
+            }
+        });
+
+        return waitlist;
     } catch (error) {
         await Logger.error('Failed to fetch waitlist data', {
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -35,7 +37,7 @@ export async function srv_getWaitlist(): Promise<WaitlistUser[]> {
     }
 }
 
-export async function srv_deleteWaitlistUser(email: string): Promise<WaitlistUser[]> {
+export async function srv_deleteWaitlistUser(email: string): Promise<any[]> {
     try {
         const authAdminUser = await srv_authAdminUser();
         if (!authAdminUser) {
@@ -44,10 +46,14 @@ export async function srv_deleteWaitlistUser(email: string): Promise<WaitlistUse
             });
             throw new Error('Forbidden');
         }
-        await dbConnect();
-        await WaitlistUserModel.findOneAndDelete({ email: email });
-        const result = await srv_getWaitlist();
-        return plain(result);
+
+        await prisma.waitlistUser.delete({
+            where: {
+                email: email
+            }
+        });
+
+        return srv_getWaitlist();
     } catch (error) {
         await Logger.error('Failed to delete waitlist data', {
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -57,7 +63,7 @@ export async function srv_deleteWaitlistUser(email: string): Promise<WaitlistUse
     }
 }
 
-export async function srv_sendInvitation(email: string): Promise<WaitlistUser[]> {
+export async function srv_sendInvitation(email: string): Promise<any[]> {
     try {
         const authAdminUser = await srv_authAdminUser();
         if (!authAdminUser) {
@@ -66,10 +72,17 @@ export async function srv_sendInvitation(email: string): Promise<WaitlistUser[]>
             });
             throw new Error('Forbidden');
         }
-        await dbConnect();
-        await WaitlistUserModel.findOneAndUpdate({ email: email }, { $set: { isNotified: true } });
-        const result = await srv_getWaitlist();
-        return plain(result);
+
+        await prisma.waitlistUser.update({
+            where: {
+                email: email
+            },
+            data: {
+                isNotified: true
+            }
+        });
+
+        return srv_getWaitlist();
     } catch (error) {
         await Logger.error('Failed to send invitation', {
             error: error instanceof Error ? error.message : 'Unknown error',

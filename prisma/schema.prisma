@@ -1,0 +1,381 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String          @id @default(uuid())
+  tier               UserTier        @default(free)
+  role               UserRole        @default(user)
+  about              String?         @db.Text
+  onboardingComplete Boolean         @default(false)
+  stripeCustomerId   String?         @unique
+  subscriptionId     String?
+  subscriptionStatus String?
+  cancelAtPeriodEnd  Boolean?
+  currentPeriodEnd   DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  hunterCompanies    HunterCompany[]
+  jobs               Job[]
+  notifications      Notification[]
+  roadmaps           RoadmapItem[]
+  userQuota          UserQuota?
+  resumes            Resume[]
+  serviceUsage       ServiceUsage[]
+
+  @@index([id])
+  @@index([stripeCustomerId])
+}
+
+model Job {
+  id                    String                 @id @default(uuid())
+  userId                String
+  company               String
+  position              String
+  status                JobStatus
+  website               String?
+  jobDescription        String?                @db.Text
+  dateApplied           DateTime?
+  notes                 String?                @db.Text
+  contactName           String?
+  contactEmail          String?
+  contactPhone          String?
+  interviewDate         DateTime?
+  salary                Decimal?               @db.Decimal(10, 2)
+  location              String?
+  remoteType            RemoteType?
+  jobType               JobType?
+  flag                  String?
+  aiRated               Boolean                @default(false)
+  aiNotes               String?                @db.Text
+  aiRating              Int?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  resumeUrl             String?
+  generatedCoverLetters GeneratedCoverLetter[]
+  generatedResumes      GeneratedResume[]
+  hunterCompanies       HunterCompany[]
+  user                  User                   @relation(fields: [userId], references: [id])
+
+
+  @@index([userId])
+  @@index([company])
+  @@index([status])
+}
+
+
+
+model GeneratedResume {
+  id             String   @id @default(uuid())
+  userId         String
+  jobId          String
+  resumeMarkdown String   @db.Text
+  resumeVersion  Decimal  @default(1.000000000000000000000000000000)
+  resumePdfUrl   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  job            Job      @relation(fields: [jobId], references: [id])
+
+  @@index([userId])
+  @@index([jobId], map: "GeneratedResume_jobId_fkey")
+}
+
+model GeneratedCoverLetter {
+  id                  String   @id @default(uuid())
+  userId              String
+  jobId               String
+  coverLetterMarkdown String   @db.Text
+  coverLetterVersion  Decimal  @default(1.000000000000000000000000000000)
+  coverLetterPdfUrl   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  job                 Job      @relation(fields: [jobId], references: [id])
+
+  @@index([userId])
+  @@index([jobId], map: "GeneratedCoverLetter_jobId_fkey")
+}
+
+model UserQuota {
+  id                     String              @id @default(uuid())
+  userId                 String              @unique
+  quotaResetDate         DateTime
+  stripeCurrentPeriodEnd DateTime?
+  dateCreated            DateTime            @default(now())
+  dateUpdated            DateTime            @updatedAt
+  quotaUsage             QuotaUsage[]
+  notifications          QuotaNotification[]
+  user                   User                @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model QuotaUsage {
+  id          String    @id @default(uuid())
+  userQuotaId String
+  quotaKey    String
+  usageCount  Int       @default(0)
+  dateCreated DateTime  @default(now())
+  dateUpdated DateTime  @updatedAt
+  userQuota   UserQuota @relation(fields: [userQuotaId], references: [id])
+
+  @@unique([userQuotaId, quotaKey])
+}
+
+model QuotaNotification {
+  id           String    @id @default(uuid())
+  userQuotaId  String
+  type         String // 'warning' or 'exceeded'
+  quotaKey     String
+  currentUsage Int
+  limit        Int
+  message      String
+  dateCreated  DateTime  @default(now())
+  userQuota    UserQuota @relation(fields: [userQuotaId], references: [id])
+
+  @@index([userQuotaId])
+}
+
+model Config {
+  id          String   @id @default(uuid())
+  tierLimits  Json // Stores tier limits as nested JSON: { tier: { serviceKey: { limit: number, description?: string } } }
+  services    Json // Stores services config as JSON: { key: { name: string, description: string, active: boolean } }
+  dateCreated DateTime @default(now())
+  dateUpdated DateTime @updatedAt
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  name        String
+  ref         String   @unique
+  description String?
+  visits      Int      @default(0)
+  signups     Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ref])
+}
+
+model WaitlistUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  campaignRef  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  dateSignedUp DateTime @default(now())
+  isNotified   Boolean  @default(false)
+  source       String   @default("website")
+
+  @@index([email])
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  type      NotificationType
+  status    NotificationStatus @default(UNREAD)
+  title     String
+  message   String             @db.Text
+  link      String?
+  metadata  Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model HunterCompany {
+  id        String        @id @default(uuid())
+  userId    String
+  pattern   String        @default("")
+  jobId     String
+  domain    String
+  name      String?
+  industry  String?
+  type      String?
+  country   String?
+  locality  String?
+  employees Int?
+  linkedin  String?
+  twitter   String?
+  facebook  String?
+  metadata  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  job       Job           @relation(fields: [jobId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+  emails    HunterEmail[]
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([domain])
+}
+
+model HunterEmail {
+  id            String        @id @default(uuid())
+  companyId     String
+  email         String
+  firstName     String?
+  lastName      String?
+  position      String?
+  seniority     String?
+  department    String?
+  linkedin      String?
+  twitter       String?
+  facebook      String?
+  confidence    Int?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  hunterCompany HunterCompany @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([email])
+}
+
+model RoadmapItem {
+  id          String        @id @default(uuid())
+  title       String
+  description String        @db.Text
+  status      RoadmapStatus @map("status")
+  dateCreated DateTime      @default(now())
+  dateUpdated DateTime      @updatedAt
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "RoadmapItemI_userId_fkey")
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  level     LogLevel
+  action    String
+  userId    String?
+  details   Json?
+  metadata  Json?
+  timestamp DateTime @default(now())
+  service   String
+  ip        String?
+
+  @@index([action])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([service])
+}
+
+model WebhookEvent {
+  id           String   @id @default(uuid())
+  eventId      String   @unique
+  type         String
+  processed    Boolean  @default(false)
+  lastAttempt  DateTime
+  retryCount   Int
+  metadata     Json
+
+  @@index([id])
+  @@index([eventId])
+}
+
+model Resume {
+  id          String   @id @default(uuid())
+  userId      String
+  fileUrl     String   @db.Text
+  fileId      String   @unique
+  fileName    String
+  resumeId    String   @unique
+  dateCreated DateTime @default(now())
+  dateUpdated DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model ServiceUsage {
+  id        String      @id @default(uuid())
+  userId    String
+  service   ServiceType
+  metadata  Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([service])
+  @@index([createdAt])
+}
+
+enum JobStatus {
+  YET_TO_APPLY
+  APPLIED
+  PHONE_SCREEN
+  INTERVIEW
+  OFFER
+  REJECTED
+  ACCEPTED
+  ARCHIVED
+}
+
+enum UserTier {
+  free
+  pro
+  power
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum RemoteType {
+  onsite
+  remote
+  hybrid
+}
+
+enum JobType {
+  full_time
+  part_time
+  contract
+  internship
+}
+
+enum NotificationType {
+  JOB_STATUS_CHANGE
+  QUOTA_WARNING
+  QUOTA_EXCEEDED
+  RESUME_GENERATED
+  COVER_LETTER_GENERATED
+  HUNTER_DATA_READY
+  SYSTEM_UPDATE
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum RoadmapStatus {
+  not_started @map("not-started")
+  in_progress @map("in-progress")
+  completed
+}
+
+enum LogLevel {
+  info
+  warning
+  error
+}
+
+enum ServiceType {
+  OPENAI
+  HUNTER
+}

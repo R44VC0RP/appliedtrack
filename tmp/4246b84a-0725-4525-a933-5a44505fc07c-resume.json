@@ -1,0 +1,63 @@
+{
+  "basics": {
+    "name": "Ryan Vogel",
+    "email": "jobs@theryanvogel.com",
+    "phone": "+1(904)6086893",
+    "summary": "Passionate IT student with a strong foundation in technology and business. Experienced in systems administration, software development, and technical support. Proven track record of managing complex IT systems and developing innovative tech solutions.",
+    "location": {
+      "city": "Jacksonville",
+      "countryCode": "US",
+      "region": "FL"
+    }
+  },
+  "work": [
+    {
+      "name": "City of Neptune Beach",
+      "position": "Systems Administrator",
+      "url": "http://www.ci.neptune-beach.fl.us",
+      "startDate": "2023-06",
+      "summary": "Managed and maintained a Windows Active Directory-based network, ensuring optimal performance and security. Developed internal applications to enhance employee productivity and managed a multi-million dollar IT budget.",
+      "highlights": [
+        "Implemented a disaster recovery solution using Veeam platform.",
+        "Managed virtualization platforms including Hyper-V, ESXI, and Nutanix."
+      ]
+    },
+    {
+      "name": "Mandarin 3D Prints - Exon Enterprise",
+      "position": "Founder and Developer",
+      "startDate": "2023-10",
+      "summary": "Founded and developed Mandarin 3D Prints, achieving significant sales and customer satisfaction. Developed a state-of-the-art instant slicing engine and implemented effective marketing strategies.",
+      "highlights": [
+        "Grew sales over $20,000 in the first year with a 100% customer satisfaction rating.",
+        "Increased brand visibility and sales through strategic partnerships and influencer collaborations."
+      ]
+    },
+    {
+      "name": "Best Buy | Geek Squad",
+      "position": "Advanced Repair Agent",
+      "startDate": "2023-01",
+      "endDate": "2023-06",
+      "summary": "Diagnosed and repaired complex hardware and software issues, achieving high customer satisfaction and reducing return rates.",
+      "highlights": [
+        "Reduced return rates by 25% and achieved a 95% customer satisfaction rating."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of North Florida",
+      "url": "http://www.unf.edu",
+      "area": "Information Technology",
+      "studyType": "Bachelor of Technology",
+      "startDate": "2022",
+      "endDate": "2026"
+    }
+  ],
+  "projects": [
+    {
+      "name": "AppliedTrack",
+      "startDate": "2024-09",
+      "description": "Designed and developed a job application management platform, enhancing job search efficiency and user engagement."
+    }
+  ]
+}

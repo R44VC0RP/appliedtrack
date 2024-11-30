@@ -1,33 +1,36 @@
 'use client'
 
 import React from 'react';
-import { IJob as Job } from '@/models/Job';
+import { Job, GeneratedResumeWithStatus, GeneratedCoverLetterWithStatus } from '../types/job';
+import { JobStatus, RemoteType } from '@prisma/client';
 import hunterLogo from '@/app/logos/hunter.png'
 import Image from 'next/image'
-import { User } from '@/models/User';
+import { User } from '@prisma/client';
 import { useState, useEffect } from 'react';
 import { toast } from "sonner"
-import { useClientMediaQuery } from './appliedtrack';
+import { jobStatusToLabel, useClientMediaQuery } from './appliedtrack';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil, FileText, Archive } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { TooltipProvider, Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { Dispatch, SetStateAction } from 'react';
 import { Loader2, Download, CheckCircle2, AlertCircle, Sparkles, Clock, Calendar } from 'lucide-react';
 import { FaSync } from 'react-icons/fa';
-import { JobStatus } from '@/models/Job';
 import { AlertDialogTrigger, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { srv_archiveJob, srv_hunterDomainSearch, srv_getJob } from '../actions/server/job-board/primary';
+import { ImageWithFallback } from '@/components/ui/clearbit';
+import { devLog } from '@/lib/devLog';
+import { srv_generateGPTResume, srv_markdownCoverLetterToPDF, srv_generateGPTCoverLetter, srv_markdownResumeToPDF } from '@/lib/genai/useGenAI';
 
-const hunterCategories: { value: HunterCategory; label: string }[] = [
+const hunterCategories: { value: string; label: string }[] = [
     { value: 'executive', label: 'Executive' },
     { value: 'it', label: 'IT' },
     { value: 'finance', label: 'Finance' },
@@ -55,18 +58,18 @@ const getFlagIcon = (flag: string) => {
     }
 }
 
-type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
+// type HunterCategory = 'executive' | 'it' | 'finance' | 'management' | 'sales' | 'legal' | 'support' | 'hr' | 'marketing' | 'communication' | 'education' | 'design' | 'health' | 'operations';
 
 const getStatusColor = (status: string): string => {
     switch (status) {
-        case 'Yet to Apply': return 'bg-blue-100 text-blue-800'
-        case 'Applied': return 'bg-blue-100 text-blue-800'
-        case 'Phone Screen': return 'bg-yellow-100 text-yellow-800'
-        case 'Interview': return 'bg-purple-100 text-purple-800'
-        case 'Offer': return 'bg-green-100 text-green-800'
-        case 'Rejected': return 'bg-red-100 text-red-800'
-        case 'Accepted': return 'bg-emerald-100 text-emerald-800'
-        default: return 'bg-gray-100 text-gray-800'
+        case JobStatus.YET_TO_APPLY: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.APPLIED: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+        case JobStatus.PHONE_SCREEN: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        case JobStatus.INTERVIEW: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+        case JobStatus.OFFER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        case JobStatus.REJECTED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        case JobStatus.ACCEPTED: return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
 }
 
@@ -77,29 +80,32 @@ const generateResume = async (
     setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
     updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
-    try {
-        const response = await fetch('/api/genai', {
-            method: 'POST',
-            body: JSON.stringify({ job, action: 'resume' }),
-        });
+    // try {
+    //     // const response = await fetch('/api/genai', {
+    //     //     method: 'POST',
+    //     //     body: JSON.stringify({ job, action: 'resume' }),
+    //     // });
 
-        const data = await response.json();
+    //     const response = await srv_generateResume(job);
 
-        if (data.success) {
-            // Update job with generated resume
-            await updateJobDetails({
-                ...job,
-                resumeGenerated: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
-            });
+    //     // const data = await response.json();
 
-            toast.success("Resume generated successfully");
+    //     if (response.success) {
+    //         // Update job with generated resume
+    //         await updateJobDetails({
+    //             ...job,
+    //             resumeGenerated: { url: response.pdfUrl || '', status: 'ready', dateGenerated: new Date().toISOString() }
+    //         });
 
-            setIsGenerating("ready");
-        }
-    } catch (error) {
-        console.error('Error generating resume:', error);
-        setIsGenerating("failed");
-    }
+    //         toast.success("Resume generated successfully");
+
+    //         setIsGenerating("ready");
+    //     }
+    // } catch (error) {
+    //     console.error('Error generating resume:', error);
+    //     setIsGenerating("failed");
+    // }
+    alert("Feature coming soon")
 };
 
 const generateCoverLetter = async (
@@ -107,112 +113,109 @@ const generateCoverLetter = async (
     setIsGenerating: Dispatch<SetStateAction<"generating" | "ready" | "failed" | "not_started">>,
     updateJobDetails: (updatedJob: Job) => Promise<void>
 ) => {
-    try {
-        const response = await fetch('/api/genai', {
-            method: 'POST',
-            body: JSON.stringify({ job, action: 'cover-letter' }),
-        });
+    // try {
+    //     const response = await fetch('/api/genai', {
+    //         method: 'POST',
+    //         body: JSON.stringify({ job, action: 'cover-letter' }),
+    //     });
 
-        const data = await response.json();
+    //     const data = await response.json();
 
-        if (data.success) {
-            // Update to match the server's expected structure
-            // const response_update = await fetch(`/api/jobs`, {
-            //   method: 'PUT',
-            //   headers: {
-            //     'Content-Type': 'application/json'
-            //   },
-            //   body: JSON.stringify({
-            //     id: job.id,
-            //     coverLetter: {
-            //       url: data.data.pdfUrl,  // This is what we receive from genai
-            //       status: 'ready',
-            //       dateGenerated: new Date().toISOString(),
-            //       dateUpdated: new Date().toISOString()  // Add this to track updates
-            //     }
-            //   }),
-            // });
+    //     if (data.success) {
+    //         // Update the local job with cover letter data
+    //         await updateJobDetails({
+    //             ...job,
+    //             coverLetter: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
+    //         });
 
-            // Update the local job with cover letter data
-            await updateJobDetails({
-                ...job,
-                coverLetter: { url: data.data.pdfUrl, status: 'ready', dateGenerated: new Date().toISOString() }
-            });
+    //         toast.success("Cover letter generated successfully");
 
-            toast.success("Cover letter generated successfully");
-
-            setIsGenerating("ready");
-        }
-    } catch (error) {
-        console.error('Error generating cover letter:', error);
-        setIsGenerating("failed");
-    }
+    //         setIsGenerating("ready");
+    //     }
+    // } catch (error) {
+    //     console.error('Error generating cover letter:', error);
+    //     setIsGenerating("failed");
+    // }
+    alert("Feature coming soon")
 };
 
 const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
     const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
-        job.resumeGenerated?.status || "not_started"
+        job.latestGeneratedResume ? "ready" : "not_started"
     );
+    const [isLoading, setIsLoading] = useState(false);
+    const [resumeId, setResumeId] = useState(job.latestGeneratedResume?.id);
 
+    const handleViewResume = async () => {
+        setIsLoading(true);
+        try {
+            const pdfUrl = await srv_markdownResumeToPDF(resumeId || '');
+            window.open(pdfUrl, '_blank');
+        } catch (error) {
+            toast.error("Error loading resume");
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
+    const handleGenerateResume = async () => {
+        setIsGenerating("generating");
+        try {
+            const result = await srv_generateGPTResume(job);
+            if (result?.success) {
+                // Fetch the updated job to get the new generated resume
+                const updatedJob = await srv_getJob(job.id);
+                if (updatedJob) {
+                    setResumeId(result.resumeId);
+                    await updateJobDetails(updatedJob as Job);
+                    setIsGenerating("ready");
+                    window.dispatchEvent(new Event('quotaUpdate'));
+                }
+            } else {
+                setIsGenerating("failed");
+                toast.error(result.error);
+            }
+        } catch (error) {
+            devLog.error('Error generating resume:', error);
+            setIsGenerating("failed");
+        }
+    };
 
     switch (isGenerating) {
         case 'generating':
             return (
-                <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating Resume...
+                <Button variant="outline" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating
                 </Button>
             );
-
         case 'ready':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
-                    onClick={() => {
-                        console.log(job.resumeGenerated)
-                        window.open(job.resumeGenerated?.url, '_blank');
-                    }}
-                >
-                    <Download className="w-4 h-4" />
-                    <span>Download Resume</span>
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <Button variant="outline" onClick={handleViewResume} disabled={isLoading}>
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                        </>
+                    ) : (
+                        <>
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Resume
+                        </>
+                    )}
                 </Button>
             );
-
         case 'failed':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2 text-red-600"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateResume(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-                    <AlertCircle className="h-4 w-4" />
-                    Generation Failed - Retry
+                <Button variant="outline" onClick={handleGenerateResume}>
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    Retry
                 </Button>
             );
-
-
-
-
         default:
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateResume(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-                    <Sparkles className="h-4 w-4" />
+                <Button variant="outline" onClick={handleGenerateResume}>
+                    <FileText className="mr-2 h-4 w-4" />
                     Generate Resume
                 </Button>
             );
@@ -220,83 +223,85 @@ const ResumeButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (
 };
 
 const CoverLetterButton = ({ job, updateJobDetails }: { job: Job, updateJobDetails: (updatedJob: Job) => Promise<void> }) => {
-    const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(job.coverLetter?.status || "not_started");
-    const [coverLetterUrl, setCoverLetterUrl] = useState(job.coverLetter?.url);
+    const [isGenerating, setIsGenerating] = useState<"generating" | "ready" | "failed" | "not_started">(
+        job.latestGeneratedCoverLetter ? "ready" : "not_started"
+    );
+    const [isLoading, setIsLoading] = useState(false);
+    const [coverLetterId, setCoverLetterId] = useState(job.latestGeneratedCoverLetter?.id);
 
-    // if (job.coverLetter?.status === 'ready') {
-    //   setIsGenerating("ready");
-    // }
-
-    if (!job.coverLetter) {
-        return null;
+    const handleViewCoverLetter = async () => {
+        setIsLoading(true);
+        try {
+            const pdfUrl = await srv_markdownCoverLetterToPDF(coverLetterId || '');
+            window.open(pdfUrl, '_blank');
+        } catch (error) {
+            toast.error("Error loading cover letter");
+        } finally {
+            setIsLoading(false);
+        }
     }
+
+    const handleGenerateCoverLetter = async () => {
+        setIsGenerating("generating");
+        try {
+            const result = await srv_generateGPTCoverLetter(job);
+            if (result?.success) {
+                // Fetch the updated job to get the new generated cover letter
+                const updatedJob = await srv_getJob(job.id);
+                if (updatedJob) {
+                    setCoverLetterId(result.coverLetterId);
+                    await updateJobDetails(updatedJob as Job);
+                    setIsGenerating("ready");
+                    window.dispatchEvent(new Event('quotaUpdate'));
+                }
+            } else {
+                setIsGenerating("failed");
+                toast.error(result.error);
+            }
+        } catch (error) {
+            devLog.error('Error generating cover letter:', error);
+            setIsGenerating("failed");
+        }
+    };
 
     switch (isGenerating) {
         case 'generating':
             return (
-                <Button variant="outline" size="sm" disabled className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating Cover Letter...
+                <Button variant="outline" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating
                 </Button>
             );
-
         case 'ready':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="inline-flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
-                    onClick={() => {
-                        console.log(job.coverLetter);
-                        window.open(job.coverLetter?.url, '_blank');
-                    }}
-                >
-                    <Download className="w-4 h-4" />
-                    <span>Download Cover Letter</span>
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <Button variant="outline" onClick={handleViewCoverLetter} disabled={isLoading}>
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                        </>
+                    ) : (
+                        <>
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Cover Letter
+                        </>
+                    )}
                 </Button>
             );
-
         case 'failed':
             return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2 text-red-600"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateCoverLetter(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-                    <>
-                        <AlertCircle className="h-4 w-4" />
-                        Generation Failed - Retry
-                    </>
+                <Button variant="outline" onClick={handleGenerateCoverLetter}>
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    Retry
                 </Button>
             );
-
-        case 'not_started':
-            return (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={() => {
-                        setIsGenerating("generating");
-                        generateCoverLetter(job, setIsGenerating, updateJobDetails);
-                    }}
-                >
-
-                    <>
-                        <Sparkles className="h-4 w-4" />
-                        Generate Cover Letter
-                    </>
-
-                </Button>
-            );
-
         default:
-            return null;
+            return (
+                <Button variant="outline" onClick={handleGenerateCoverLetter}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generate Cover Letter
+                </Button>
+            );
     }
 };
 
@@ -322,9 +327,20 @@ const JobCard = React.forwardRef(({
     const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-    // const { toast } = useToast();
-    const [selectedCategories, setSelectedCategories] = useState<Set<HunterCategory>>(new Set());
+    const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [showQuickNote, setShowQuickNote] = useState(false);
+    const [quickNote, setQuickNote] = useState(job.notes || '');
+    const isMobile = useClientMediaQuery('(max-width: 640px)');
+    const [isConfirmStatusChangeOpen, setIsConfirmStatusChangeOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
 
     const handleStatusChange = (newStatus: string) => {
         updateJobStatus(job.id || '', newStatus as Job['status']);
@@ -334,36 +350,84 @@ const JobCard = React.forwardRef(({
     const handleSearch = async () => {
         setIsLoading(true);
         try {
-            const domain = job.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+            const domain = job.website?.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+
+            if (!domain) {
+                setIsLoading(false);
+                toast.error("Please enter a valid domain.");
+                return;
+            }
 
             // Updated API call with new parameters
-            const response = await fetch(`/api/hunter?action=domainSearch&domain=${domain}&departments=${Array.from(selectedCategories).join(',')}&limit=10`);
+            console.log(Array.from(selectedCategories));
+            const { success, data, total_results, quotaExceeded, error } = await srv_hunterDomainSearch(domain, Array.from(selectedCategories), 10, job.id);
 
-            if (!response.ok) throw new Error('Failed to fetch Hunter data');
+            if (quotaExceeded) {
+                setIsLoading(false);
+                toast.error(error);
+                return;
+            }
 
-            const hunterResult = await response.json();
+            if (!success) {
+                setIsLoading(false);
+                toast.error(data);
+                return;
+            }
 
-            // console.log(hunterResult.data.data.data);
-
-            // Update the job with the hunter data
-            const updatedJob = {
-                ...job,
-                hunterData: {
-                    ...hunterResult.data.data.data,
-                    dateUpdated: new Date().toISOString()
-                }
-            };
-
-            await updateJobDetails(updatedJob);
+            // The hunterCompanies will be updated automatically by the server
+            // We just need to refresh the job data
+            if (updateJobDetails) {
+                const updatedJob: Job = {
+                    ...job,
+                    hunterCompanies: [{
+                        id: data.data.id,
+                        jobId: job.id,
+                        userId: job.userId,
+                        domain: domain,
+                        pattern: data.data.pattern || "",
+                        name: data.data.organization || null,
+                        industry: data.data.industry || null,
+                        type: data.data.company_type || null,
+                        country: data.data.country || null,
+                        locality: data.data.city || null,
+                        employees: data.data.headcount ? parseInt(data.data.headcount.split('-')[0]) : null,
+                        linkedin: data.data.linkedin || null,
+                        twitter: data.data.twitter || null,
+                        facebook: data.data.facebook || null,
+                        metadata: data.data,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        emails: data.data.emails?.map((email: any) => ({
+                            id: `${email.value}_${Date.now()}`,
+                            companyId: data.data.id,
+                            email: email.value,
+                            firstName: email.first_name || null,
+                            lastName: email.last_name || null,
+                            position: email.position || null,
+                            seniority: email.seniority || null,
+                            department: email.department || null,
+                            linkedin: email.linkedin || null,
+                            twitter: email.twitter || null,
+                            facebook: null,
+                            confidence: email.confidence || null,
+                            metadata: email,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        })) || []
+                    }]
+                };
+                await updateJobDetails(updatedJob);
+            }
 
             toast.success("Hunter Data Updated", {
-                description: `Found ${hunterResult.data.data.data.emails?.length || 0} email patterns for ${domain}`
+                description: `Found ${data.data.emails?.length || 0} email patterns for ${domain}`
             });
 
             setIsCategoryModalOpen(false);
+            // window.dispatchEvent(new Event('quotaUpdate')); // Add this line
         } catch (error) {
-            console.error('Error fetching Hunter data:', error);
-            toast.error("Failed to fetch Hunter data. Please check the domain and try again.");
+            devLog.error('Error fetching InsightLink&trade; data:', error);
+            toast.error("Failed to fetch InsightLink data. Please check the domain and try again.");
         } finally {
             setIsLoading(false);
         }
@@ -374,20 +438,23 @@ const JobCard = React.forwardRef(({
     };
 
     const renderHunterPreview = () => {
-        if (!job.hunterData?.emails?.length) return null;
+        const hunterCompany = job.hunterCompanies?.[0];
+        if (!hunterCompany?.emails?.length) return null;
 
-        const previewEmails = job.hunterData.emails.slice(0, 2);
-        const remainingCount = Math.max(0, job.hunterData.emails.length - 2);
+        const previewEmails = hunterCompany.emails.slice(0, 2);
+        const remainingCount = Math.max(0, hunterCompany.emails.length - 2);
 
         return (
             <div className="space-y-2">
-                {previewEmails.map((email, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                        <span>{email.first_name} {email.last_name}</span>
+                {previewEmails.map((email) => (
+                    <div key={email.id} className="flex items-center justify-between text-sm">
+                        <span>{email.email}</span>
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                                {email.position}
-                            </Badge>
+                            {/* {email.position && (
+                                <Badge variant="outline" className="text-xs">
+                                    {email.position}
+                                </Badge>
+                            )} */}
                             <Badge variant="secondary" className="text-xs">
                                 {email.confidence}%
                             </Badge>
@@ -401,7 +468,7 @@ const JobCard = React.forwardRef(({
                             openJobDetails(job);
                             setIsCategoryModalOpen(true);
                         }}
-                        className="w-full text-right text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        className="w-full text-right text-sm text-blue-600 hover:underline"
                     >
                         +{remainingCount} more contacts
                     </button>
@@ -412,23 +479,13 @@ const JobCard = React.forwardRef(({
 
     const handleArchive = async () => {
         try {
-            const response = await fetch(`/api/jobs/${job.id}/archive`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    ...job,
-                    isArchived: true,
-                    dateUpdated: new Date().toISOString()
-                })
-            });
+            const response = await srv_archiveJob(job.id || '');
 
-            if (!response.ok) throw new Error('Failed to archive job');
+            if (!response.success) throw new Error('Failed to archive job');
 
             // Call the parent's updateJobDetails to refresh the UI
-            const updatedJob = await response.json();
-            updateJobDetails(updatedJob);
+            const updatedJob = response.data;
+            updateJobDetails(updatedJob as Job);
 
             toast.success("Job Archived", {
                 description: "The job has been successfully archived"
@@ -438,10 +495,6 @@ const JobCard = React.forwardRef(({
             toast.error("Failed to archive the job. Please try again.");
         }
     };
-
-    // Add new state for quick notes
-    const [showQuickNote, setShowQuickNote] = useState(false);
-    const [quickNote, setQuickNote] = useState(job.notes || '');
 
     const handleQuickNoteSubmit = () => {
         if (quickNote.trim()) {
@@ -456,72 +509,69 @@ const JobCard = React.forwardRef(({
         }
     };
 
-    // Replace useMediaQuery with useClientMediaQuery
-    const isMobile = useClientMediaQuery('(max-width: 640px)');
-
-    const [isConfirmStatusChangeOpen, setIsConfirmStatusChangeOpen] = useState(false);
-
-    // Add useEffect to prevent hydration mismatch
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // Return null during SSR or before mounting
-    if (!mounted) return null;
 
     if (isMobile) {
         return (
-            <Card className="w-full">
+            <Card className="w-full hover:shadow-lg transition-shadow duration-300 ">
                 <CardContent className="p-4">
                     <div className="flex justify-between items-start">
-                        <div>
-                            {role === 'admin' && (
-                                <code>{job.id}</code>
-                            )}
-                            <h3 className="font-semibold text-lg">{job.company}</h3>
+                        <div className="w-full">
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-semibold text-lg">{job.company}</h3>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 cursor-default">
+                                                {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
+                                            </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            No AI Rating
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <p className="text-sm text-gray-600">{job.position}</p>
-                                <Badge variant="outline" className="text-xs">
-                                    {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                                </Badge>
+
                             </div>
 
                         </div>
 
                     </div>
 
-                    <div className="mt-4 flex flex-col gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                            onClick={() => openJobDetails(job)}
-                        >
-                            <Pencil className="w-4 h-4" />
-                            Details
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                            onClick={() => setShowQuickNote(!showQuickNote)}
-                        >
-                            <FileText className="w-4 h-4" />
-                            Quick Note
-                        </Button>
+                    <div className="mt-4">
+                        <div className="flex gap-2 mb-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1 w-full"
+                                onClick={() => openJobDetails(job)}
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Details
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1 w-full"
+                                onClick={() => setShowQuickNote(!showQuickNote)}
+                            >
+                                <FileText className="w-4 h-4" />
+                                Quick Note
+                            </Button>
+                        </div>
                         <Select
                             value={job.status}
                             onValueChange={(value) => updateJobStatus(job.id || '', value as Job['status'])}
-
                         >
                             <SelectTrigger className={`w-fill ${getStatusColor(job.status)}`}>
-                                <SelectValue>{job.status}</SelectValue>
+                                <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {jobStatuses.map((status) => (
                                     <SelectItem key={status} value={status}>
-                                        {status}
+                                        {jobStatusToLabel(status)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -556,7 +606,7 @@ const JobCard = React.forwardRef(({
                     )}
 
                     <div className="mt-4 text-xs text-gray-500">
-                        Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PP') : 'N/A'}
+                        Last updated: {job.updatedAt ? format(new Date(job.updatedAt), 'PP') : 'N/A'}
                     </div>
                 </CardContent>
             </Card>
@@ -574,73 +624,228 @@ const JobCard = React.forwardRef(({
                 {role === 'admin' && (
                     <code className="text-xs">Job ID: {job.id}</code>
                 )}
-                <CardTitle className="flex justify-between items-center">
+                {layoutMode === 'list' && (
+                    <CardTitle className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            {job.company && (
+                                <ImageWithFallback
+                                    src={`https://logo.clearbit.com/${job.website}`}
+                                    alt={job.company}
+                                    width={32}
+                                    height={32}
+                                    className="rounded-md"
+                                    fallbackSrc={`https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${job.website}&size=200`}
+                                />
+                            )}
+                            <span className="text-2xl">{job.company}</span>
+                        </div>
 
-                    <span className="text-2xl">{job.company}</span>
-                    <div className="flex items-center gap-2">
-                        <Select
-                            open={isStatusSelectOpen}
-                            onOpenChange={setIsStatusSelectOpen}
-                            value={job.status}
-                            onValueChange={handleStatusChange}
-                        >
-                            <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
-                                <SelectValue>{job.status}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {jobStatuses.map((status) => (
-                                    <SelectItem key={status} value={status}>
-                                        {status}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <TooltipProvider>
-                            <AlertDialog>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <AlertDialogTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                        <div className="flex items-center gap-2">
+                            {job.aiRating ? (
+                                <Badge
+                                    variant="outline"
+                                    className={`text-sm h-9 ${
+                                        job.aiRating >= 80
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : job.aiRating >= 60
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    }`}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {`${job.aiRating}% Match`}
+                                </Badge>
+                            ) : (
+                                <Badge
+                                    variant="outline"
+                                    className="text-sm h-9 cursor-pointer hover:bg-muted"
+                                    onClick={() => openJobDetails(job)}
+                                    onMouseEnter={() => setIsHovered(true)}
+                                    onMouseLeave={() => setIsHovered(false)}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {isHovered ? 'Generate Rating' : 'No AI Rating'}
+                                </Badge>
+                            )}
+                            <Select
+                                open={isStatusSelectOpen}
+                                onOpenChange={setIsStatusSelectOpen}
+                                value={job.status}
+                                onValueChange={handleStatusChange}
+                            >
+                                <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
+                                    <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {jobStatuses.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {jobStatusToLabel(status)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <TooltipProvider>
+                                <AlertDialog>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                >
+                                                    <Archive className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Archive Job</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Archive Job</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to archive this job application for {job.company}?
+                                                This will remove it from your active applications list.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                                                Cancel
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchive();
+                                                    window.dispatchEvent(new Event('quotaUpdate')); // Add this line
+                                                }}
+                                                className="bg-red-600 hover:bg-red-700 text-white"
                                             >
-                                                <Archive className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Archive Job</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Archive Job</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Are you sure you want to archive this job application for {job.company}?
-                                            This will remove it from your active applications list.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
-                                            Cancel
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleArchive();
-                                            }}
-                                            className="bg-red-600 hover:bg-red-700 text-white"
-                                        >
-                                            Archive
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </TooltipProvider>
+                                                Archive
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TooltipProvider>
 
-                    </div>
-                </CardTitle>
+                        </div>
+                    </CardTitle>
+                )}
+                {layoutMode === 'masonry' && (
+                    <CardTitle className="">
+
+                        <div className="flex items-center gap-2 mb-2">
+
+                            {job.aiRating && (
+                                <Badge
+                                    variant="outline"
+                                    className={`text-sm h-9 ${
+                                        job.aiRating >= 80
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                            : job.aiRating >= 60
+                                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    }`}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {`${job.aiRating}% Match`}
+                                </Badge>
+                            )}
+                            {job.aiRating === null && (
+                                <Badge
+                                    variant="outline"
+                                    className="text-sm h-9 cursor-pointer hover:bg-muted"
+                                    onClick={() => openJobDetails(job)}
+                                    onMouseEnter={() => setIsHovered(true)}
+                                    onMouseLeave={() => setIsHovered(false)}
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {isHovered ? 'Open Details' : 'No AI Rating'}
+                                </Badge>
+                            )}
+                            <Select
+                                open={isStatusSelectOpen}
+                                onOpenChange={setIsStatusSelectOpen}
+                                value={job.status}
+                                onValueChange={handleStatusChange}
+                            >
+                                <SelectTrigger className={`w-[140px] ${getStatusColor(job.status)}`}>
+                                    <SelectValue>{jobStatusToLabel(job.status)}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {jobStatuses.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {jobStatusToLabel(status)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <TooltipProvider>
+                                <AlertDialog>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                >
+                                                    <Archive className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Archive Job</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Archive Job</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to archive this job application for {job.company}?
+                                                This will remove it from your active applications list.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                                                Cancel
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchive();
+                                                    window.dispatchEvent(new Event('quotaUpdate')); // Add this line
+                                                }}
+                                                className="bg-red-600 hover:bg-red-700 text-white"
+                                            >
+                                                Archive
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TooltipProvider>
+
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {job.company && (
+                                <Image
+                                    src={`https://logo.clearbit.com/${job.website}`}
+                                    alt={job.company}
+                                    width={32}
+                                    height={32}
+                                    className="rounded-md"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            )}
+                            <span className="text-2xl">{job.company}</span>
+                        </div>
+                    </CardTitle>
+                )}
+
             </CardHeader>
             <CardContent>
                 <div className={layoutMode === 'list' ? 'flex' : ''}>
@@ -649,23 +854,9 @@ const JobCard = React.forwardRef(({
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-xl font-semibold">{job.position}</h3>
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-sm ${job.aiRating
-                                            ? job.aiRating >= 80
-                                                ? 'bg-green-100 text-green-800'
-                                                : job.aiRating >= 60
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-red-100 text-red-800'
-                                            : ''
-                                            }`}
-                                    >
-                                        <Sparkles className="w-4 h-4 mr-1" />
-                                        {job.aiRating ? `${job.aiRating}% Match` : 'No AI Rating'}
-                                    </Badge>
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                    Last updated: {job.dateUpdated ? format(new Date(job.dateUpdated), 'PPP') : 'Not available'}
+                                    Last updated: {job.updatedAt ? format(new Date(job.updatedAt), 'PPP') : 'Not available'}
                                 </p>
                             </div>
                             <div className="flex items-center space-x-2 mt-2 md:mt-0">
@@ -708,28 +899,28 @@ const JobCard = React.forwardRef(({
                                 <Dialog open={isConfirmStatusChangeOpen} onOpenChange={setIsConfirmStatusChangeOpen}>
                                     <DialogTrigger asChild>
                                         <Button size="sm" className="flex-1">
-                                            {job.status === 'Yet to Apply' && 'Mark Applied'}
-                                            {job.status === 'Applied' && 'Got a phone follow up?'}
-                                            {job.status === 'Phone Screen' && 'Start Interview'}
-                                            {job.status === 'Interview' && 'Got Offer'}
-                                            {job.status === 'Offer' && 'Finalize'}
-                                            {job.status === 'Rejected' && 'Archive'}
-                                            {job.status === 'Accepted' && 'Archive'}
-                                            {job.status === 'Archived' && 'Restore'}
+                                            {job.status === JobStatus.YET_TO_APPLY && 'Mark Applied'}
+                                            {job.status === JobStatus.APPLIED && 'Got a phone follow up?'}
+                                            {job.status === JobStatus.PHONE_SCREEN && 'Start Interview'}
+                                            {job.status === JobStatus.INTERVIEW && 'Got Offer'}
+                                            {job.status === JobStatus.OFFER && 'Finalize'}
+                                            {job.status === JobStatus.REJECTED && 'Archive'}
+                                            {job.status === JobStatus.ACCEPTED && 'Archive'}
+                                            {job.status === JobStatus.ARCHIVED && 'Restore'}
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
                                             <DialogTitle>Update Status</DialogTitle>
                                             <DialogDescription>
-                                                {job.status === 'Yet to Apply' && 'Mark this application as submitted?'}
-                                                {job.status === 'Applied' && 'Moving to phone screening phase?'}
-                                                {job.status === 'Phone Screen' && 'Moving to interview phase?'}
-                                                {job.status === 'Interview' && 'Received job offer?'}
-                                                {job.status === 'Offer' && 'Ready to mark as accepted/rejected?'}
-                                                {job.status === 'Rejected' && 'Archive this application?'}
-                                                {job.status === 'Accepted' && 'Archive this application?'}
-                                                {job.status === 'Archived' && 'Restore this application?'}
+                                                {job.status === JobStatus.YET_TO_APPLY && 'Mark this application as submitted?'}
+                                                {job.status === JobStatus.APPLIED && 'Moving to phone screening phase?'}
+                                                {job.status === JobStatus.PHONE_SCREEN && 'Moving to interview phase?'}
+                                                {job.status === JobStatus.INTERVIEW && 'Received job offer?'}
+                                                {job.status === JobStatus.OFFER && 'Ready to mark as accepted/rejected?'}
+                                                {job.status === JobStatus.REJECTED && 'Archive this application?'}
+                                                {job.status === JobStatus.ACCEPTED && 'Archive this application?'}
+                                                {job.status === JobStatus.ARCHIVED && 'Restore this application?'}
                                             </DialogDescription>
                                         </DialogHeader>
                                         <DialogFooter>
@@ -741,6 +932,7 @@ const JobCard = React.forwardRef(({
                                                     const currentStatusIndex = jobStatuses.indexOf(job.status);
                                                     const nextStatusIndex = (currentStatusIndex + 1) % jobStatuses.length;
                                                     updateJobStatus(job.id || '', jobStatuses[nextStatusIndex] as Job['status']);
+                                                    window.dispatchEvent(new Event('quotaUpdate')); // Add this line
                                                     // Close modal logic
                                                     setIsConfirmStatusChangeOpen(false);
                                                 }}
@@ -767,10 +959,10 @@ const JobCard = React.forwardRef(({
                         <div className="w-[30%] pl-4 border-l" id="hunter-section">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center">
-                                    <Image src={hunterLogo} alt={job.company} className="w-[100px] h-auto" />
+                                    <span className="text-lg font-bold bg-clip-text bg-gradient-to-r from-[#ff7a00] to-[#ff3399] text-transparent">InsightLink&trade;</span>
                                 </div>
                                 <div className="flex items-center">
-                                    {!job.hunterData?.emails?.length && (
+                                    {!job.hunterCompanies?.[0]?.emails?.length && (
                                         <>
                                             <Button
                                                 variant="outline"
@@ -859,19 +1051,19 @@ const JobCard = React.forwardRef(({
                                 </div>
                             </div>
 
-                            {job.hunterData?.emails?.length ? (
+                            {job.hunterCompanies?.[0]?.emails?.length ? (
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h4 className="font-semibold">Email Pattern</h4>
                                         <Badge variant="secondary" className="text-xs">
-                                            {job.hunterData.pattern}
+                                            {job.hunterCompanies?.[0]?.pattern}
                                         </Badge>
                                     </div>
                                     {renderHunterPreview()}
                                 </div>
                             ) : (
                                 <div className="text-center text-gray-500 py-4">
-                                    <p className="text-sm">No Hunter data available</p>
+                                    <p className="text-sm">No InsightLink&trade; data available</p>
                                     <p className="text-xs mt-1">Click search to find email patterns</p>
                                 </div>
                             )}

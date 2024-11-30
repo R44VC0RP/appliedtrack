@@ -21,7 +21,7 @@ interface Campaign {
   description?: string;
   visits: number;
   signups: number;
-  dateCreated: string;
+  createdAt: string;
   isActive: boolean;
 }
 
@@ -174,7 +174,7 @@ export function CampaignManagement() {
                 <TableCell>{campaign.ref}</TableCell>
                 <TableCell>{campaign.visits}</TableCell>
                 <TableCell>{campaign.signups}</TableCell>
-                <TableCell>{new Date(campaign.dateCreated).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(campaign.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button

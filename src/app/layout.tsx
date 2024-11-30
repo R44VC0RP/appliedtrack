@@ -1,14 +1,52 @@
-import { ClerkProvider } from '@clerk/nextjs'
+import { ClerkThemeProvider } from '@/components/providers/clerk-theme-provider'
 import './globals.css'
+import { CSPostHogProvider } from './providers'
 import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
+
+const ApfelGrotezk = localFont({
+  src: [
+    {
+      path: 'fonts/Apfel/ApfelGrotezk-Regular.woff',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: 'fonts/Apfel/ApfelGrotezk-Mittel.woff',
+      weight: '700',
+      style: 'medium',
+    },
+    {
+      path: 'fonts/Apfel/ApfelGrotezk-Satt.woff',
+      weight: '900',
+      style: 'bold',
+    }
+  ],
+  variable: '--font-apfel-grotezk',
+})
+
+// Add alternative fonts for testing
+const interFont = Inter({ subsets: ['latin'] })
+
+// Font selection logic
+const getFontClass = () => {
+  const fontSelection = 'apfel'
+
+  switch (fontSelection.toLowerCase()) {
+    case 'apfel':
+      return ApfelGrotezk.className
+    case 'inter':
+    default:
+      return interFont.className
+  }
+}
+
 import type { Metadata } from 'next'
 
 import { ThemeProvider } from "@/components/theme-provider"
 import Script from 'next/script'
 import { siteConfig } from '@/config/metadata'
 import { Toaster } from "@/components/ui/sonner"
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -20,7 +58,6 @@ export const metadata: Metadata = {
   keywords: siteConfig.keywords,
   authors: siteConfig.authors,
   creator: siteConfig.creator,
-  themeColor: siteConfig.themeColor,
   icons: siteConfig.icons,
   manifest: siteConfig.manifest,
   openGraph: {
@@ -30,52 +67,55 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
     siteName: siteConfig.name,
+    images: [{
+      url: siteConfig.ogImage,
+      width: 1200,
+      height: 630,
+      alt: siteConfig.name
+    }]
   },
   twitter: {
     card: 'summary_large_image',
     title: siteConfig.name,
     description: siteConfig.description,
     images: [siteConfig.ogImage],
-    creator: '@appliedtrack',
-  },
+    creator: '@' + siteConfig.creator.replace(/\s+/g, '').toLowerCase()
+  }
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      const { default: dbConnect } = await import('@/lib/mongodb')
-      await dbConnect()
-    } catch (error) {
-      console.warn('MongoDB connection failed during build:', error)
-    }
-  }
+  const fontClass = getFontClass()
 
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <CSPostHogProvider>
         <head>
+          <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+          <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
           <Script
             src="https://analytics.raavai.com/script.js"
             data-website-id="063b39c4-dbaf-4efa-8a86-7a481ba06483"
             strategy="lazyOnload"
           />
         </head>
-        <body className={inter.className} suppressHydrationWarning>
-          <ThemeProvider 
-            attribute="class" 
-            defaultTheme="system" 
-            enableSystem 
+        <body className={`${fontClass} dark:bg-gray-950 text-base antialiased`} suppressHydrationWarning>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Toaster />
+            <ClerkThemeProvider>
+              {children}
+              <Toaster />
+            </ClerkThemeProvider>
           </ThemeProvider>
         </body>
-      </html>
-    </ClerkProvider>
+      </CSPostHogProvider>
+    </html>
   )
 }
