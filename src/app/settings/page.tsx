@@ -32,10 +32,12 @@ import {
   srv_removeResume,
   srv_createCustomerPortal,
   srv_getConfigTiers,
-  srv_createStripeCheckout
+  srv_createStripeCheckout,
+  srv_upgradeFromProToPower
 } from "@/app/actions/server/settings/primary";
 import { PDFViewerModal } from "@/components/pdf-viewer-modal";
 import { Suspense } from "react";
+import { AlertDialog, AlertDialogTitle, AlertDialogContent, AlertDialogHeader, AlertDialogTrigger, AlertDialogDescription, AlertDialogAction, AlertDialogCancel, AlertDialogFooter } from "@/components/ui/alert-dialog";
 
 type UserDetails = {
   id: string;
@@ -113,6 +115,7 @@ function SettingsTabs() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [quotaNotifications, setQuotaNotifications] = useState<QuotaNotification[]>([]);
   const [selectedResume, setSelectedResume] = useState<{ url: string; name: string } | null>(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   
   // Simplified fetch functions using server actions
   const fetchAllData = useCallback(async () => {
@@ -666,18 +669,42 @@ function SettingsTabs() {
                       </>
                     )}
                     {userDetails?.tier === 'pro' && (
-                      <Button
-                        onClick={async () => {
-                          try {
-                            const { url } = await srv_createStripeCheckout('power');
-                            if (url) window.location.href = url;
-                          } catch (error) {
-                            toast.error("Failed to start checkout");
-                          }
-                        }}
-                      >
-                        Upgrade to Power
-                      </Button>
+                      <>
+                        {isUpgrading && (
+                          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                            <div className="text-center space-y-4">
+                              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                              <p className="text-lg font-medium">Upgrading your subscription...</p>
+                            </div>
+                          </div>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button>Upgrade to Power</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Upgrade to Power</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                You are about to upgrade to the Power tier. This will immediately incur a charge on your account.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => {
+                                try {
+                                  setIsUpgrading(true);
+                                  await srv_upgradeFromProToPower();
+                                  router.push('/settings?tab=subscription&success=true&tier=power', { scroll: false });
+                                } catch (error) {
+                                  setIsUpgrading(false);
+                                  toast.error("Failed to upgrade subscription");
+                                }
+                              }}>Upgrade</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
                     )}
                     {userDetails?.stripeCustomerId && (
                       <Button

@@ -315,6 +315,10 @@ const QuotaIndicator = ({ quota: initialQuota, tier, initialConfig }: QuotaIndic
               </div>
             ))}
           </div>
+          
+          <span className="block w-full text-sm text-center text-muted-foreground hover:text-primary transition-colors">
+            Your quota will reset on {new Date(quota.quotaResetDate).toLocaleDateString()}
+          </span>
           <Link
             href="/settings?tab=subscription"
             className="block w-full text-xs text-center text-muted-foreground hover:text-primary transition-colors"

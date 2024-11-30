@@ -94,16 +94,6 @@ const nextConfig = {
     },
 };
 
-// Configure Million.js
-const millionConfig = {
-    // auto: true, // Enable auto-optimization
-    // You can add specific rules for components that should or shouldn't be optimized
-    rules: [
-        {
-            // Optimize all components under the app directory
-            pattern: 'app/**/*.{js,jsx,ts,tsx}',
-        },
-    ],
-};
+
 
 export default nextConfig

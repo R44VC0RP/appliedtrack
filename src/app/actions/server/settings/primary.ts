@@ -290,6 +290,78 @@ export async function srv_removeResume(resumeId: string) {
   }
 }
 
+export async function srv_upgradeFromProToPower() {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      throw new Error('Unauthorized');
+    }
+
+    // Get user from database
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        stripeCustomerId: true,
+        subscriptionId: true,
+        tier: true,
+      },
+    });
+
+    if (!dbUser?.stripeCustomerId) {
+      throw new Error('No Stripe customer found');
+    }
+
+    if (!dbUser.subscriptionId) {
+      // If no subscription exists, redirect to checkout
+      const { url } = await srv_createStripeCheckout('power');
+      return { url };
+    }
+
+    // Get the subscription from Stripe
+    const subscription = await stripe.subscriptions.retrieve(dbUser.subscriptionId);
+    
+    // Get the current subscription item ID
+    const subscriptionItemId = subscription.items.data[0].id;
+
+    // Update the subscription with the new price
+    const updatedSubscription = await stripe.subscriptions.update(
+      dbUser.subscriptionId,
+      {
+        items: [{
+          id: subscriptionItemId,
+          price: process.env.STRIPE_POWER_PRICE_ID!,
+        }],
+        proration_behavior: 'always_invoice', // This will create an invoice for immediate payment
+        payment_behavior: 'error_if_incomplete', // This will error if payment fails
+      }
+    );
+
+    // Update user in database
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        tier: 'power',
+        updatedAt: new Date(),
+      },
+    });
+
+    await Logger.info('Subscription upgraded', {
+      userId: user.id,
+      fromTier: dbUser.tier,
+      toTier: 'power',
+      subscriptionId: dbUser.subscriptionId,
+    });
+
+  } catch (error) {
+    await Logger.error('Failed to upgrade subscription', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      tier: 'power',
+    });
+
+    throw error;
+  }
+}
+
 export async function srv_createStripeCheckout(tier: Exclude<UserTier, 'free'>) {
   try {
     const user = await currentUser();

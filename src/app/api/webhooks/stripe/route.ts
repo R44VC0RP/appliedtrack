@@ -3,7 +3,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { Logger } from '@/lib/logger';
-import { resetQuota, createInitialQuota } from '@/lib/useQuota';
 import { prisma } from '@/lib/prisma';
 import { UserTier } from '@/types/subscription';
 import { srv_handleSubscriptionChange } from '@/app/actions/server/settings/primary';
@@ -14,117 +13,6 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 // Maximum number of retry attempts for webhook processing
 const MAX_RETRY_ATTEMPTS = 3;
-
-// Helper function to update user subscription status
-async function updateUserSubscription(
-  stripeCustomerId: string,
-  updates: {
-    tier?: UserTier;
-    subscriptionId?: string | null;
-    subscriptionStatus?: string;
-    cancelAtPeriodEnd?: boolean;
-    currentPeriodEnd?: Date;
-  }
-) {
-  try {
-    const user = await prisma.user.update({
-      where: { stripeCustomerId: stripeCustomerId },
-      data: {
-        ...updates,
-        updatedAt: new Date()
-      },
-      include: {
-        userQuota: true
-      }
-    });
-
-    if (user && updates.currentPeriodEnd && updates.tier) {
-      if (user.userQuota) {
-        await resetQuota({ 
-          userId: user.id, 
-          tier: updates.tier, 
-          resetDate: updates.currentPeriodEnd 
-        });
-      } else {
-        await createInitialQuota(user.id, updates.currentPeriodEnd);
-      }
-
-      await Logger.info('User quota reset for new billing period', {
-        userId: user.id,
-        newResetDate: updates.currentPeriodEnd,
-        tier: updates.tier
-      });
-    }
-
-    await Logger.info('User subscription updated', {
-      stripeCustomerId,
-      updates,
-      success: true
-    });
-
-    return user;
-  } catch (error) {
-    await Logger.error('Error updating user subscription', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stripeCustomerId
-    });
-    throw error;
-  }
-}
-
-// Helper function to handle subscription cancellation
-async function handleSubscriptionCancellation(
-  stripeCustomerId: string,
-  immediateReset: boolean = false
-) {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { stripeCustomerId },
-      include: {
-        userQuota: true
-      }
-    });
-
-    if (!user) {
-      await Logger.warning('User not found for subscription cancellation', {
-        stripeCustomerId
-      });
-      return;
-    }
-
-    // If immediate cancellation or subscription expired, reset quota and update user tier
-    if (immediateReset) {
-      // Update user to free tier
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          tier: 'free',
-          updatedAt: new Date()
-        }
-      });
-
-      // Reset quota
-      if (user.userQuota) {
-        await resetQuota({ 
-          userId: user.id, 
-          tier: 'free', 
-          resetDate: new Date(new Date().setDate(new Date().getDate() + 30)) 
-        });
-        await Logger.info('User quota reset to free tier', {
-          userId: user.id,
-          oldTier: user.tier,
-          newTier: 'free'
-        });
-      }
-    }
-  } catch (error) {
-    await Logger.error('Failed to handle subscription cancellation', {
-      stripeCustomerId,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    throw error;
-  }
-}
 
 // Helper function to process webhook with idempotency
 async function processWebhookEvent(event: Stripe.Event) {

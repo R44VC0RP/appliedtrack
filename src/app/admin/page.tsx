@@ -125,7 +125,7 @@ export default function AdminDashboard() {
     }, [activeComponent])
 
     return (
-        <AdminOnly>
+        <AdminOnly fallback={<div>You are not authorized to access this page.</div>}>
             <SidebarProvider>
                 {/* <div className="grid grid-cols-[auto,1fr] h-screen"> */}
                 <div className="flex h-screen w-full">

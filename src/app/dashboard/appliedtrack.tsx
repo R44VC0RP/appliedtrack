@@ -673,7 +673,7 @@ export function AppliedTrack({ initJobs, initResumes, onboardingComplete, role, 
         <SignedOutCallback />
       </SignedOut>
       <div className="container mx-auto p-4 dark:bg-gray-950">
-      <SubscriptionStatus user={user as CompleteUserProfile} />
+      {/* <SubscriptionStatus user={user as CompleteUserProfile} /> */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 mt-4">
           <div className="relative w-full sm:w-64">
             <Input

@@ -82,13 +82,13 @@ export async function srv_getHeaderData(userId: string): Promise<HeaderData> {
     });
 
     // Validate and update subscription status only when necessary
-    if (user.subscriptionId && await shouldCheckSubscription(user)) {
+    if (user.subscriptionId) {
         try {
             // Fetch the latest subscription status from Stripe
             const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
             const now = new Date();
             const stripePeriodEnd = new Date(subscription.current_period_end * 1000);
-
+            console.log(`User ${userId} subscription status: ${subscription.status}`)
             // Update user's subscription details if they've changed
             if (subscription.status !== user.subscriptionStatus || 
                 stripePeriodEnd.getTime() !== new Date(user.currentPeriodEnd!).getTime() ||
