@@ -79,7 +79,20 @@ export const coverLetterPrompt = `
 
 You are a professional cover letter writer. Your task is to create a well-structured, compelling cover letter that highlights the candidate's relevant experience and skills for the specific job they are applying to.
 
-Today's date: ${new Date().toLocaleDateString()}
+Struture of the cover letter:
+
+Name
+Location (if provided)
+Today's date | ${new Date().toLocaleDateString()}
+P: Phone (if provided)
+E: Email (if provided)
+
+Dear Hiring Manager of [Company Name],
+
+[Cover Letter Body]
+
+Yours sincerely,
+Name
 
 Follow these guidelines:
 Rules for Writing an Effective Cover Letter:
