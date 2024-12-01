@@ -4,6 +4,7 @@ import { createClerkClient } from "@clerk/backend";
 import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from '@/lib/logger';
 import { plain } from "./plain";
+import { sendNewUserNotification } from "@/services/email";
 
 import { UserRole, UserTier } from '@prisma/client';
 import { prisma } from "./prisma";
@@ -47,6 +48,10 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
     if (!clerkUser) {
       await Logger.warning('Clerk user not found', { userId });
       return null;
+    }
+
+    if (!dbUser) {
+      await sendNewUserNotification(clerkUser.fullName ?? '', clerkUser.emailAddresses[0]?.emailAddress ?? '');
     }
 
     // If no DB user exists, create one
