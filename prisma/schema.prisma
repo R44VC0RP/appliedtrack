@@ -9,6 +9,7 @@ datasource db {
 
 model User {
   id                 String          @id @default(uuid())
+  userType           String          @default("prod")
   tier               UserTier        @default(free)
   role               UserRole        @default(user)
   about              String?         @db.Text

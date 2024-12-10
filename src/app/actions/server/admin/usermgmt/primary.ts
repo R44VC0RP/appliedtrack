@@ -34,14 +34,21 @@ export async function srv_getUsers(adminUserId: string) {
     }
 
     const tenantUsers = await clerkClient.users.getUserList({
-      limit: 1000,
+      limit: 500,
     });
 
-    
+
 
     const combinedUsers: (CompleteUserProfile | null)[] = await Promise.all(
       tenantUsers.data.map(async (user) => {
-        return await srv_getCompleteUserProfile(user.id);
+        if (process.env.NODE_ENV === 'development') {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { userType: "dev" }
+          });
+        }
+        const userData = await srv_getCompleteUserProfile(user.id);
+        return userData;
       })
     );
 
