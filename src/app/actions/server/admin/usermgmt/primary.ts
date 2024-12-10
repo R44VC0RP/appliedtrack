@@ -33,7 +33,11 @@ export async function srv_getUsers(adminUserId: string) {
       throw new Error("Forbidden");
     }
 
-    const tenantUsers = await clerkClient.users.getUserList();
+    const tenantUsers = await clerkClient.users.getUserList({
+      limit: 1000,
+    });
+
+    
 
     const combinedUsers: (CompleteUserProfile | null)[] = await Promise.all(
       tenantUsers.data.map(async (user) => {

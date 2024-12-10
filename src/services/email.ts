@@ -36,7 +36,7 @@ export async function sendAdminNotification(userEmail: string, totalUsers: numbe
 
     const data = await resend.emails.send({
       from: 'AppliedTrack <notifications@appliedtrack.com>',
-      to: 'raavtube@icloud.com',
+      to: 'ryan@appliedtrack.com',
       subject: 'New AppliedTrack Waitlist Signup!',
       html: html,
     });
@@ -71,7 +71,7 @@ export async function sendNewUserNotification(fullName: string, email: string) {
 
     const adminEmailResult = await resend.emails.send({
       from: 'AppliedTrack <notifications@appliedtrack.com>',
-      to: 'raavtube@icloud.com',
+      to: 'ryan@appliedtrack.com',
       subject: 'New AppliedTrack User Registration!',
       html: adminHtml,
     });
