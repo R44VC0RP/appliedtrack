@@ -1,6 +1,7 @@
 'use server';
 
 import { createClerkClient } from "@clerk/backend";
+import { Resend } from "resend";
 import { currentUser } from "@clerk/nextjs/server";
 import { Logger } from '@/lib/logger';
 import { plain } from "./plain";
@@ -64,6 +65,17 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
         about: ''
       }
     });
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    resend.contacts.create({
+      email: clerkUser.emailAddresses[0]?.emailAddress ?? '',
+      firstName: clerkUser.firstName ?? '',
+      lastName: clerkUser.lastName ?? '',
+      unsubscribed: false,
+      audienceId: '47355d2e-7e01-4491-a3f9-a44fa860d2b3',
+    });
+    
 
     return plain({
       // Clerk data
