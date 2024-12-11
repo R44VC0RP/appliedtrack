@@ -66,7 +66,7 @@ export async function srv_getCompleteUserProfile(userId: string): Promise<Comple
       }
     });
 
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(process.env.RESEND_CONTACT_API_KEY);
 
     resend.contacts.create({
       email: clerkUser.emailAddresses[0]?.emailAddress ?? '',
